@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.3.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.3.2)" variant="fatal" version="8.3.2">
+
+    <issue
+        id="UniquePermission"
+        message="Permission name `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is not unique (appears in both `cx.xp.test.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` and `com.example.msphone.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`)">
+        <location
+            file="src/main/AndroidManifest.xml"/>
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="23"
+            column="23"
+            message="Previous permission here"/>
+    </issue>
+
+</issues>

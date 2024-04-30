@@ -1,0 +1,70 @@
+plugins {
+    alias(libs.plugins.androidApplication)
+}
+
+
+android {
+    namespace 'com.example.msphone'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.example.msphone"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
+//    signingConfigs {
+//        release {
+//            storeFile "androidas.keystore"
+//            storePassword 'snwo!3r3!*)2'
+//            keyAlias 'xxkjTechnology'
+//            keyPassword 'snwo!3r3!*)2'
+//        }
+//    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // 启用代码压缩、优化及混淆
+            minifyEnabled true
+            // 启用资源压缩，需配合 minifyEnabled=true 使用
+            shrinkResources true
+            // 包签名
+//            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+
+    implementation 'com.google.android.exoplayer:exoplayer-core:2.19.1'
+//    implementation 'com.android.tools.build:gradle:8.4.0'
+    // define a BOM and its version
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
+
+    // define any required OkHttp artifacts without version
+    implementation("com.squareup.okhttp3:okhttp")
+    implementation("com.squareup.okhttp3:logging-interceptor")
+    implementation "com.google.code.gson:gson:2.10.1"
+// https://mvnrepository.com/artifact/commons-codec/commons-codec
+    implementation "commons-codec:commons-codec:1.16.1"
+    implementation libs.appcompat
+    implementation libs.material
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    implementation "androidx.activity:activity:1.2.0"
+    compileOnly 'de.robv.android.xposed:api:82'
+    compileOnly 'de.robv.android.xposed:api:82:sources'
+    compileOnly files('libs\\XposedBridgeApi-82.jar')
+    implementation 'com.github.z244370114:DeviceLibray:1.0.4'
+    androidTestImplementation libs.espresso.core
+}

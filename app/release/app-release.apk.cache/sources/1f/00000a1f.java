@@ -1,0 +1,28 @@
+package x;
+
+import android.app.AppOpsManager;
+import android.content.Context;
+import androidx.annotation.DoNotInline;
+
+/* loaded from: classes.dex */
+public abstract class h {
+    @DoNotInline
+    public static <T> T a(Context context, Class<T> cls) {
+        return (T) context.getSystemService(cls);
+    }
+
+    @DoNotInline
+    public static int b(AppOpsManager appOpsManager, String str, String str2) {
+        return appOpsManager.noteProxyOp(str, str2);
+    }
+
+    @DoNotInline
+    public static int c(AppOpsManager appOpsManager, String str, String str2) {
+        return appOpsManager.noteProxyOpNoThrow(str, str2);
+    }
+
+    @DoNotInline
+    public static String d(String str) {
+        return AppOpsManager.permissionToOp(str);
+    }
+}
