@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 
@@ -88,10 +89,14 @@ public class xp implements IXposedHookLoadPackage {
             SharedPreferences prefs = xp.this.getSharedPreferences(context);
             xp.this.currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
             XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "onCreate", new Object[]{Bundle.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.1
-                protected void afterHookedMethod(XC_MethodHook.MethodHookParam param2) {
+                protected void afterHookedMethod(MethodHookParam param2) {
                     Activity activity = (Activity) param2.thisObject;
                     IntentFilter filter = new IntentFilter(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
-                    activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter,Context.RECEIVER_EXPORTED);
+                    }else{
+                        activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter);
+                    }
                 }
             }});
             XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "dispatchKeyEvent", new Object[]{KeyEvent.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.2
@@ -122,10 +127,14 @@ public class xp implements IXposedHookLoadPackage {
                         SharedPreferences prefs = xp.this.getSharedPreferences(context);
                         xp.this.currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
                         XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "onCreate", new Object[]{Bundle.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.1
-                            protected void afterHookedMethod(XC_MethodHook.MethodHookParam param2) {
+                            protected void afterHookedMethod(MethodHookParam param2) {
                                 Activity activity = (Activity) param2.thisObject;
                                 IntentFilter filter = new IntentFilter(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
-                                activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter);
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter,Context.RECEIVER_EXPORTED);
+                                }else{
+                                    activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter);
+                                }
                             }
                         }});
                         XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "dispatchKeyEvent", new Object[]{KeyEvent.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.2

@@ -77,7 +77,12 @@ public class FloatingWindowService extends Service {
             }
         };
         this.mToggleFloatingWindowReceiver = broadcastReceiver;
-        registerReceiver(broadcastReceiver, new IntentFilter("TOGGLE_FLOATING_WINDOW"));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            registerReceiver(broadcastReceiver, new IntentFilter("TOGGLE_FLOATING_WINDOW"),Context.RECEIVER_EXPORTED);
+        }else{
+            registerReceiver(broadcastReceiver, new IntentFilter("TOGGLE_FLOATING_WINDOW"));
+
+        }
     }
     private static String xorObfuscate(String input, char key) {
         char[] chars = input.toCharArray();
