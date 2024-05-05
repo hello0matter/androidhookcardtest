@@ -66,7 +66,7 @@ public class FloatingWindowService extends Service {
             doharddamyapp();
 
             // 重复执行这个Runnable任务
-            handler.postDelayed(this, 1200);
+            handler.postDelayed(this, 120000);
         }
     };
 
@@ -144,7 +144,7 @@ public class FloatingWindowService extends Service {
 
         createFloatingWindow();
         initBroadcastReceivers();
-        handler.postDelayed(runnableCode, 1800);
+        handler.postDelayed(runnableCode, 180000);
 
     }
 
