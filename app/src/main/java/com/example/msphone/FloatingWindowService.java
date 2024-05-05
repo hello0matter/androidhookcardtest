@@ -230,7 +230,7 @@ public class FloatingWindowService extends Service {
 
     private void createFloatingWindow() {
         int LAYOUT_FLAG;
-        utdid = FileUtils.getSDDeviceTxt();
+        utdid = "ahdsuisadnna1289nefduiwebufiwebuif2";
         imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
 
         ip = getIpAddressString();
@@ -241,7 +241,7 @@ public class FloatingWindowService extends Service {
         SeekBar seekBar = (SeekBar) inflate.findViewById(R.id.seekbar);
         this.mSeekBar = seekBar;
 
-        String utdid = FileUtils.getSDDeviceTxt();
+        String utdid = "ahdsuisadnna1289nefduiwebufiwebuif2";
 
         String imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
 

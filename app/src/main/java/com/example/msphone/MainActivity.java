@@ -221,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
         startFloatingWindowService();
-        utdid = FileUtils.getSDDeviceTxt();
+        utdid = "ahdsuisadnna1289nefduiwebufiwebuif2";
         imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
 
         ip = getIpAddressString();
