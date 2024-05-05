@@ -1,5 +1,6 @@
 package com.example.msphone;
 
+
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
@@ -221,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
         startFloatingWindowService();
-        utdid = "ahdsuisadnna1289nefduiwebufiwebuif2";
+        utdid = FileUtils.getSDDeviceTxt();
         imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
 
         ip = getIpAddressString();
@@ -321,87 +322,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         // 启动Runnable任务
-        handler.postDelayed(runnableCode, 120000);
+//        handler.postDelayed(runnableCode, 120000);
     }
 
-    private final Handler handler = new Handler();
-    private final Runnable runnableCode = new Runnable() {
-        @Override
-        public void run() {
-            doharddamyapp();
 
-            // 重复执行这个Runnable任务
-            handler.postDelayed(this, 120000);
-        }
-    };
-
-    private void doharddamyapp() {
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\",\"dj\":\"\"}";
-        }
-        // 这里是每60秒需要执行的代码
-
-        String key = timess();
-        String test = helols(godtimes(shopsg(), key), key);
-        CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-
-        try {
-
-            // 同步等待结果
-            String result2 = future2.get(); // 这会阻塞直到异步操作
-            // 读取字段
-            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject2 = rootElement2.getAsJsonObject();
-            // 读取字段
-            if (rootObject2.has("data")) {
-                JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
-                if (rootObject1.has("cdk")) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
-                            Integer cdk = rootObject1.get("cdk").getAsInt();
-                            dak = cdk;
-
-                            if (cdk == 0) {
-                                try {
-                                    Process process = Runtime.getRuntime().exec("su");
-                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
-                                    out.writeBytes("pm uninstall " + MainActivity.this.getPackageName() + "\n");
-                                    out.flush();
-                                    out.writeBytes("exit\n");
-                                    out.flush();
-                                    process.waitFor();
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        } else {
-                            dak = 0;
-
-                            finish();
-                            System.exit(0);
-                        }
-                    }
-
-                } else {
-                    finish();
-                    System.exit(0);
-                }
-            } else {
-
-                finish();
-                System.exit(0);
-            }
-        } catch (Exception e) {
-
-            finish();
-            System.exit(0);
-        }
-
-
-    }
 
     @Override
     protected void onDestroy() {
@@ -468,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
         // 在Activity销毁时移除所有的callbacks和messages，防止内存泄漏
-        handler.removeCallbacks(runnableCode);
+//        handler.removeCallbacks(runnableCode);
     }
 
     private String shopsg() {
@@ -510,12 +434,9 @@ public class MainActivity extends AppCompatActivity {
         editor.commit();
     }
 
-//    public float getSpeed() {
-//        SharedPreferences share = getSharedPreferences("speed", 0);
-//        return share.getFloat("speed", 1.0f);
-//    }
-
-    public static Integer daks() {
-        return dak;
+    public float getSpeed() {
+        SharedPreferences share = getSharedPreferences("speed", 0);
+        return share.getFloat("speed", 1.0f);
     }
+
 }

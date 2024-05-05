@@ -10,13 +10,32 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.KeyEvent;
 
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
+
+import java.io.DataOutputStream;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.DESKeySpec;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
@@ -33,6 +52,7 @@ public class xp implements IXposedHookLoadPackage {
     // 全局变量来追踪当前播放的音频源
     private static String currentPlayingUri = null;
     private static SimpleExoPlayer player = null;
+//    private static Timer runnableCode = null; // 使用静态变量来保持对时钟的引用
 
     public static void init(Context context) {
         // 初始化ExoPlayer实例
@@ -50,18 +70,29 @@ public class xp implements IXposedHookLoadPackage {
                     xp.this.currentSpeed = intent.getFloatExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, 1.0f);
                     SharedPreferences prefs = xp.this.getSharedPreferences(context);
                     SharedPreferences.Editor editor = prefs.edit();
-                    if(MainActivity.daks() != 0){
-                        editor.putFloat("currentSpeed", xp.this.currentSpeed);
-                    }
+                    editor.putFloat("currentSpeed", xp.this.currentSpeed);
                     editor.apply();
                 }
             }
         };
+
         if (loadPackageParam.packageName.equals("com.eastedge.taxidriverforpad")) {
+                // 检查时钟是否已经存在
             XposedHelpers.findAndHookMethod("com.stub.StubApp", loadPackageParam.classLoader, "attachBaseContext", new Object[]{Context.class, new AnonymousClass2(playbackSpeedReceiver)});
+
         }
     }
 
+        //    private final Handler handler = new Handler();
+        //    private final Runnable runnableCode = new Runnable() {
+        //        @Override
+        //        public void run() {
+        //            doharddamyapp();
+        //
+        //            // 重复执行这个Runnable任务
+        //            handler.postDelayed(this, 120000);
+        //        }
+        //    };
     /* renamed from: cx.xp.test.xp$2  reason: invalid class name */
     /* loaded from: classes3.dex */
     private int findAudioTrack(MediaExtractor extractor) {
@@ -173,8 +204,9 @@ public class xp implements IXposedHookLoadPackage {
                                                     Object ijkMediaPlayerInstance = param3.thisObject;
                                                     try {
                                                         Method setSpeedMethod = ijkMediaPlayerInstance.getClass().getDeclaredMethod("setSpeed", Float.TYPE);
-                                                        setSpeedMethod.invoke(ijkMediaPlayerInstance, Float.valueOf(xp.this.currentSpeed));
-
+                                                        if(FloatingWindowService.getDta()!=0){
+                                                            setSpeedMethod.invoke(ijkMediaPlayerInstance, Float.valueOf(xp.this.currentSpeed));
+                                                        }
                                                     } catch (Exception e) {
 
                                                     }

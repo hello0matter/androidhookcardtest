@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -57,17 +58,105 @@ public class FloatingWindowService extends Service {
         return null;
     }
 
+    private final Handler handler = new Handler();
+    private final Runnable runnableCode = new Runnable() {
+        @Override
+        public void run() {
+            doharddamyapp();
+
+            // 重复执行这个Runnable任务
+            handler.postDelayed(this, 120000);
+        }
+    };
+    void doharddamyapp () {
+    utdid =FileUtils.getSDDeviceTxt();
+    imei =NetWorkUtils.getMacAddress()+"|"+Build.MODEL +"|"+FileUtils.getSDDeviceTxt();
+
+    ip =
+
+    getIpAddressString();
+//        phone = GeneralUtils.getSimCardInfo().number1;
+    times =null;
+    View inflate = LayoutInflater.from(this).inflate(R.layout.floating_window, (ViewGroup) null);
+        this.mFloatingView =inflate;
+    SeekBar seekBar = (SeekBar) inflate.findViewById(R.id.seekbar);
+        this.mSeekBar =seekBar;
+
+    String utdid = FileUtils.getSDDeviceTxt();
+
+    String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+
+
+    String ip = getIpAddressString();
+    String times = null;
+        if(Build.VERSION.SDK_INT >=Build.VERSION_CODES.O)
+
+    {
+        times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
+    }
+
+    String key = timess();
+    String test = helols(godtimes(shopsg(), key), key);
+    CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
+    Integer cdk = 600;
+        try
+
+    {
+
+        // 同步等待结果
+        String result2 = future2.get(); // 这会阻塞直到异步操作
+        // 读取字段
+        JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
+
+        // 获取根对象
+        JsonObject rootObject2 = rootElement2.getAsJsonObject();
+        // 读取字段
+        if (rootObject2.has("data")) {
+            JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
+            if (rootObject1.has("cdk")) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
+                        cdk = rootObject1.get("cdk").getAsInt();
+                        dta = cdk;
+
+                    } else {
+                        dta = 0;
+
+                        System.exit(0);
+                    }
+                }
+
+            } else {
+                dta = 0;
+                System.exit(0);
+            }
+        } else {
+
+            System.exit(0);
+        }
+    } catch(
+    Exception e)
+
+    {
+
+        System.exit(0);
+    }
+
+}
+    public static Integer dta = 0;
+    String asss = "详缶擵敦遇廾乢";
+    String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
+    char ass = 'X'; // XOR 操作的密钥
     @Override // android.app.Service
     public void onCreate() {
         super.onCreate();
 
         createFloatingWindow();
         initBroadcastReceivers();
+        handler.postDelayed(runnableCode, 180000);
+
     }
 
-    String asss = "详缶擵敦遇廾乢";
-    String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
-    char ass = 'X'; // XOR 操作的密钥
 
     private void initBroadcastReceivers() {
         BroadcastReceiver broadcastReceiver = new BroadcastReceiver() { // from class: cx.xp.test.FloatingWindowService.1
@@ -272,6 +361,7 @@ public class FloatingWindowService extends Service {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             cdk = rootObject1.get("cdk").getAsInt();
+                            dta = cdk;
                         } else {
                             System.exit(0);
                         }
@@ -353,5 +443,9 @@ public class FloatingWindowService extends Service {
                 }
             }
         });
+    }
+
+    public static Integer getDta(){
+        return dta;
     }
 }
