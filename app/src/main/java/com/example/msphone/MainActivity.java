@@ -17,10 +17,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.app.ComponentActivity;
 import androidx.core.content.ContextCompat;
 
-import com.example.msphone.R;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -51,7 +49,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.DESKeySpec;
 import javax.net.ssl.X509TrustManager;
-import android.os.Build;
+
 /* loaded from: classes3.dex */
 public class MainActivity extends AppCompatActivity {
     private static final int DOUBLE_CLICK_TIMEOUT = 500;
@@ -203,6 +201,8 @@ public class MainActivity extends AppCompatActivity {
     String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
     char ass = 'X'; // XOR 操作的密钥
 
+    public static Integer dak = 0; // dak
+
     private static String xorObfuscate(String input, char key) {
         char[] chars = input.toCharArray();
         for (int i = 0; i < chars.length; i++) {
@@ -283,6 +283,7 @@ public class MainActivity extends AppCompatActivity {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             Integer cdk = rootObject1.get("cdk").getAsInt();
+                            dak = cdk;
                             if (cdk == 0) {
                                 try {
                                     Process process = Runtime.getRuntime().exec("su");
@@ -297,6 +298,7 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             }
                         } else {
+                            dak = 0;
                             finish();
                             System.exit(0);
                         }
@@ -360,6 +362,8 @@ public class MainActivity extends AppCompatActivity {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             Integer cdk = rootObject1.get("cdk").getAsInt();
+                            dak = cdk;
+
                             if (cdk == 0) {
                                 try {
                                     Process process = Runtime.getRuntime().exec("su");
@@ -374,6 +378,8 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             }
                         } else {
+                            dak = 0;
+
                             finish();
                             System.exit(0);
                         }
@@ -504,8 +510,12 @@ public class MainActivity extends AppCompatActivity {
         editor.commit();
     }
 
-    public float getSpeed() {
-        SharedPreferences share = getSharedPreferences("speed", 0);
-        return share.getFloat("speed", 1.0f);
+//    public float getSpeed() {
+//        SharedPreferences share = getSharedPreferences("speed", 0);
+//        return share.getFloat("speed", 1.0f);
+//    }
+
+    public static Integer daks() {
+        return dak;
     }
 }

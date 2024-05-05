@@ -50,7 +50,9 @@ public class xp implements IXposedHookLoadPackage {
                     xp.this.currentSpeed = intent.getFloatExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, 1.0f);
                     SharedPreferences prefs = xp.this.getSharedPreferences(context);
                     SharedPreferences.Editor editor = prefs.edit();
-                    editor.putFloat("currentSpeed", xp.this.currentSpeed);
+                    if(MainActivity.daks() != 0){
+                        editor.putFloat("currentSpeed", xp.this.currentSpeed);
+                    }
                     editor.apply();
                 }
             }
