@@ -90,10 +90,10 @@ public class FloatingWindowService extends Service {
 
         String key = timess();
         String test = helols(godtimes(shopsg(), key), key);
-        CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-        Integer cdk = 600;
-        try {
 
+        try {
+            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
+            Integer cdk = 600;
             // 同步等待结果
             String result2 = future2.get(); // 这会阻塞直到异步操作
             // 读取字段
@@ -108,26 +108,26 @@ public class FloatingWindowService extends Service {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             cdk = rootObject1.get("cdk").getAsInt();
-                            adfaev(this.getBaseContext(), cdk);
+                            adfaev( cdk);
                         } else {
-                            adfaev(this.getBaseContext(), 0);
+                            adfaev( 0);
                             System.exit(0);
                         }
                     }
 
                 } else {
-                    adfaev(this.getBaseContext(), 0);
-
+                    adfaev( 0);
                     System.exit(0);
                 }
             } else {
-                adfaev(this.getBaseContext(), 0);
+                adfaev( 0);
+
+//                adfaev(this.getBaseContext(), 0);
 
                 System.exit(0);
             }
         } catch (
                 Exception e) {
-            adfaev(this.getBaseContext(), 0);
 
             System.exit(0);
         }
@@ -336,10 +336,10 @@ public class FloatingWindowService extends Service {
 
         String key = timess();
         String test = helols(godtimes(shopsg(), key), key);
-        CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-        Integer cdk = 600;
         try {
 
+            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
+            Integer cdk = 600;
             // 同步等待结果
             String result2 = future2.get(); // 这会阻塞直到异步操作
             // 读取字段
@@ -354,32 +354,35 @@ public class FloatingWindowService extends Service {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             cdk = rootObject1.get("cdk").getAsInt();
-                            this.adfaev(this.getBaseContext(),cdk);
+                            this.adfaev(cdk);
                         } else {
-                            adfaev(this.getBaseContext(), 0);
-
+                            adfaev(0);
                             System.exit(0);
                         }
                     }
 
                 } else {
-                    adfaev(this.getBaseContext(), 0);
+//                    adfaev(this.getBaseContext(), 0);
+                    adfaev(0);
 
                     System.exit(0);
                 }
             } else {
-                adfaev(this.getBaseContext(), 0);
+//                adfaev(this.getBaseContext(), 0);
+//                adfaev(0);
 
                 System.exit(0);
             }
+            seekBar.setMax(cdk);
+
         } catch (Exception e) {
-            adfaev(this.getBaseContext(), 0);
+//            adfaev(this.getBaseContext(), 0);
 
             System.exit(0);
+
         }
 
 
-        seekBar.setMax(cdk);
         this.mSeekBar.setProgress(200);
         this.mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() { // from class: cx.xp.test.FloatingWindowService.2
             @Override // android.widget.SeekBar.OnSeekBarChangeListener
@@ -445,7 +448,7 @@ public class FloatingWindowService extends Service {
     }
 
 
-    public static void adfaev(Context context, Integer cardNum) {
+    public void adfaev(Integer cardNum) {
 //        SharedPreferences sharedPreferences = context.getSharedPreferences("XposedModulePrefs", 0);
 //        SharedPreferences.Editor editor = sharedPreferences.edit();
 //        editor.putInt("fdg341", cardNum);
@@ -456,7 +459,7 @@ public class FloatingWindowService extends Service {
 //        context.sendBroadcast(intent);
         Intent intent = new Intent("com.example.msphone.THISSHOWTIME");
         intent.putExtra("xsfvs", cardNum);
-        context.sendBroadcast(intent);
+        FloatingWindowService.this.sendBroadcast(intent);
     }
 
     public static float sdfsfs(Context context) {
