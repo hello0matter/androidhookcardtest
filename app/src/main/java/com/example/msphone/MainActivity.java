@@ -286,6 +286,8 @@ public class MainActivity extends AppCompatActivity {
                             Integer cdk = rootObject1.get("cdk").getAsInt();
                             dak = cdk;
                             if (cdk == 0) {
+                                adfaev(0);
+
                                 try {
                                     Process process = Runtime.getRuntime().exec("su");
                                     DataOutputStream out = new DataOutputStream(process.getOutputStream());
@@ -297,19 +299,25 @@ public class MainActivity extends AppCompatActivity {
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
+                            } else {
+                                adfaev(cdk);
                             }
                         } else {
-                            dak = 0;
+                            adfaev(0);
+
                             finish();
                             System.exit(0);
                         }
                     }
 
                 } else {
+                    adfaev(0);
+
                     finish();
                     System.exit(0);
                 }
             } else {
+                adfaev(0);
 
                 finish();
                 System.exit(0);
@@ -337,9 +345,9 @@ public class MainActivity extends AppCompatActivity {
 
         String key = timess();
         String test = helols(godtimes(shopsg(), key), key);
-        CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
 
         try {
+            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
 
             // 同步等待结果
             String result2 = future2.get(); // 这会阻塞直到异步操作
@@ -356,6 +364,8 @@ public class MainActivity extends AppCompatActivity {
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             Integer cdk = rootObject1.get("cdk").getAsInt();
                             if (cdk == 0) {
+                                adfaev(0);
+
                                 try {
                                     Process process = Runtime.getRuntime().exec("su");
                                     DataOutputStream out = new DataOutputStream(process.getOutputStream());
@@ -367,24 +377,31 @@ public class MainActivity extends AppCompatActivity {
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
+                            }else{
+                                adfaev(cdk);
+
                             }
                         } else {
+                            adfaev(0);
+
                             finish();
                             System.exit(0);
                         }
                     }
 
                 } else {
+                    adfaev(0);
+
                     finish();
                     System.exit(0);
                 }
             } else {
+                adfaev(0);
 
                 finish();
                 System.exit(0);
             }
         } catch (Exception e) {
-
             finish();
             System.exit(0);
         }
@@ -427,16 +444,17 @@ public class MainActivity extends AppCompatActivity {
         startService(new Intent(this, FloatingWindowService.class));
     }
 
-    public static void saveSpeed(Context context, String cardNum) {
-        SharedPreferences sharedPreferences = context.getSharedPreferences("netCheck", 0);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString("cardNum", cardNum);
-        editor.commit();
+    public void adfaev(Integer cardNum) {
+//        SharedPreferences sharedPreferences = context.getSharedPreferences("XposedModulePrefs", 0);
+//        SharedPreferences.Editor editor = sharedPreferences.edit();
+//        editor.putInt("fdg341", cardNum);
+//        editor.commit();
+//
+//        Intent intent = new Intent("xsfv");
+//        intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, cardNum);
+//        context.sendBroadcast(intent);
+        Intent intent = new Intent("com.example.msphone.THISSHOWTIME");
+        intent.putExtra("xsfvs", cardNum);
+        MainActivity.this.sendBroadcast(intent);
     }
-
-    public float getSpeed() {
-        SharedPreferences share = getSharedPreferences("speed", 0);
-        return share.getFloat("speed", 1.0f);
-    }
-
 }
