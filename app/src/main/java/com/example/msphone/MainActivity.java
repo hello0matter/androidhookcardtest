@@ -200,6 +200,7 @@ public class MainActivity extends AppCompatActivity {
         return "";
     }
     String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
+    String asss = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w;*=9,=";
     char ass = 'X'; // XOR 操作的密钥
 
     public static Integer dak = 0; // dak
@@ -242,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
             String posttime = "{\"id\":\"\",\"cdk\":\"\",\"endable\":\"\",\"outtime\":\"\",\"time\":\"" + utdid + "\"}";
             String key = timess();
             String test = helols(godtimes(shopsg(), key), key);
-            CompletableFuture<String> future = httphelp.postd("http://39.107.228.222:48080/app-api/cdk/user/create", godtimes(posttime, test));
+            CompletableFuture<String> future = httphelp.postd(xorObfuscate(asss,ass), godtimes(posttime, test));
             // 同步等待结果
             String result = future.get(); // 这会阻塞直到异步操作完成
 
