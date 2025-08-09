@@ -10,6 +10,7 @@ import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -54,22 +55,89 @@ public class FloatingWindowService extends Service {
     private BroadcastReceiver mToggleFloatingWindowReceiver;
     private WindowManager mWindowManager;
 
-    @Override // android.app.Service
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-
     private final Handler handler = new Handler();
     private final Runnable runnableCode = new Runnable() {
         @Override
         public void run() {
-            doharddamyapp();
-
+            // [重构核心] 将耗时的网络任务放入后台线程执行
+            new Thread(FloatingWindowService.this::performNetworkAuth).start();
             // 重复执行这个Runnable任务
-            handler.postDelayed(this, 120000);
+            handler.postDelayed(this, 120000); // 2分钟心跳
         }
     };
 
+    /**
+     * [重构核心] 将所有网络认证逻辑封装到这里，并在后台线程调用
+     */
+    void performNetworkAuth() {
+        try {
+            String utdid = FileUtils.getSDDeviceTxt();
+            String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + utdid;
+            String ip = getIpAddressString();
+            String phone = ""; // 按需获取
+            String times = "";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
+            }
+
+            String key = timess();
+            String test = helols(godtimes(shopsg(), key), key);
+
+            CompletableFuture<String> future = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
+            String result = future.get(); // 在后台线程阻塞等待，不会卡UI
+
+            JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
+            JsonObject rootObject = rootElement.getAsJsonObject();
+
+            if (rootObject.has("data")) {
+                JsonObject dataObject = rootObject.get("data").getAsJsonObject();
+                if (dataObject.has("cdk")) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (Instant.ofEpochMilli(dataObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
+                            int cdk = dataObject.get("cdk").getAsInt();
+                            broadcastCdkStatus(cdk);
+                            // 如果需要根据认证结果更新UI，必须切回主线程
+                            // runOnUiThread(...) // 在Service中不能直接用，需要Handler
+                            if (mSeekBar != null) {
+                                handler.post(() -> mSeekBar.setMax(cdk > 0 ? cdk : 170)); // 更新滑块最大值
+                            }
+                        } else {
+                            // [自毁逻辑]
+                            broadcastCdkStatus(0);
+                            stopSelf();
+                            System.exit(0);
+                        }
+                    }
+                } else {
+                    // [自毁逻辑]
+                    broadcastCdkStatus(0);
+                    stopSelf();
+                    System.exit(0);
+                }
+            } else {
+                // [自毁逻辑]
+                broadcastCdkStatus(0);
+                stopSelf();
+                System.exit(0);
+            }
+        } catch (Exception e) {
+            // [自毁逻辑]
+            broadcastCdkStatus(0);
+            stopSelf();
+            System.exit(0);
+        }
+    }
+
+    /**
+     * 广播CDK状态，通知Xposed模块
+     */
+    public void broadcastCdkStatus(Integer cardNum) {
+        Intent intent = new Intent("com.example.msphone.THISSHOWTIME");
+        intent.putExtra("xsfvs", cardNum);
+        // [BUG修复] 增加此Flag
+        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        sendBroadcast(intent);
+    }
     void doharddamyapp() {
 //        utdid = FileUtils.getSDDeviceTxt();
         imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
@@ -77,7 +145,7 @@ public class FloatingWindowService extends Service {
         ip = getIpAddressString();
 //        phone = GeneralUtils.getSimCardInfo().number1;
         times = null;
-        String utdid = "ahdsuisadnna1289nefduiwebufiwebuif2";
+        String utdid = FileUtils.getSDDeviceTxt();
 
         String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
 
@@ -138,30 +206,35 @@ public class FloatingWindowService extends Service {
     String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
     char ass = 'X'; // XOR 操作的密钥
 
-    @Override // android.app.Service
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+    @Override
     public void onCreate() {
         super.onCreate();
-
         createFloatingWindow();
         initBroadcastReceivers();
-        handler.postDelayed(runnableCode, 180000);
-
+        // 首次延迟10秒执行，之后按runnableCode内部的周期执行
+        handler.postDelayed(runnableCode, 10000);
     }
 
 
+
+
     private void initBroadcastReceivers() {
-        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() { // from class: cx.xp.test.FloatingWindowService.1
-            @Override // android.content.BroadcastReceiver
+        mToggleFloatingWindowReceiver = new BroadcastReceiver() {
+            @Override
             public void onReceive(Context context, Intent intent) {
-                FloatingWindowService.this.toggleFloatingWindow();
+                toggleFloatingWindow();
             }
         };
-        this.mToggleFloatingWindowReceiver = broadcastReceiver;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(broadcastReceiver, new IntentFilter("TOGGLE_FLOATING_WINDOW"), Context.RECEIVER_EXPORTED);
+        IntentFilter filter = new IntentFilter("TOGGLE_FLOATING_WINDOW");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mToggleFloatingWindowReceiver, filter, Context.RECEIVER_EXPORTED);
         } else {
-            registerReceiver(broadcastReceiver, new IntentFilter("TOGGLE_FLOATING_WINDOW"));
-
+            registerReceiver(mToggleFloatingWindowReceiver, filter);
         }
     }
 
@@ -173,21 +246,21 @@ public class FloatingWindowService extends Service {
         return new String(chars);
     }
 
-    @Override // android.app.Service
+    @Override
     public void onDestroy() {
         super.onDestroy();
-        BroadcastReceiver broadcastReceiver = this.mToggleFloatingWindowReceiver;
-        if (broadcastReceiver != null) {
-            unregisterReceiver(broadcastReceiver);
+        handler.removeCallbacks(runnableCode); // 停止定时任务
+        if (mToggleFloatingWindowReceiver != null) {
+            unregisterReceiver(mToggleFloatingWindowReceiver);
+        }
+        if (mFloatingView != null && mWindowManager != null) {
+            mWindowManager.removeView(mFloatingView);
         }
     }
 
-    /* JADX INFO: Access modifiers changed from: private */
-    public void toggleFloatingWindow() {
-        if (this.mFloatingView.getVisibility() == View.VISIBLE) {
-            this.mFloatingView.setVisibility(View.GONE);
-        } else {
-            this.mFloatingView.setVisibility(View.VISIBLE);
+    private void toggleFloatingWindow() {
+        if (mFloatingView != null) {
+            mFloatingView.setVisibility(mFloatingView.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -308,142 +381,236 @@ public class FloatingWindowService extends Service {
     private static String phone = "";
 
     private static String times = "";
+
+    private long lastToastTime = 0;
+    private static final long TOAST_THROTTLE_DELAY = 300; // 300毫秒的Toast间隔
     //解密
-
     private void createFloatingWindow() {
-        int LAYOUT_FLAG;
-        String utdid = "ahdsuisadnna1289nefduiwebufiwebuif2";
-        imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+        mFloatingView = LayoutInflater.from(this).inflate(R.layout.floating_window, null);
+        mSeekBar = mFloatingView.findViewById(R.id.seekbar);
+        mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        ip = getIpAddressString();
-//        phone = GeneralUtils.getSimCardInfo().number1;
-        times = null;
-        View inflate = LayoutInflater.from(this).inflate(R.layout.floating_window, (ViewGroup) null);
-        this.mFloatingView = inflate;
-        SeekBar seekBar = (SeekBar) inflate.findViewById(R.id.seekbar);
-        this.mSeekBar = seekBar;
+        // [重构核心] 将初次的网络请求也放入后台，防止服务启动时卡死
+        new Thread(this::performNetworkAuth).start();
 
-        String imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+        // 默认值设置
+        mSeekBar.setMax(170); // 默认最大值
+        mSeekBar.setProgress(85); // 默认进度
 
+        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                // [BUG修复] 拖动过程中不做任何耗时操作，保持流畅
+                if (fromUser) {
+                    long currentTime = SystemClock.elapsedRealtime();
+                    if (currentTime - lastToastTime > TOAST_THROTTLE_DELAY) {
+                        lastToastTime = currentTime;
 
-        String ip = getIpAddressString();
-        String times = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
-        }
-
-        String key = timess();
-        String test = helols(godtimes(shopsg(), key), key);
-        try {
-
-            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-            Integer cdk = 600;
-            // 同步等待结果
-            String result2 = future2.get(); // 这会阻塞直到异步操作
-            // 读取字段
-            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject2 = rootElement2.getAsJsonObject();
-            // 读取字段
-            if (rootObject2.has("data")) {
-                JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
-                if (rootObject1.has("cdk")) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
-                            cdk = rootObject1.get("cdk").getAsInt();
-                            this.adfaev(cdk);
-                        } else {
-                            adfaev(0);
-                            System.exit(0);
-                        }
+                        float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+                        // 使用 LENGTH_SHORT
+                        Toast.makeText(seekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
                     }
-
-                } else {
-//                    adfaev(this.getBaseContext(), 0);
-                    adfaev(0);
-
-                    System.exit(0);
                 }
-            } else {
-//                adfaev(this.getBaseContext(), 0);
-//                adfaev(0);
-
-                System.exit(0);
             }
-            seekBar.setMax(cdk);
 
-        } catch (Exception e) {
-//            adfaev(this.getBaseContext(), 0);
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
 
-            System.exit(0);
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                float speed = ((seekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
 
-        }
+                // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
+                Toast.makeText(seekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
+                lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
 
-
-        this.mSeekBar.setProgress(200);
-        this.mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() { // from class: cx.xp.test.FloatingWindowService.2
-            @Override // android.widget.SeekBar.OnSeekBarChangeListener
-            public void onProgressChanged(SeekBar seekBar2, int progress, boolean fromUser) {
-                float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
-                Toast.makeText(seekBar2.getContext(), xorObfuscate(asss, ass) + speed, Toast.LENGTH_LONG).show();
-//
+                // 发送广播，通知Xposed模块改变速度
                 Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
                 intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
-                FloatingWindowService.this.sendBroadcast(intent);
-            }
-
-            @Override // android.widget.SeekBar.OnSeekBarChangeListener
-            public void onStartTrackingTouch(SeekBar seekBar2) {
-            }
-
-            @Override // android.widget.SeekBar.OnSeekBarChangeListener
-            public void onStopTrackingTouch(SeekBar seekBar2) {
+                intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                sendBroadcast(intent);
             }
         });
+
+        int LAYOUT_FLAG;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
         } else {
             LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_PHONE;
         }
+
         final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 LAYOUT_FLAG,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
-        params.gravity = Gravity.CENTER;
-        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-        this.mWindowManager = windowManager;
-        windowManager.addView(this.mFloatingView, params);
-        this.mFloatingView.setOnTouchListener(new View.OnTouchListener() { // from class: cx.xp.test.FloatingWindowService.3
-            private float initialTouchX;
-            private float initialTouchY;
-            private int initialX;
-            private int initialY;
 
-            @Override // android.view.View.OnTouchListener
+        params.gravity = Gravity.CENTER;
+        mWindowManager.addView(mFloatingView, params);
+
+        // 触摸移动逻辑 (保持不变)
+        mFloatingView.setOnTouchListener(new View.OnTouchListener() {
+            private float initialTouchX, initialTouchY;
+            private int initialX, initialY;
+
+            @Override
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
-                    case 0:
-                        this.initialX = params.x;
-                        this.initialY = params.y;
-                        this.initialTouchX = event.getRawX();
-                        this.initialTouchY = event.getRawY();
+                    case MotionEvent.ACTION_DOWN:
+                        initialX = params.x;
+                        initialY = params.y;
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
                         return true;
-                    case 1:
+                    case MotionEvent.ACTION_MOVE:
+                        params.x = initialX + (int) (event.getRawX() - initialTouchX);
+                        params.y = initialY + (int) (event.getRawY() - initialTouchY);
+                        mWindowManager.updateViewLayout(mFloatingView, params);
                         return true;
-                    case 2:
-                        params.x = this.initialX + ((int) (event.getRawX() - this.initialTouchX));
-                        params.y = this.initialY + ((int) (event.getRawY() - this.initialTouchY));
-                        FloatingWindowService.this.mWindowManager.updateViewLayout(FloatingWindowService.this.mFloatingView, params);
-                        return true;
-                    default:
-                        return false;
                 }
+                return false;
             }
         });
     }
+
+//    private void createFloatingWindow() {
+//        int LAYOUT_FLAG;
+//        utdid = FileUtils.getSDDeviceTxt();
+//        imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+//
+//        ip = getIpAddressString();
+////        phone = GeneralUtils.getSimCardInfo().number1;
+//        times = null;
+//        View inflate = LayoutInflater.from(this).inflate(R.layout.floating_window, (ViewGroup) null);
+//        this.mFloatingView = inflate;
+//        SeekBar seekBar = (SeekBar) inflate.findViewById(R.id.seekbar);
+//        this.mSeekBar = seekBar;
+//
+//        String utdid = FileUtils.getSDDeviceTxt();
+//
+//        String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+//
+//
+//        String ip = getIpAddressString();
+//        String times = null;
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
+//        }
+//
+//        String key = timess();
+//        String test = helols(godtimes(shopsg(), key), key);
+//        try {
+//
+//            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
+//            Integer cdk = 600;
+//            // 同步等待结果
+//            String result2 = future2.get(); // 这会阻塞直到异步操作
+//            // 读取字段
+//            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
+//
+//            // 获取根对象
+//            JsonObject rootObject2 = rootElement2.getAsJsonObject();
+//            // 读取字段
+//            if (rootObject2.has("data")) {
+//                JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
+//                if (rootObject1.has("cdk")) {
+//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                        if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
+//                            cdk = rootObject1.get("cdk").getAsInt();
+//                            this.adfaev(cdk);
+//                        } else {
+//                            adfaev(0);
+//                            System.exit(0);
+//                        }
+//                    }
+//
+//                } else {
+////                    adfaev(this.getBaseContext(), 0);
+//                    adfaev(0);
+//
+//                    System.exit(0);
+//                }
+//            } else {
+////                adfaev(this.getBaseContext(), 0);
+////                adfaev(0);
+//
+//                System.exit(0);
+//            }
+//            seekBar.setMax(cdk);
+//
+//        } catch (Exception e) {
+////            adfaev(this.getBaseContext(), 0);
+//
+//            System.exit(0);
+//
+//        }
+//
+//
+//        this.mSeekBar.setProgress(200);
+//        this.mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() { // from class: cx.xp.test.FloatingWindowService.2
+//            @Override // android.widget.SeekBar.OnSeekBarChangeListener
+//            public void onProgressChanged(SeekBar seekBar2, int progress, boolean fromUser) {
+//                float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+//                Toast.makeText(seekBar2.getContext(), xorObfuscate(asss, ass) + speed, Toast.LENGTH_LONG).show();
+////
+//                Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
+//                intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
+//                FloatingWindowService.this.sendBroadcast(intent);
+//            }
+//
+//            @Override // android.widget.SeekBar.OnSeekBarChangeListener
+//            public void onStartTrackingTouch(SeekBar seekBar2) {
+//            }
+//
+//            @Override // android.widget.SeekBar.OnSeekBarChangeListener
+//            public void onStopTrackingTouch(SeekBar seekBar2) {
+//            }
+//        });
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+//        } else {
+//            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_PHONE;
+//        }
+//        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+//                WindowManager.LayoutParams.WRAP_CONTENT,
+//                WindowManager.LayoutParams.WRAP_CONTENT,
+//                LAYOUT_FLAG,
+//                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+//                PixelFormat.TRANSLUCENT);
+//        params.gravity = Gravity.CENTER;
+//        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+//        this.mWindowManager = windowManager;
+//        windowManager.addView(this.mFloatingView, params);
+//        this.mFloatingView.setOnTouchListener(new View.OnTouchListener() { // from class: cx.xp.test.FloatingWindowService.3
+//            private float initialTouchX;
+//            private float initialTouchY;
+//            private int initialX;
+//            private int initialY;
+//
+//            @Override // android.view.View.OnTouchListener
+//            public boolean onTouch(View v, MotionEvent event) {
+//                switch (event.getAction()) {
+//                    case 0:
+//                        this.initialX = params.x;
+//                        this.initialY = params.y;
+//                        this.initialTouchX = event.getRawX();
+//                        this.initialTouchY = event.getRawY();
+//                        return true;
+//                    case 1:
+//                        return true;
+//                    case 2:
+//                        params.x = this.initialX + ((int) (event.getRawX() - this.initialTouchX));
+//                        params.y = this.initialY + ((int) (event.getRawY() - this.initialTouchY));
+//                        FloatingWindowService.this.mWindowManager.updateViewLayout(FloatingWindowService.this.mFloatingView, params);
+//                        return true;
+//                    default:
+//                        return false;
+//                }
+//            }
+//        });
+//    }
 
 
     public void adfaev(Integer cardNum) {
