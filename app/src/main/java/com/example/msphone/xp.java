@@ -10,6 +10,9 @@ import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.media.PlaybackParams;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
@@ -42,77 +45,308 @@ public class xp implements IXposedHookLoadPackage {
     // 【新增】用于保存秒抢功能状态的变量
     private int instantRobEnabled = 1;
     private long lastVolumeUpClickTime = 0;
-    // 【核心新增】用于Hook订单界面并修改按钮的方法
+    // 【修改】主Hook入口，现在只部署Hook，不直接执行逻辑
     private void hookOrderView(final LoadPackageParam lpparam) {
-        // 目标类和方法，注意如果App有混淆，需要改成混淆后的名称
-        final String targetClassName = "com.jiuzhou.TaxiDriver.Views.OrderView";
-        final String targetMethodName = "doinit";
+        // 目标类1
+        final String className1 = "com.jiuzhou.TaxiDriver.Views.OrderView";
+        // 目标类2
+        final String className2 = "com.jiuzhou.TaxiDriver.Views.OrderViewWithMap";
+
+        // 对两个类同时部署Hook
+        hookClassMethods(className1, lpparam);
+        hookClassMethods(className2, lpparam);
+    }
+
+
+    // 【新增】一个辅助方法，用于Hook指定类的 doinit 和 onNewIntent 方法
+    private void hookClassMethods(final String className, final LoadPackageParam lpparam) {
+        try {
+            // Hook点1: doinit(Intent) for OrderView, 或者 doinit(Intent, Bundle) for OrderViewWithMap
+            // Xposed会自动处理参数差异，我们只需要找到名字即可
+            XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    Log.d(TAG, "【入口1: doinit】 " + className + " 被触发！");
+                    changeButtonToRobMode(param.thisObject, lpparam.packageName);
+                }
+            });
+        } catch (Throwable t) {
+            // 捕获OrderView没有 (Intent, Bundle) 版本的doinit时可能发生的错误
+            try {
+                XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, Bundle.class, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        Log.d(TAG, "【入口1: doinit with Bundle】 " + className + " 被触发！");
+                        changeButtonToRobMode(param.thisObject, lpparam.packageName);
+                    }
+                });
+            } catch (Throwable t2) {
+                Log.e(TAG, "Hook " + className + " 的 doinit 方法失败: " + t2.getMessage());
+            }
+        }
+
+        try {
+            // Hook点2: onNewIntent(Intent)
+            XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "onNewIntent", Intent.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    Log.d(TAG, "【入口2: onNewIntent】 " + className + " 被触发！");
+                    // onNewIntent 之后UI会立即刷新，所以延迟一小段时间再修改，确保App自身的UI操作已完成
+                    new Handler().postDelayed(() -> {
+                        changeButtonToRobMode(param.thisObject, lpparam.packageName);
+                    }, 100); // 延迟100毫秒
+                }
+            });
+        } catch (Throwable t) {
+            Log.e(TAG, "Hook " + className + " 的 onNewIntent 方法失败: " + t.getMessage());
+        }
+    }
+
+    /**
+     * 统一的按钮修改逻辑（包含防重复执行的优化）
+     * @param orderViewInstance OrderView 或 OrderViewWithMap 的实例
+     * @param packageName App包名
+     */
+    private void changeButtonToRobMode(Object orderViewInstance, String packageName) {
+        // 检查总开关
+        if (instantRobEnabled == 0) {
+            Log.d(TAG, "秒抢功能当前为关闭状态，不执行修改。");
+            return;
+        }
+
+        try {
+            Context context = (Context) orderViewInstance;
+            Button robBtn = (Button) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_Btn");
+
+            // 【关键优化】如果按钮已经是可点击状态，说明我们已经修改过了，或者App自己变了
+            // 此时直接返回，避免重复操作导致UI紊乱或消失
+            if (robBtn.isClickable()) {
+                Log.d(TAG, "按钮已经是可点击状态，本次跳过修改。");
+                return;
+            }
+
+            Log.d(TAG, "开始执行按钮状态修改...");
+
+            RelativeLayout robRL = (RelativeLayout) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_RL");
+
+            // 1. 设为可点击
+            robRL.setClickable(true);
+            robBtn.setClickable(true);
+
+            // 2. 修改尺寸
+            ViewGroup.LayoutParams layoutParams = robBtn.getLayoutParams();
+            float density = context.getResources().getDisplayMetrics().density;
+            layoutParams.width = (int) (30.0f * density + 0.5f);
+            layoutParams.height = (int) (30.0f * density + 0.5f);
+            robBtn.setLayoutParams(layoutParams);
+
+            // 3. 更换背景为方形
+            int pbfDrawableId = context.getResources().getIdentifier("pbf", "drawable", packageName);
+            if (pbfDrawableId != 0) {
+                robBtn.setBackgroundResource(pbfDrawableId);
+                Log.d(TAG, "[成功] 按钮已修改为方形可点击状态！");
+            } else {
+                Log.w(TAG, "[警告] 未找到名为 'pbf' 的drawable资源。");
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "[错误] 修改按钮状态时发生异常: ", e);
+        }
+    }
+    // 【核心新增】为新的订单界面创建一个新的Hook方法
+    private void hookNewTypeOrderView(final LoadPackageParam lpparam) {
+        // 假设您通过第一步侦查到，新类名叫 com.jiuzhou.TaxiDriver.Views.AnotherOrderActivity
+        final String newClassName = "com.jiuzhou.TaxiDriver.Views.AnotherOrderActivity";
+        // 假设您通过第二步侦查到，它的初始化方法是 onCreate
+        final String newMethodName = "onCreate";
 
         try {
             XposedHelpers.findAndHookMethod(
-                    targetClassName,
+                    newClassName,
                     lpparam.classLoader,
-                    targetMethodName,
-                    Intent.class, // 方法参数
+                    newMethodName,
+                    android.os.Bundle.class, // onCreate 方法的参数是 Bundle
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                             super.afterHookedMethod(param);
 
-                            XposedBridge.log(TAG + ": OrderView.doinit方法被Hook。");
+                            XposedBridge.log("【新界面】AnotherOrderActivity.onCreate 被Hook了！");
 
-                            // 首先检查秒抢功能是否开启
-                            if (instantRobEnabled == 0) {
-                                XposedBridge.log(TAG + ": 秒抢功能未开启，不执行任何操作。");
-                                return;
-                            }
+                            if (instantRobEnabled == 1) { // 同样使用全局开关控制
+                                XposedBridge.log("【新界面】秒抢开启，开始修改按钮...");
 
-                            XposedBridge.log(TAG + ": 秒抢功能已开启，开始修改按钮状态...");
+                                Object activityInstance = param.thisObject;
+                                Context context = (Context) activityInstance;
 
-                            try {
-                                Object orderViewInstance = param.thisObject;
-                                Context context = (Context) orderViewInstance;
+                                // 假设您侦查到新的按钮变量名叫 mConfirmButton 和 mConfirmLayout
+                                RelativeLayout newRobRL = (RelativeLayout) XposedHelpers.getObjectField(activityInstance, "mConfirmLayout");
+                                Button newRobBtn = (Button) XposedHelpers.getObjectField(activityInstance, "mConfirmButton");
 
-                                // 通过反射获取私有字段，注意字段名可能被混淆
-                                RelativeLayout robRL = (RelativeLayout) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_RL");
-                                Button robBtn = (Button) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_Btn");
-
-                                // 1. 设为可点击
-                                robRL.setClickable(true);
-                                robBtn.setClickable(true);
-
+                                // 执行和之前完全一样的修改逻辑
+                                newRobRL.setClickable(true);
+                                newRobBtn.setClickable(true);
+                                // ... 修改尺寸和背景的代码 ...
                                 // 2. 修改尺寸
-                                ViewGroup.LayoutParams layoutParams = robBtn.getLayoutParams();
+                                ViewGroup.LayoutParams layoutParams = newRobBtn.getLayoutParams();
                                 float density = context.getResources().getDisplayMetrics().density;
                                 layoutParams.width = (int) (30.0f * density + 0.5f);
                                 layoutParams.height = (int) (30.0f * density + 0.5f);
-                                robBtn.setLayoutParams(layoutParams);
+                                newRobBtn.setLayoutParams(layoutParams);
 
-                                // 3. 更换背景为方形 (通过资源名获取ID，更稳定)
-                                int pbfDrawableId = context.getResources().getIdentifier("pbf", "drawable", lpparam.packageName);
+                                // 3. 更换背景为方形
+                                int pbfDrawableId = context.getResources().getIdentifier("pbf", "drawable", newClassName);
                                 if (pbfDrawableId != 0) {
-                                    robBtn.setBackgroundResource(pbfDrawableId);
-                                    XposedBridge.log(TAG + ": [成功] 按钮已修改为方形可点击状态！");
+                                    newRobBtn.setBackgroundResource(pbfDrawableId);
+                                    Log.d(TAG, "[成功] 按钮已修改为方形可点击状态！");
                                 } else {
-                                    XposedBridge.log(TAG + ": [警告] 未找到名为 'pbf' 的drawable资源。");
+                                    Log.w(TAG, "[警告] 未找到名为 'pbf' 的drawable资源。");
                                 }
-
-                            } catch (Exception e) {
-                                XposedBridge.log(TAG + ": [错误] 修改按钮状态时发生异常: " + e.getMessage());
+                                XposedBridge.log("【新界面】按钮修改成功！");
                             }
                         }
                     }
             );
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": [错误] Hook OrderView 失败: " + t.getMessage());
+            XposedBridge.log("Hook新界面 " + newClassName + " 失败: " + t.getMessage());
         }
+    }
+
+    /**
+     * 【核心新增】侦查兵方法：扫描并Hook整个App中所有参数为 (Intent) 的方法
+     * @param lpparam LoadPackageParam
+     */
+    private void spyOnIntentMethods(final LoadPackageParam lpparam) {
+        Log.d(TAG, "【侦查兵】开始扫描所有 (Intent) 签名的方法...");
+
+        List<String> classNames = getAllClassNames((Context) XposedHelpers.callMethod(XposedHelpers.findClass("android.app.ActivityThread", null), "currentApplication"));
+
+        for (String className : classNames) {
+            // 过滤掉一些系统类，减少干扰
+            if (className.startsWith("android.") || className.startsWith("java.") || className.startsWith("com.google.") || className.startsWith("androidx.")) {
+                continue;
+            }
+
+            try {
+                Class<?> clazz = XposedHelpers.findClass(className, lpparam.classLoader);
+
+                // 遍历当前类的所有方法
+                for (final Method method : clazz.getDeclaredMethods()) {
+                    // 关键！我们根据方法的 "签名" 来识别它：只有一个参数，且类型是 Intent
+                    if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == Intent.class) {
+
+                        // 找到一个就Hook一个，我们不return，要Hook所有符合条件的
+                        XposedBridge.hookMethod(method, new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                                // 在方法执行前打印，这样可以看到传入的原始参数
+                                Intent intent = (Intent) param.args[0];
+                                if (intent == null) return;
+
+                                // --- 开始打印详细的上下文信息 ---
+                                Log.d(TAG, "===================== (Intent) 方法被调用 =====================");
+                                Log.d(TAG, "【类名】: " + param.method.getDeclaringClass().getName());
+                                Log.d(TAG, "【方法名】: " + param.method.getName());
+                                Log.d(TAG, "【Intent Action】: " + intent.getAction());
+                                Log.d(TAG, "【Intent Type】: " + intent.getType());
+                                Log.d(TAG, "【Intent Component】: " + (intent.getComponent() != null ? intent.getComponent().toString() : "null"));
+
+                                // 打印Intent中携带的所有附加数据(Extras)
+                                Bundle extras = intent.getExtras();
+                                if (extras != null && !extras.isEmpty()) {
+                                    Log.d(TAG, "【Intent Extras】:");
+                                    for (String key : extras.keySet()) {
+                                        Object value = extras.get(key);
+                                        String valueStr = (value != null) ? value.toString() : "null";
+                                        // 避免打印过长的内容导致Logcat卡顿
+                                        if (valueStr.length() > 200) {
+                                            valueStr = valueStr.substring(0, 200) + "...";
+                                        }
+                                        Log.d(TAG, "    " + key + " = " + valueStr);
+                                    }
+                                } else {
+                                    Log.d(TAG, "【Intent Extras】: null or empty");
+                                }
+                                Log.d(TAG, "================================================================");
+                            }
+                        });
+                    }
+                }
+            } catch (Throwable ignored) {
+                // 忽略
+            }
+        }
+        Log.d(TAG, "【侦查兵】所有 (Intent) 签名方法的扫描和Hook部署完毕。");
+    }
+    /**
+     * 辅助方法：对单个指定的类，Hook其 doinit 和 onNewIntent 两个入口点
+     * @param className 要Hook的目标类名
+     * @param lpparam LoadPackageParam
+     */
+    private void hookAllEntryPointsForClass(final String className, final LoadPackageParam lpparam) {
+        // --- Hook 入口1: doinit ---
+        try {
+            // 尝试Hook带Bundle参数的版本，主要用于OrderViewWithMap
+            XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, Bundle.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    Log.d(TAG, "【入口 doinit with Bundle】" + className + " 被触发！");
+                    changeButtonToRobMode(param.thisObject, lpparam.packageName);
+                }
+            });
+        } catch (Throwable t) {
+            // 如果带Bundle的版本失败，说明是OrderView，尝试Hook不带Bundle的版本
+            try {
+                XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        Log.d(TAG, "【入口 doinit】" + className + " 被触发！");
+                        changeButtonToRobMode(param.thisObject, lpparam.packageName);
+                    }
+                });
+            } catch (Throwable t2) {
+                Log.e(TAG, "Hook " + className + " 的 doinit 方法彻底失败: " + t2.getMessage());
+            }
+        }
+
+        // --- Hook 入口2: onNewIntent ---
+        try {
+            XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "onNewIntent", Intent.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    Log.d(TAG, "【入口 onNewIntent】" + className + " 被触发！");
+
+                    // onNewIntent后，App自身的UI更新需要一点时间，我们延迟修改以避免冲突
+                    // 使用主线程的Handler来确保UI操作的线程安全
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        changeButtonToRobMode(param.thisObject, lpparam.packageName);
+                    }, 150); // 延迟150毫秒，这个值可以微调
+                }
+            });
+        } catch (Throwable t) {
+            Log.e(TAG, "Hook " + className + " 的 onNewIntent 方法失败: " + t.getMessage());
+        }
+    }
+
+    /**
+     * 【核心】部署对两个订单界面的所有入口进行Hook
+     * @param lpparam LoadPackageParam
+     */
+    private void deployOrderViewHooks(final LoadPackageParam lpparam) {
+        // 定义两个已知的订单界面类名
+        final String className1 = "com.jiuzhou.TaxiDriver.Views.OrderView";
+        final String className2 = "com.jiuzhou.TaxiDriver.Views.OrderViewWithMap";
+
+        // 分别对这两个类部署Hook
+        hookAllEntryPointsForClass(className1, lpparam);
+        hookAllEntryPointsForClass(className2, lpparam);
     }
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals(TARGET_PACKAGE_NAME)) {
             return;
         }
-        //XposedBridge.log(TAG + ": 成功注入目标App -> " + lpparam.packageName);
+        //Log.d(TAG , ": 成功注入目标App -> " + lpparam.packageName);
 
         XposedHelpers.findAndHookMethod(Application.class, "onCreate", new XC_MethodHook() {
             @Override
@@ -127,73 +361,161 @@ public class xp implements IXposedHookLoadPackage {
 
                 // 【新增】调用新的Hook方法
                 hookOrderView(lpparam);
-
-                new Thread(() -> findAndHookPlayMethod(appContext)).start();
+                // 【新增】调用一个新的方法来Hook新的订单界面
+                hookNewTypeOrderView(lpparam);
+                deployOrderViewHooks(lpparam);
+                new Thread(() -> {
+                    spyOnSpecificClassMethods(lpparam, "com.jiuzhou.TaxiDriver.Views.OrderView");
+                    findAndHookOrderViewDynamically(lpparam, "com.jiuzhou.TaxiDriver.Views.OrderView");
+                    findAndHookPlayMethod(appContext); // 您的语音Hook也可以放在这里
+                }).start();
+//                new Thread(() -> findAndHookPlayMethod(appContext)).start();
             }
         });
     }
 
     /**
-     * [重构核心] 动态扫描并Hook目标播放方法
+     * 【核心新增】精准侦查兵：只扫描并Hook一个特定类中所有符合 (Intent) 签名的方法
+     * @param lpparam LoadPackageParam
+     * @param targetClassName 要侦查的目标类的完整名称
      */
+    private void spyOnSpecificClassMethods(final LoadPackageParam lpparam, String targetClassName) {
+        Log.d(TAG, "【精准侦查】开始扫描类: " + targetClassName);
+
+        try {
+            Class<?> clazz = XposedHelpers.findClass(targetClassName, lpparam.classLoader);
+
+            // 遍历当前类的所有方法
+            for (final Method method : clazz.getDeclaredMethods()) {
+                // 侦查参数为 (Intent) 的方法
+                if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == Intent.class) {
+                    Log.d(TAG, "【精准侦查】发现目标方法: " + method.getName() + "，已部署Hook。");
+
+                    XposedBridge.hookMethod(method, new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            // 打印日志的逻辑和之前完全一样
+                            Intent intent = (Intent) param.args[0];
+                            if (intent == null) return;
+
+                            Log.d(TAG, "===================== (Intent) 方法被调用 =====================");
+                            Log.d(TAG, "【类名】: " + param.method.getDeclaringClass().getName());
+                            Log.d(TAG, "【方法名】: " + param.method.getName());
+                            // ... 其他打印Intent信息的代码 ...
+                            Log.d(TAG, "================================================================");
+                        }
+                    });
+                }
+            }
+            Log.d(TAG, "【精准侦查】" + targetClassName + " 扫描完毕。");
+        } catch (Throwable t) {
+            Log.e(TAG, "【精准侦查】扫描类 " + targetClassName + " 失败: ", t);
+        }
+    }
+// 在 xp.java 中
+
+// ... 其他代码 ...
+
+    /**
+     * 【精准修改版】在指定的类中寻找并Hook订单界面的初始化方法。
+     * 这个方法不再进行全局扫描，以避免触发加固保护。
+     * @param lpparam LoadPackageParam
+     * @param targetClassName 要处理的目标类的完整名称
+     */
+    private void findAndHookOrderViewDynamically(final LoadPackageParam lpparam, String targetClassName) {
+        Log.d(TAG, "【精准修改】开始处理类: " + targetClassName);
+
+        try {
+            // 1. 直接通过名字找到我们已经确定的目标类
+            Class<?> clazz = XposedHelpers.findClass(targetClassName, lpparam.classLoader);
+
+            Log.d(TAG, "【精准修改】成功定位到类: " + clazz.getName());
+
+            // 2. 遍历这个类中声明的所有方法
+            for (final Method method : clazz.getDeclaredMethods()) {
+
+                // 3. 寻找符合我们“签名”的方法：只有一个参数，且类型是 Intent
+                if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == Intent.class) {
+
+                    // 找到了一个符合条件的方法 (可能是 doinit, onNewIntent, 或者被混淆后的 a, b 等)
+                    Log.d(TAG, "【精准修改】发现目标方法: " + method.getName() + "，已部署修改按钮的Hook。");
+
+                    // 4. 对这个找到的方法实施Hook
+                    XposedBridge.hookMethod(method, new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                            Log.d(TAG, "【精准修改】Hook的方法 " + method.getName() + " 已被触发！");
+
+                            // 调用我们统一的按钮修改逻辑
+                            changeButtonToRobMode(param.thisObject, lpparam.packageName);
+                        }
+                    });
+                }
+            }
+            Log.d(TAG, "【精准修改】" + targetClassName + " 的方法扫描和Hook部署完毕。");
+
+        } catch (Throwable t) {
+            Log.e(TAG, "【精准修改】处理类 " + targetClassName + " 失败: ", t);
+        }
+    }
+    // 在 xp.java 中
     private void findAndHookPlayMethod(Context context) {
-        //XposedBridge.log(TAG + ": 开始动态扫描所有类以寻找目标方法...");
-        long startTime = System.currentTimeMillis();
+        Log.d(TAG, "开始动态扫描所有类以寻找播放方法...");
+
+        // 【关键修改】不再使用 return; 语句
 
         List<String> classNames = getAllClassNames(context);
-        //XposedBridge.log(TAG + ": 找到 " + classNames.size() + " 个类，开始遍历...");
 
         for (String className : classNames) {
-            // 过滤掉一些明显不可能的系统类和常用库，提高效率
-            if (className.startsWith("android.") || className.startsWith("java.") || className.startsWith("com.google.") || className.startsWith("androidx.")) {
+            // 【优化】直接锁定我们已知的两个目标类，大幅提高效率和稳定性
+            if (!className.equals("com.jiuzhou.TaxiDriver.Views.OrderView") &&
+                    !className.equals("com.jiuzhou.TaxiDriver.Views.OrderViewWithMap")) {
                 continue;
             }
 
             try {
                 Class<?> clazz = XposedHelpers.findClass(className, context.getClassLoader());
 
-                // 遍历当前类的所有方法
                 for (Method method : clazz.getDeclaredMethods()) {
-                    // 关键！我们根据方法的 "签名" 来识别它：(File, int)
-                    if (method.getParameterCount() == 2 &&
+                    // 签名 (File, int)，方法名叫 ManualPlay
+                    if (method.getName().equals("ManualPlay") && // 增加方法名判断，更精确
+                            method.getParameterCount() == 2 &&
                             method.getParameterTypes()[0] == File.class &&
-                            method.getParameterTypes()[1] == int.class) { // 注意这里是 int.class
+                            method.getParameterTypes()[1] == int.class) {
 
-                        long endTime = System.currentTimeMillis();
-                        //XposedBridge.log(TAG + ": [成功!] 动态找到目标方法: " + method.toGenericString());
-                        //XposedBridge.log(TAG + ": 扫描耗时: " + (endTime - startTime) + " ms");
+                        Log.d(TAG, "[成功!] 动态找到目标播放方法: " + method.toGenericString());
 
                         // 找到后立即Hook
                         XposedBridge.hookMethod(method, new XC_MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                                 if (cdkValue == 0) {
-                                    //XposedBridge.log(TAG + ": CDK为0，禁用加速功能。");
                                     return;
                                 }
-
                                 try {
                                     Object orderViewInstance = param.thisObject;
-                                    // 播放器实例的变量名也可能被混淆，需要逆向分析
                                     Field playerField = XposedHelpers.findField(orderViewInstance.getClass(), "iMediaPlayer");
                                     Object iMediaPlayerInstance = playerField.get(orderViewInstance);
 
                                     if (iMediaPlayerInstance != null) {
                                         setPlayerSpeed(iMediaPlayerInstance);
+                                        Log.d(TAG, "已对 " + orderViewInstance.getClass().getSimpleName() + " 的播放器设置速度。");
                                     }
                                 } catch (Exception e) {
-                                   // XposedBridge.log(TAG + ": Hook回调中获取或设置播放器速度时出错: " + e.getMessage());
+                                    Log.e(TAG, "设置播放速度时出错: ", e);
                                 }
                             }
                         });
-                        return; // 找到并Hook后，立即终止扫描
+
+                        // 【关键修改】注释掉或者删除这一行！让循环继续，去寻找下一个符合条件的方法。
+                        // return;
                     }
                 }
             } catch (Throwable ignored) {
-                // 忽略掉一些无法加载或分析的类
+                // ...
             }
         }
-       // XposedBridge.log(TAG + ": [扫描结束] 未找到符合签名 (File, int) 的方法。");
+        Log.d(TAG, "[扫描结束] 所有已知的播放方法Hook部署完毕。");
     }
 
     /**
@@ -208,7 +530,7 @@ public class xp implements IXposedHookLoadPackage {
                 classNames.add(enumeration.nextElement());
             }
         } catch (Exception e) {
-           // XposedBridge.log(TAG + ": 获取所有类名时出错: " + e.getMessage());
+           // Log.d(TAG , ": 获取所有类名时出错: " + e.getMessage());
         }
         return classNames;
     }
@@ -220,8 +542,8 @@ public class xp implements IXposedHookLoadPackage {
         this.currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
         this.cdkValue = prefs.getInt("xsfvs", 0);
         // 【新增】从本地加载秒抢开关的状态
-        this.instantRobEnabled = prefs.getInt("instant_rob", 0);
-        //XposedBridge.log(TAG + ": 初始状态加载完成。Speed: " + currentSpeed + ", CDK: " + cdkValue);
+//        this.instantRobEnabled = prefs.getInt("instant_rob", 0);
+        //Log.d(TAG , ": 初始状态加载完成。Speed: " + currentSpeed + ", CDK: " + cdkValue);
     }
 
     private void registerBroadcastReceiver(Context context) {
@@ -237,11 +559,11 @@ public class xp implements IXposedHookLoadPackage {
                 if ("com.example.CHANGE_PLAYBACK_SPEED".equals(action)) {
                     currentSpeed = intent.getFloatExtra("playback_speed", 1.0f);
                     editor.putFloat("currentSpeed", currentSpeed);
-                    //XposedBridge.log(TAG + ": 接收到速度变更命令，新速度: " + currentSpeed);
+                    //Log.d(TAG , ": 接收到速度变更命令，新速度: " + currentSpeed);
                 } else if ("com.example.msphone.THISSHOWTIME".equals(action)) {
                     cdkValue = intent.getIntExtra("xsfvs", 0);
                     editor.putInt("xsfvs", cdkValue);
-                    //XposedBridge.log(TAG + ": 接收到认证状态变更，新CDK: " + cdkValue);
+                    //Log.d(TAG , ": 接收到认证状态变更，新CDK: " + cdkValue);
                 } else  if ("com.example.msphone.UPDATE_SETTINGS".equals(action)) {
                     // 同时接收两个控制参数
                     cdkValue = intent.getIntExtra("xsfvs", 0);
@@ -251,7 +573,7 @@ public class xp implements IXposedHookLoadPackage {
                     editor.putInt("xsfvs", cdkValue);
                     editor.putInt("instant_rob", instantRobEnabled);
 
-                    XposedBridge.log(TAG + ": 接收到设置更新 -> CDK: " + cdkValue + ", InstantRob: " + instantRobEnabled);
+                    Log.d(TAG , ": 接收到设置更新 -> CDK: " + cdkValue + ", InstantRob: " + instantRobEnabled);
                 }
                 editor.apply();
             }
@@ -262,7 +584,7 @@ public class xp implements IXposedHookLoadPackage {
         } else {
             context.registerReceiver(receiver, filter);
         }
-        //XposedBridge.log(TAG + ": 广播接收器注册成功。");
+        //Log.d(TAG , ": 广播接收器注册成功。");
     }
 
     private void hookActivityEvents(ClassLoader classLoader) {
@@ -287,18 +609,18 @@ public class xp implements IXposedHookLoadPackage {
                 PlaybackParams params = ((MediaPlayer) playerInstance).getPlaybackParams();
                 params.setSpeed(currentSpeed);
                 ((MediaPlayer) playerInstance).setPlaybackParams(params);
-               // XposedBridge.log(TAG + ": 通过标准API设置速度为 -> " + currentSpeed);
+               // Log.d(TAG , ": 通过标准API设置速度为 -> " + currentSpeed);
             } else {
                 Method setSpeedMethod = XposedHelpers.findMethodExactIfExists(playerInstance.getClass(), "setSpeed", float.class);
                 if (setSpeedMethod != null) {
                     setSpeedMethod.invoke(playerInstance, currentSpeed);
-                   // XposedBridge.log(TAG + ": 通过反射调用setSpeed方法设置速度为 -> " + currentSpeed);
+                   // Log.d(TAG , ": 通过反射调用setSpeed方法设置速度为 -> " + currentSpeed);
                 } else {
-                   // XposedBridge.log(TAG + ": 在播放器中未找到setSpeed(float)方法。");
+                   // Log.d(TAG , ": 在播放器中未找到setSpeed(float)方法。");
                 }
             }
         } catch (Exception e) {
-           // XposedBridge.log(TAG + ": 设置播放器速度时发生异常: " + e.getMessage());
+           // Log.d(TAG , ": 设置播放器速度时发生异常: " + e.getMessage());
         }
     }
 }
