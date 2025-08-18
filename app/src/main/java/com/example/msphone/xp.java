@@ -12,6 +12,9 @@ import android.os.Build;
 import android.media.PlaybackParams;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.RelativeLayout;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -36,8 +39,74 @@ public class xp implements IXposedHookLoadPackage {
 
     private float currentSpeed = 1.0f;
     private int cdkValue = 0;
+    // 【新增】用于保存秒抢功能状态的变量
+    private int instantRobEnabled = 1;
     private long lastVolumeUpClickTime = 0;
+    // 【核心新增】用于Hook订单界面并修改按钮的方法
+    private void hookOrderView(final LoadPackageParam lpparam) {
+        // 目标类和方法，注意如果App有混淆，需要改成混淆后的名称
+        final String targetClassName = "com.jiuzhou.TaxiDriver.Views.OrderView";
+        final String targetMethodName = "doinit";
 
+        try {
+            XposedHelpers.findAndHookMethod(
+                    targetClassName,
+                    lpparam.classLoader,
+                    targetMethodName,
+                    Intent.class, // 方法参数
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                            super.afterHookedMethod(param);
+
+                            XposedBridge.log(TAG + ": OrderView.doinit方法被Hook。");
+
+                            // 首先检查秒抢功能是否开启
+                            if (instantRobEnabled == 0) {
+                                XposedBridge.log(TAG + ": 秒抢功能未开启，不执行任何操作。");
+                                return;
+                            }
+
+                            XposedBridge.log(TAG + ": 秒抢功能已开启，开始修改按钮状态...");
+
+                            try {
+                                Object orderViewInstance = param.thisObject;
+                                Context context = (Context) orderViewInstance;
+
+                                // 通过反射获取私有字段，注意字段名可能被混淆
+                                RelativeLayout robRL = (RelativeLayout) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_RL");
+                                Button robBtn = (Button) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_Btn");
+
+                                // 1. 设为可点击
+                                robRL.setClickable(true);
+                                robBtn.setClickable(true);
+
+                                // 2. 修改尺寸
+                                ViewGroup.LayoutParams layoutParams = robBtn.getLayoutParams();
+                                float density = context.getResources().getDisplayMetrics().density;
+                                layoutParams.width = (int) (30.0f * density + 0.5f);
+                                layoutParams.height = (int) (30.0f * density + 0.5f);
+                                robBtn.setLayoutParams(layoutParams);
+
+                                // 3. 更换背景为方形 (通过资源名获取ID，更稳定)
+                                int pbfDrawableId = context.getResources().getIdentifier("pbf", "drawable", lpparam.packageName);
+                                if (pbfDrawableId != 0) {
+                                    robBtn.setBackgroundResource(pbfDrawableId);
+                                    XposedBridge.log(TAG + ": [成功] 按钮已修改为方形可点击状态！");
+                                } else {
+                                    XposedBridge.log(TAG + ": [警告] 未找到名为 'pbf' 的drawable资源。");
+                                }
+
+                            } catch (Exception e) {
+                                XposedBridge.log(TAG + ": [错误] 修改按钮状态时发生异常: " + e.getMessage());
+                            }
+                        }
+                    }
+            );
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": [错误] Hook OrderView 失败: " + t.getMessage());
+        }
+    }
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals(TARGET_PACKAGE_NAME)) {
@@ -51,13 +120,14 @@ public class xp implements IXposedHookLoadPackage {
                 super.afterHookedMethod(param);
 
                 final Context appContext = (Context) param.thisObject;
-                //XposedBridge.log(TAG + ": Application.onCreate 执行，开始初始化...");
 
                 loadInitialState(appContext);
                 registerBroadcastReceiver(appContext);
                 hookActivityEvents(lpparam.classLoader);
 
-                // [重构核心] 在后台线程中启动动态扫描，避免阻塞应用启动
+                // 【新增】调用新的Hook方法
+                hookOrderView(lpparam);
+
                 new Thread(() -> findAndHookPlayMethod(appContext)).start();
             }
         });
@@ -149,6 +219,8 @@ public class xp implements IXposedHookLoadPackage {
         SharedPreferences prefs = context.getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
         this.currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
         this.cdkValue = prefs.getInt("xsfvs", 0);
+        // 【新增】从本地加载秒抢开关的状态
+        this.instantRobEnabled = prefs.getInt("instant_rob", 0);
         //XposedBridge.log(TAG + ": 初始状态加载完成。Speed: " + currentSpeed + ", CDK: " + cdkValue);
     }
 
@@ -156,7 +228,7 @@ public class xp implements IXposedHookLoadPackage {
         IntentFilter filter = new IntentFilter();
         filter.addAction("com.example.CHANGE_PLAYBACK_SPEED");
         filter.addAction("com.example.msphone.THISSHOWTIME");
-
+        IntentFilter filter1 = new IntentFilter("com.example.msphone.UPDATE_SETTINGS");
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -170,6 +242,16 @@ public class xp implements IXposedHookLoadPackage {
                     cdkValue = intent.getIntExtra("xsfvs", 0);
                     editor.putInt("xsfvs", cdkValue);
                     //XposedBridge.log(TAG + ": 接收到认证状态变更，新CDK: " + cdkValue);
+                } else  if ("com.example.msphone.UPDATE_SETTINGS".equals(action)) {
+                    // 同时接收两个控制参数
+                    cdkValue = intent.getIntExtra("xsfvs", 0);
+                    instantRobEnabled = intent.getIntExtra("instant_rob", 0);
+
+                    // 保存到本地，以便下次启动时能恢复状态
+                    editor.putInt("xsfvs", cdkValue);
+                    editor.putInt("instant_rob", instantRobEnabled);
+
+                    XposedBridge.log(TAG + ": 接收到设置更新 -> CDK: " + cdkValue + ", InstantRob: " + instantRobEnabled);
                 }
                 editor.apply();
             }

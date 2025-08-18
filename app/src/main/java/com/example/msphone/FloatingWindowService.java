@@ -49,6 +49,8 @@ import javax.crypto.spec.DESKeySpec;
 public class FloatingWindowService extends Service {
     public static final String ACTION_CHANGE_PLAYBACK_SPEED = "com.example.CHANGE_PLAYBACK_SPEED";
     public static final String EXTRA_PLAYBACK_SPEED = "playback_speed";
+    // 建议定义一个新的、更通用的广播Action名
+    public static final String ACTION_UPDATE_SETTINGS = "com.example.msphone.UPDATE_SETTINGS";
     private ImageButton mCloseButton;
     private View mFloatingView;
     private SeekBar mSeekBar;
@@ -65,6 +67,15 @@ public class FloatingWindowService extends Service {
             handler.postDelayed(this, 120000); // 2分钟心跳
         }
     };
+    // 【新增】一个更通用的广播方法
+    public void broadcastControlStatus(Integer cdk, Integer instantRob) {
+        Intent intent = new Intent(ACTION_UPDATE_SETTINGS); // 使用新的Action
+        intent.putExtra("xsfvs", cdk);
+        intent.putExtra("instant_rob", instantRob); // 增加新的数据
+        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        sendBroadcast(intent);
+    }
+
 
     /**
      * [重构核心] 将所有网络认证逻辑封装到这里，并在后台线程调用
@@ -98,6 +109,15 @@ public class FloatingWindowService extends Service {
                             broadcastCdkStatus(cdk);
                             // 如果需要根据认证结果更新UI，必须切回主线程
                             // runOnUiThread(...) // 在Service中不能直接用，需要Handler
+                            // 【新增】解析秒抢功能的开关，如果服务器没返回，则默认为0（关闭）
+                            int instantRobFlag = 0;
+                            if (dataObject.has("instant_rob")) {
+                                instantRobFlag = dataObject.get("instant_rob").getAsInt();
+                            }
+
+                            // 【修改】调用新的广播方法，发送所有控制信息
+                            broadcastControlStatus(cdk, instantRobFlag);
+
                             if (mSeekBar != null) {
                                 handler.post(() -> mSeekBar.setMax(cdk > 0 ? cdk : 170)); // 更新滑块最大值
                             }
