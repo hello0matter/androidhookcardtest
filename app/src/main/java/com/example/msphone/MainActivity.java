@@ -24,7 +24,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zy.devicelibrary.UtilsApp;
-import com.zy.devicelibrary.utils.FileUtils;
 import com.zy.devicelibrary.utils.NetWorkUtils;
 
 import org.apache.commons.codec.binary.Base64;
@@ -223,8 +222,8 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
         startFloatingWindowService();
-        utdid = FileUtils.getSDDeviceTxt();
-        imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+        utdid = FileUtils.getDeviceIdentifier(this);
+        imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getDeviceIdentifier(this);
 
         ip = getIpAddressString();
 //        phone = GeneralUtils.getSimCardInfo().number1;

@@ -1,5 +1,11 @@
 package com.example.msphone;
 
+import static com.google.android.exoplayer2.util.NotificationUtil.createNotificationChannel;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -20,11 +26,12 @@ import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.Toast;
+import com.example.msphone.FileUtils;
+import androidx.core.app.NotificationCompat;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.zy.devicelibrary.utils.FileUtils;
 import com.zy.devicelibrary.utils.NetWorkUtils;
 
 import org.apache.commons.codec.binary.Base64;
@@ -56,6 +63,8 @@ public class FloatingWindowService extends Service {
     private SeekBar mSeekBar;
     private BroadcastReceiver mToggleFloatingWindowReceiver;
     private WindowManager mWindowManager;
+    private static final int NOTIFICATION_ID = 1;
+    private static final String CHANNEL_ID = "FloatingWindowServiceChannel";
 
     private final Handler handler = new Handler();
     private final Runnable runnableCode = new Runnable() {
@@ -82,7 +91,7 @@ public class FloatingWindowService extends Service {
      */
     void performNetworkAuth() {
         try {
-            String utdid = FileUtils.getSDDeviceTxt();
+            String utdid = FileUtils.getDeviceIdentifier(getApplicationContext());
             String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + utdid;
             String ip = getIpAddressString();
             String phone = ""; // 按需获取
@@ -160,14 +169,14 @@ public class FloatingWindowService extends Service {
     }
     void doharddamyapp() {
 //        utdid = FileUtils.getSDDeviceTxt();
-        imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+        imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getDeviceIdentifier(getApplicationContext());
 
         ip = getIpAddressString();
 //        phone = GeneralUtils.getSimCardInfo().number1;
         times = null;
-        String utdid = FileUtils.getSDDeviceTxt();
+        String utdid = FileUtils.getDeviceIdentifier(getApplicationContext());
 
-        String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
+        String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getDeviceIdentifier(getApplicationContext());
 
 
         String ip = getIpAddressString();
@@ -234,6 +243,19 @@ public class FloatingWindowService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        createNotificationChannel();
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this,
+                0, notificationIntent, PendingIntent.FLAG_IMMUTABLE); // 注意 FLAG_IMMUTABLE
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("悬浮窗服务正在运行")
+                .setContentText("点击返回应用")
+                .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
+                .setContentIntent(pendingIntent)
+                .build();
+        startForeground(NOTIFICATION_ID, notification);
         createFloatingWindow();
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行
@@ -241,6 +263,19 @@ public class FloatingWindowService extends Service {
     }
 
 
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel serviceChannel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "悬浮窗服务",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(serviceChannel);
+            }
+        }
+    }
 
 
     private void initBroadcastReceivers() {
