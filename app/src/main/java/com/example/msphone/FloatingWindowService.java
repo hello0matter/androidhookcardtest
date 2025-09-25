@@ -23,6 +23,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.Toast;
@@ -65,6 +67,11 @@ public class FloatingWindowService extends Service {
     private WindowManager mWindowManager;
     private static final int NOTIFICATION_ID = 1;
     private static final String CHANNEL_ID = "FloatingWindowServiceChannel";
+    // 【新增】定义新的UI变量和常量
+    private EditText mEtDelaySeconds;
+    private Button mBtnSaveDelay;
+    public static final String ACTION_UPDATE_DELAY = "com.example.msphone.UPDATE_DELAY";
+    public static final String EXTRA_DELAY_MS = "delay_ms";
 
     private final Handler handler = new Handler();
     private final Runnable runnableCode = new Runnable() {
@@ -436,21 +443,111 @@ public class FloatingWindowService extends Service {
     private static String phone = "";
 
     private static String times = "";
+    /**
+     * 【新增】加载已保存的延迟时间并显示
+     */
+    private void loadAndDisplayDelay() {
+        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+        // 从本地读取延迟时间（毫秒），默认为150ms
+        long delayMs = prefs.getLong("rob_delay_ms", 150);
+        // 将毫秒转换为秒（保留两位小数）并显示在EditText中
+        mEtDelaySeconds.setText(String.format("%.2f", delayMs / 1000.0f));
+    }
+
+    /**
+     * 【新增】保存延迟设置并发送广播通知Xposed模块
+     */
+    private void saveDelayAndBroadcast() {
+        String delayStr = mEtDelaySeconds.getText().toString();
+        if (delayStr.isEmpty()) {
+            Toast.makeText(this, "延迟时间不能为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            float delaySeconds = Float.parseFloat(delayStr);
+            long delayMs = (long) (delaySeconds * 1000);
+
+            // 1. 保存到SharedPreferences，以便下次启动时能恢复
+            SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+            prefs.edit().putLong("rob_delay_ms", delayMs).apply();
+
+            // 2. 发送广播，实时通知Xposed模块更新延迟时间
+            Intent intent = new Intent(ACTION_UPDATE_DELAY);
+            intent.putExtra(EXTRA_DELAY_MS, delayMs);
+            intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+            sendBroadcast(intent);
+
+            Toast.makeText(this, "延迟已保存为 " + delaySeconds + " 秒", Toast.LENGTH_SHORT).show();
+
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "请输入有效的数字", Toast.LENGTH_SHORT).show();
+        }
+    }
 
     private long lastToastTime = 0;
     private static final long TOAST_THROTTLE_DELAY = 300; // 300毫秒的Toast间隔
-    //解密
+
+    /**
+     * 【新增】请求悬浮窗焦点，以便进行输入
+     */
+    private void requestFloatingWindowFocus() {
+        if (mFloatingView != null && mFloatingView.getParent() != null) {
+            WindowManager.LayoutParams params = (WindowManager.LayoutParams) mFloatingView.getLayoutParams();
+            // 移除 FLAG_NOT_FOCUSABLE 标志
+            params.flags &= ~WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+            mWindowManager.updateViewLayout(mFloatingView, params);
+            // 让 EditText 立即获取焦点
+            mEtDelaySeconds.requestFocus();
+        }
+    }
+
+
+    /**
+     * 【新增】释放悬浮窗焦点，恢复触摸穿透
+     */
+    private void releaseFloatingWindowFocus() {
+        if (mFloatingView != null && mFloatingView.getParent() != null) {
+            WindowManager.LayoutParams params = (WindowManager.LayoutParams) mFloatingView.getLayoutParams();
+            // 添加 FLAG_NOT_FOCUSABLE 标志
+            params.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+            mWindowManager.updateViewLayout(mFloatingView, params);
+        }
+    }
     private void createFloatingWindow() {
+        // --- 1. 初始化 View 和 WindowManager ---
         mFloatingView = LayoutInflater.from(this).inflate(R.layout.floating_window, null);
-        mSeekBar = mFloatingView.findViewById(R.id.seekbar);
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        // [重构核心] 将初次的网络请求也放入后台，防止服务启动时卡死
+        // --- 2. 找到所有的子控件 ---
+        mSeekBar = mFloatingView.findViewById(R.id.seekbar);
+        mEtDelaySeconds = mFloatingView.findViewById(R.id.et_delay_seconds);
+        mBtnSaveDelay = mFloatingView.findViewById(R.id.btn_save_delay);
+        View dragHandle = mFloatingView.findViewById(R.id.drag_handle); // 找到我们的拖动把手
+
+        // --- 3. 设置 WindowManager.LayoutParams (默认不可聚焦) ---
+        int LAYOUT_FLAG;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_PHONE;
+        }
+        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                LAYOUT_FLAG,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, // 默认不获取焦点，允许触摸穿透
+                PixelFormat.TRANSLUCENT);
+        params.gravity = Gravity.CENTER;
+
+        // --- 4. 将 View 添加到窗口 ---
+        mWindowManager.addView(mFloatingView, params);
+
+        // --- 5. 加载初始数据 ---
+        loadAndDisplayDelay();
         new Thread(this::performNetworkAuth).start();
 
-        // 默认值设置
-        mSeekBar.setMax(170); // 默认最大值
-        mSeekBar.setProgress(85); // 默认进度
+        // --- 6. 设置各个控件的监听器 ---
 
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -488,25 +585,22 @@ public class FloatingWindowService extends Service {
             }
         });
 
-        int LAYOUT_FLAG;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-        } else {
-            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_PHONE;
-        }
+        // EditText 的监听器 (负责请求焦点)
+        mEtDelaySeconds.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                requestFloatingWindowFocus();
+            }
+            return false;
+        });
 
-        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                LAYOUT_FLAG,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT);
+        // 保存按钮的监听器 (负责保存并释放焦点)
+        mBtnSaveDelay.setOnClickListener(v -> {
+            saveDelayAndBroadcast();
+            releaseFloatingWindowFocus();
+        });
 
-        params.gravity = Gravity.CENTER;
-        mWindowManager.addView(mFloatingView, params);
-
-        // 触摸移动逻辑 (保持不变)
-        mFloatingView.setOnTouchListener(new View.OnTouchListener() {
+        // 【最终解决方案】专门为拖动把手设置触摸监听器
+        dragHandle.setOnTouchListener(new View.OnTouchListener() {
             private float initialTouchX, initialTouchY;
             private int initialX, initialY;
 
@@ -518,18 +612,22 @@ public class FloatingWindowService extends Service {
                         initialY = params.y;
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
-                        return true;
+                        return true; // 消费事件，表示拖动开始
+
                     case MotionEvent.ACTION_MOVE:
                         params.x = initialX + (int) (event.getRawX() - initialTouchX);
                         params.y = initialY + (int) (event.getRawY() - initialTouchY);
                         mWindowManager.updateViewLayout(mFloatingView, params);
+                        return true; // 消费事件，表示正在拖动
+
+                    case MotionEvent.ACTION_UP:
+                        // 手指抬起，拖动结束
                         return true;
                 }
                 return false;
             }
         });
     }
-
 //    private void createFloatingWindow() {
 //        int LAYOUT_FLAG;
 //        utdid = FileUtils.getSDDeviceTxt();

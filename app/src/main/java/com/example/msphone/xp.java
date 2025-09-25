@@ -109,10 +109,10 @@ public class xp implements IXposedHookLoadPackage {
      */
     private void changeButtonToRobMode(Object orderViewInstance, String packageName) {
         // 检查总开关
-        if (instantRobEnabled == 0) {
-            Log.d(TAG, "秒抢功能当前为关闭状态，不执行修改。");
-            return;
-        }
+//        if (instantRobEnabled == 0) {
+//            Log.d(TAG, "秒抢功能当前为关闭状态，不执行修改。");
+//            return;
+//        }
 
         try {
             Context context = (Context) orderViewInstance;
@@ -327,7 +327,59 @@ public class xp implements IXposedHookLoadPackage {
             Log.e(TAG, "Hook " + className + " 的 onNewIntent 方法失败: " + t.getMessage());
         }
     }
+// 在 xp.java 文件中添加这个新方法
 
+    /**
+     * 【核心新增·新版适配】Hook NewOrderHandler 来拦截新订单消息。
+     * 这是应对App更新后的主要入口点。
+     * @param lpparam LoadPackageParam
+     */
+    private void hookNewOrderHandler(final LoadPackageParam lpparam) {
+        // 根据我们的侦查，目标类名是 MainService 的一个内部类
+        final String targetClassName = "com.jiuzhou.TaxiDriver.Services.MainService$NewOrderHandler";
+        Log.d(TAG, "【新版适配】准备Hook信使类: " + targetClassName);
+
+        try {
+            // 找到这个类，并Hook它的 handleMessage 方法
+            XposedHelpers.findAndHookMethod(
+                    targetClassName,
+                    lpparam.classLoader,
+                    "handleMessage", // Handler的核心方法
+                    android.os.Message.class, // handleMessage 的参数是 Message 对象
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            Log.d(TAG, "===================== NewOrderHandler.handleMessage 拦截成功 =====================");
+
+                            // 从参数中获取 Message 对象
+                            android.os.Message msg = (android.os.Message) param.args[0];
+
+                            // 打印Message的详细信息，以便我们分析订单数据藏在哪里
+                            Log.d(TAG, "【Message What】: " + msg.what);
+                            Log.d(TAG, "【Message Arg1】: " + msg.arg1);
+                            Log.d(TAG, "【Message Arg2】: " + msg.arg2);
+
+                            if (msg.obj != null) {
+                                Log.d(TAG, "【Message Obj Class】: " + msg.obj.getClass().getName());
+                                // 为了防止日志过长，可以只打印一部分内容
+                                String objContent = msg.obj.toString();
+                                if (objContent.length() > 500) {
+                                    objContent = objContent.substring(0, 500) + "...";
+                                }
+                                Log.d(TAG, "【Message Obj Content】: " + objContent);
+                            } else {
+                                Log.d(TAG, "【Message Obj】: null");
+                            }
+                            Log.d(TAG, "=================================================================================");
+                        }
+                    }
+            );
+            Log.d(TAG, "【新版适配】成功部署对 NewOrderHandler.handleMessage 的Hook。");
+
+        } catch (Throwable t) {
+            Log.e(TAG, "【新版适配】Hook NewOrderHandler 失败: " + t.getMessage());
+        }
+    }
     /**
      * 【核心】部署对两个订单界面的所有入口进行Hook
      * @param lpparam LoadPackageParam
@@ -341,12 +393,14 @@ public class xp implements IXposedHookLoadPackage {
         hookAllEntryPointsForClass(className1, lpparam);
         hookAllEntryPointsForClass(className2, lpparam);
     }
+
+    // 在 xp.java 文件中
+
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals(TARGET_PACKAGE_NAME)) {
             return;
         }
-        //Log.d(TAG , ": 成功注入目标App -> " + lpparam.packageName);
 
         XposedHelpers.findAndHookMethod(Application.class, "onCreate", new XC_MethodHook() {
             @Override
@@ -355,25 +409,25 @@ public class xp implements IXposedHookLoadPackage {
 
                 final Context appContext = (Context) param.thisObject;
 
+                // 基础功能初始化，保持不变
                 loadInitialState(appContext);
                 registerBroadcastReceiver(appContext);
                 hookActivityEvents(lpparam.classLoader);
 
-                // 【新增】调用新的Hook方法
-                hookOrderView(lpparam);
-                // 【新增】调用一个新的方法来Hook新的订单界面
-                hookNewTypeOrderView(lpparam);
-                deployOrderViewHooks(lpparam);
+                // 【核心修改】在这里调用我们的新战术
+                hookNewOrderHandler(lpparam);
+
+                // 【核心修改】暂时注释掉（雪藏）旧的战术，避免冲突
+                // deployOrderViewHooks(lpparam);
+                // hookNewTypeOrderView(lpparam);
+
+                // 后台线程的Hook保持不变
                 new Thread(() -> {
-                    spyOnSpecificClassMethods(lpparam, "com.jiuzhou.TaxiDriver.Views.OrderView");
-                    findAndHookOrderViewDynamically(lpparam, "com.jiuzhou.TaxiDriver.Views.OrderView");
-                    findAndHookPlayMethod(appContext); // 您的语音Hook也可以放在这里
+                    findAndHookPlayMethod(appContext);
                 }).start();
-//                new Thread(() -> findAndHookPlayMethod(appContext)).start();
             }
         });
     }
-
     /**
      * 【核心新增】精准侦查兵：只扫描并Hook一个特定类中所有符合 (Intent) 签名的方法
      * @param lpparam LoadPackageParam
