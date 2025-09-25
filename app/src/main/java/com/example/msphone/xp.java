@@ -141,13 +141,19 @@ public class xp implements IXposedHookLoadPackage {
         try {
             Context context = (Context) orderViewInstance;
             Button robBtn = (Button) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_Btn");
+
+            // 【关键优化】如果按钮已经是可点击状态，说明我们已经修改过了，或者App自己变了
+            // 此时直接返回，避免重复操作导致UI紊乱或消失
+            if (robBtn.isClickable()) {
+                Log.d(TAG, "按钮已经是可点击状态，本次跳过修改。");
+                return;
+            }
+
+            Log.d(TAG, "开始执行按钮状态修改...");
+
             RelativeLayout robRL = (RelativeLayout) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_RL");
 
-            // 【关键修改】删除了 if (robBtn.isClickable()) 的判断！
-            // 确保每次调用都强制执行修改。
-
-            Log.d(TAG, "开始强制执行按钮状态修改...");
-
+            // 1. 设为可点击
             robRL.setClickable(true);
             robBtn.setClickable(true);
 
@@ -161,7 +167,10 @@ public class xp implements IXposedHookLoadPackage {
             if (pbfDrawableId != 0) {
                 robBtn.setBackgroundResource(pbfDrawableId);
                 Log.d(TAG, "[成功] 按钮已修改为方形可点击状态！");
+            } else {
+                Log.w(TAG, "[警告] 未找到名为 'pbf' 的drawable资源。");
             }
+
         } catch (Exception e) {
             Log.e(TAG, "[错误] 修改按钮状态时发生异常: ", e);
         }
@@ -541,13 +550,14 @@ public class xp implements IXposedHookLoadPackage {
         SharedPreferences prefs = context.getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
         currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
         robDelayMs = prefs.getLong("rob_delay_ms", 150);
+        cdkValue = prefs.getInt("xsfvs", 0);
         Log.d(TAG, "初始状态加载 -> Speed: " + currentSpeed + ", RobDelay: " + robDelayMs + "ms");
     }
     private void registerBroadcastReceiver(Context context) {
         IntentFilter filter = new IntentFilter();
         filter.addAction("com.example.CHANGE_PLAYBACK_SPEED");
         filter.addAction("com.example.msphone.UPDATE_DELAY");
-
+        filter.addAction("com.example.msphone.THISSHOWTIME");
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -562,6 +572,10 @@ public class xp implements IXposedHookLoadPackage {
                         robDelayMs = intent.getLongExtra("delay_ms", 150);
                         editor.putLong("rob_delay_ms", robDelayMs);
                         Log.d(TAG, "接收到 [延迟] 变更，新延迟: " + robDelayMs + "ms");
+                        break;
+                    case "com.example.msphone.THISSHOWTIME":
+                        cdkValue = intent.getIntExtra("xsfvs", 0);
+                        editor.putInt("xsfvs", cdkValue);
                         break;
                 }
                 editor.apply();
