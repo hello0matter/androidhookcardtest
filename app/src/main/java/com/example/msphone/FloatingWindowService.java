@@ -1,7 +1,5 @@
 package com.example.msphone;
 
-import static com.google.android.exoplayer2.util.NotificationUtil.createNotificationChannel;
-
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -17,6 +15,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -28,7 +27,9 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.Toast;
+
 import com.example.msphone.FileUtils;
+
 import androidx.core.app.NotificationCompat;
 
 import com.google.gson.JsonElement;
@@ -71,7 +72,11 @@ public class FloatingWindowService extends Service {
     private EditText mEtDelaySeconds;
     private Button mBtnSaveDelay;
     public static final String ACTION_UPDATE_DELAY = "com.example.msphone.UPDATE_DELAY";
-    public static final String EXTRA_DELAY_MS = "delay_ms";
+    public static int rob_delay_ms_delay = 0; // dak
+    public static int test1 = 0; // dak
+    public static int test2 = 0; // dak
+    public static int test3 = 0; // dak
+    private static final String TAG = "XposedHook_XP_Dynamic";
 
     private final Handler handler = new Handler();
     private final Runnable runnableCode = new Runnable() {
@@ -83,6 +88,7 @@ public class FloatingWindowService extends Service {
             handler.postDelayed(this, 120000); // 2分钟心跳
         }
     };
+
     // 【新增】一个更通用的广播方法
     public void broadcastControlStatus(Integer cdk, Integer instantRob) {
         Intent intent = new Intent(ACTION_UPDATE_SETTINGS); // 使用新的Action
@@ -136,6 +142,10 @@ public class FloatingWindowService extends Service {
 
                             if (mSeekBar != null) {
                                 handler.post(() -> mSeekBar.setMax(cdk > 0 ? cdk : 170)); // 更新滑块最大值
+                                SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                                mSeekBar.setProgress(prefs.getInt("currentSpeed",100));
+
                             }
                         } else {
                             // [自毁逻辑]
@@ -174,6 +184,7 @@ public class FloatingWindowService extends Service {
         intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
         sendBroadcast(intent);
     }
+
     void doharddamyapp() {
 //        utdid = FileUtils.getSDDeviceTxt();
         imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getDeviceIdentifier(getApplicationContext());
@@ -210,21 +221,82 @@ public class FloatingWindowService extends Service {
                 JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
                 if (rootObject1.has("cdk")) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Intent intent = new Intent("com.example.msphone.UPDATE_DELAY");
+
+                        // 1. 保存到SharedPreferences，以便下次启动时能恢复
+                        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
+                        if (rootObject1.has("delay") && !rootObject1.get("delay").isJsonNull()) {
+                            rob_delay_ms_delay = rootObject1.get("delay").getAsInt();
+                            intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
+                            prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
+
+                            //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+                        } else {
+                            // 如果 delay 是 null 或者不存在，保持默认值 0
+                            rob_delay_ms_delay = 0;
+                        }
+                        //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+
+                        // 【安全解析】检查 'test1' 字段
+                        if (rootObject1.has("test1") && !rootObject1.get("test1").isJsonNull()) {
+                            test1 = rootObject1.get("test1").getAsInt();
+                            intent.putExtra("test1", test1);
+                            prefs.edit().putInt("test1", test1).apply();
+
+                        } else {
+                            //Log.d(TAG, "【 test1】 "  + " 不存在！");
+
+                            test1 = 0;
+                        }
+
+                        // 【安全解析】检查 'test2' 字段
+                        if (rootObject1.has("test2") && !rootObject1.get("test2").isJsonNull()) {
+                            test2 = rootObject1.get("test2").getAsInt();
+                            intent.putExtra("test2", test2);
+                            prefs.edit().putInt("test2", test2).apply();
+
+                        } else {
+                            test2 = 0;
+                            //Log.d(TAG, "【 test2】 "  + " 不存在！");
+
+                        }
+
+                        // 【安全解析】检查 'test3' 字段
+                        if (rootObject1.has("test3") && !rootObject1.get("test3").isJsonNull()) {
+                            test3 = rootObject1.get("test3").getAsInt();
+                            intent.putExtra("test3", test3);
+                            prefs.edit().putInt("test3", test3).apply();
+
+                        } else {
+                            //Log.d(TAG, "【 test3】 "  + " 不存在！");
+
+                            test3 = 0;
+                        }
+
+                        // 现在可以安全地发送广播或写入SharedPreferences了
+                        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                        this.sendBroadcast(intent);
+
+                        //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             cdk = rootObject1.get("cdk").getAsInt();
-                            adfaev( cdk);
+                            adfaev(cdk);
                         } else {
-                            adfaev( 0);
+                            adfaev(0);
                             System.exit(0);
                         }
                     }
 
                 } else {
-                    adfaev( 0);
+                    adfaev(0);
                     System.exit(0);
                 }
             } else {
-                adfaev( 0);
+                adfaev(0);
 
 //                adfaev(this.getBaseContext(), 0);
 
@@ -247,6 +319,7 @@ public class FloatingWindowService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -443,15 +516,31 @@ public class FloatingWindowService extends Service {
     private static String phone = "";
 
     private static String times = "";
+
     /**
      * 【新增】加载已保存的延迟时间并显示
      */
     private void loadAndDisplayDelay() {
         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
         // 从本地读取延迟时间（毫秒），默认为150ms
-        long delayMs = prefs.getLong("rob_delay_ms", 150);
-        // 将毫秒转换为秒（保留两位小数）并显示在EditText中
-        mEtDelaySeconds.setText(String.format("%.2f", delayMs / 1000.0f));
+        int rob_delay_ms = prefs.getInt("rob_delay_ms", 1500);
+        rob_delay_ms_delay = prefs.getInt("rob_delay_ms_delay", 0);
+        test1 = prefs.getInt("test1", 0);
+        test2 = prefs.getInt("test2", 0);
+        test3 = prefs.getInt("test3", 0);
+
+        //Log.e(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
+
+        mEtDelaySeconds.setText(String.format("%.2f", rob_delay_ms / 1000.0f));
+        // 2. 发送广播，实时通知Xposed模块更新延迟时间
+        Intent intent = new Intent(ACTION_UPDATE_DELAY);
+        intent.putExtra("rob_delay_ms", rob_delay_ms);
+        intent.putExtra("test1", test1);
+        intent.putExtra("test2", test2);
+        intent.putExtra("test3", test3);
+
+        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        sendBroadcast(intent);
     }
 
     /**
@@ -466,15 +555,16 @@ public class FloatingWindowService extends Service {
 
         try {
             float delaySeconds = Float.parseFloat(delayStr);
-            long delayMs = (long) (delaySeconds * 1000);
+            int rob_delay_ms = (int) (delaySeconds * 1000);
 
             // 1. 保存到SharedPreferences，以便下次启动时能恢复
             SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-            prefs.edit().putLong("rob_delay_ms", delayMs).apply();
+            prefs.edit().putInt("rob_delay_ms", rob_delay_ms).apply();
 
             // 2. 发送广播，实时通知Xposed模块更新延迟时间
             Intent intent = new Intent(ACTION_UPDATE_DELAY);
-            intent.putExtra(EXTRA_DELAY_MS, delayMs);
+            intent.putExtra("rob_delay_ms", rob_delay_ms);
+
             intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
             sendBroadcast(intent);
 
@@ -514,6 +604,7 @@ public class FloatingWindowService extends Service {
             mWindowManager.updateViewLayout(mFloatingView, params);
         }
     }
+
     private void createFloatingWindow() {
         // --- 1. 初始化 View 和 WindowManager ---
         mFloatingView = LayoutInflater.from(this).inflate(R.layout.floating_window, null);
@@ -557,8 +648,12 @@ public class FloatingWindowService extends Service {
                     long currentTime = SystemClock.elapsedRealtime();
                     if (currentTime - lastToastTime > TOAST_THROTTLE_DELAY) {
                         lastToastTime = currentTime;
+                        SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
 
                         float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+//                        editor.putInt("fdg341", (int) (progress * 1.7));
+                        editor.putInt("currentSpeed", progress).apply();
                         // 使用 LENGTH_SHORT
                         Toast.makeText(seekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
                     }
@@ -581,6 +676,11 @@ public class FloatingWindowService extends Service {
                 Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
                 intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
                 intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
+                editor.putInt("currentSpeed", seekBar.getProgress()).apply();
+//                editor.putInt("fdg341", speed);
+//
+
                 sendBroadcast(intent);
             }
         });
@@ -707,7 +807,8 @@ public class FloatingWindowService extends Service {
 //            public void onProgressChanged(SeekBar seekBar2, int progress, boolean fromUser) {
 //                float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
 //                Toast.makeText(seekBar2.getContext(), xorObfuscate(asss, ass) + speed, Toast.LENGTH_LONG).show();
-////
+
+    /// /
 //                Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
 //                intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
 //                FloatingWindowService.this.sendBroadcast(intent);
@@ -764,13 +865,11 @@ public class FloatingWindowService extends Service {
 //            }
 //        });
 //    }
-
-
     public void adfaev(Integer cardNum) {
-//        SharedPreferences sharedPreferences = context.getSharedPreferences("XposedModulePrefs", 0);
-//        SharedPreferences.Editor editor = sharedPreferences.edit();
-//        editor.putInt("fdg341", cardNum);
-//        editor.commit();
+        SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt("fdg341", cardNum);
+        editor.commit();
 //
 //        Intent intent = new Intent("xsfv");
 //        intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, cardNum);
@@ -780,10 +879,6 @@ public class FloatingWindowService extends Service {
         FloatingWindowService.this.sendBroadcast(intent);
     }
 
-    public static float sdfsfs(Context context) {
-        SharedPreferences share = context.getSharedPreferences("XposedModulePrefs", 0);
-        return share.getInt("fdg341", 0);
-    }
 //    public static Integer getDta() {
 //        return dta;
 //    }

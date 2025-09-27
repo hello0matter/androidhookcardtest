@@ -35,7 +35,6 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 public class xp implements IXposedHookLoadPackage {
-
     private static final String TAG = "XposedHook_XP_Dynamic";
     // [修改] 目标包名需要确认
     private static final String TARGET_PACKAGE_NAME = "com.eastedge.taxidriverforpad";
@@ -46,7 +45,12 @@ public class xp implements IXposedHookLoadPackage {
     private int instantRobEnabled = 1;
     private long lastVolumeUpClickTime = 0;
     // 【修改】主Hook入口，现在只部署Hook，不直接执行逻辑
-    private long robDelayMs = 150; // 默认延迟，会被悬浮窗设置覆盖
+    private int rob_delay_ms = 1500; // 默认延迟，会被悬浮窗设置覆盖
+    private int rob_delay_ms_delay = 0; // 默认延迟，会被悬浮窗设置覆盖
+    private int test1 = 0; // 默认延迟，会被悬浮窗设置覆盖
+    private int test2 = 0; // 默认延迟，会被悬浮窗设置覆盖
+    private int test3 = 0; // 默认延迟，会被悬浮窗设置覆盖
+
     /**
      * 【核心逻辑】Hook OrderView 和 OrderViewWithMap
      */
@@ -69,7 +73,7 @@ public class xp implements IXposedHookLoadPackage {
             XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    Log.d(TAG, "【入口1: doinit】 " + className + " 被触发！");
+                    //Log.d(TAG, "【入口1: doinit】 " + className + " 被触发！");
                     changeButtonToRobMode(param.thisObject, lpparam.packageName);
                 }
             });
@@ -79,12 +83,12 @@ public class xp implements IXposedHookLoadPackage {
                 XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, Bundle.class, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        Log.d(TAG, "【入口1: doinit with Bundle】 " + className + " 被触发！");
+                        //Log.d(TAG, "【入口1: doinit with Bundle】 " + className + " 被触发！");
                         changeButtonToRobMode(param.thisObject, lpparam.packageName);
                     }
                 });
             } catch (Throwable t2) {
-                Log.e(TAG, "Hook " + className + " 的 doinit 方法失败: " + t2.getMessage());
+                //Log.e(TAG, "Hook " + className + " 的 doinit 方法失败: " + t2.getMessage());
             }
         }
 
@@ -93,7 +97,7 @@ public class xp implements IXposedHookLoadPackage {
             XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "onNewIntent", Intent.class, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    Log.d(TAG, "【入口2: onNewIntent】 " + className + " 被触发！");
+                    //Log.d(TAG, "【入口2: onNewIntent】 " + className + " 被触发！");
                     // onNewIntent 之后UI会立即刷新，所以延迟一小段时间再修改，确保App自身的UI操作已完成
                     new Handler().postDelayed(() -> {
                         changeButtonToRobMode(param.thisObject, lpparam.packageName);
@@ -101,7 +105,7 @@ public class xp implements IXposedHookLoadPackage {
                 }
             });
         } catch (Throwable t) {
-            Log.e(TAG, "Hook " + className + " 的 onNewIntent 方法失败: " + t.getMessage());
+            //Log.e(TAG, "Hook " + className + " 的 onNewIntent 方法失败: " + t.getMessage());
         }
     }
 
@@ -116,24 +120,50 @@ public class xp implements IXposedHookLoadPackage {
                     XposedBridge.hookMethod(method, new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                            Log.d(TAG, "【入口触发】" + className + "." + method.getName() + " 命中！");
-                            Log.d(TAG, "准备在 " + robDelayMs + "ms 后强制修改按钮...");
+                            Context context = (Context) param.thisObject;
+                            // 【核心修改】在真正执行抢单逻辑前，检查并应用新设置
+//                            applyPendingSettings(context);
+                            //Log.d(TAG, "【入口触发】" + className + "." + method.getName() + " 命中！");
+                            //Log.d(TAG, "准备在 " + rob_delay_ms + "ms 后强制修改按钮...");
 
                             final Object orderViewInstance = param.thisObject;
                             final String packageName = lpparam.packageName;
+                           // Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
+                            if (rob_delay_ms_delay == 0) {
+                                // 0秒就是不限制
+                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                    changeButtonToRobMode(orderViewInstance, packageName);
+                                }, rob_delay_ms);
+                            } else if (rob_delay_ms_delay == 100000) {
+                                // 100秒就是不让用了
+//                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+//                                    changeButtonToRobMode(orderViewInstance, packageName);
+//                                }, rob_delay_ms);
+                            } else {
+                                // 使用我们可控的延迟来执行修改,防止太快
+                                if (rob_delay_ms_delay > rob_delay_ms) {
+                                    //Log.d(TAG, "【快了");
 
-                            // 使用我们可控的延迟来执行修改
-                            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                changeButtonToRobMode(orderViewInstance, packageName);
-                            }, robDelayMs);
+                                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                        changeButtonToRobMode(orderViewInstance, packageName);
+                                    }, rob_delay_ms_delay);
+                                } else {
+                                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                        changeButtonToRobMode(orderViewInstance, packageName);
+                                    }, rob_delay_ms);
+                                }
+
+                            }
+
                         }
                     });
                 }
             }
         } catch (Throwable t) {
-            Log.e(TAG, "Hook " + className + " 失败: ", t);
+            //Log.e(TAG, "Hook " + className + " 失败: ", t);
         }
     }
+
     /**
      * 统一的按钮修改逻辑（【最关键的修改】已删除防重复的if判断）
      */
@@ -144,12 +174,12 @@ public class xp implements IXposedHookLoadPackage {
 
             // 【关键优化】如果按钮已经是可点击状态，说明我们已经修改过了，或者App自己变了
             // 此时直接返回，避免重复操作导致UI紊乱或消失
-            if (robBtn.isClickable()) {
-                Log.d(TAG, "按钮已经是可点击状态，本次跳过修改。");
-                return;
-            }
+//            if (robBtn.isClickable()) {
+//                //Log.d(TAG, "按钮已经是可点击状态，本次跳过修改。");
+//                return;
+//            }
 
-            Log.d(TAG, "开始执行按钮状态修改...");
+            //Log.d(TAG, "开始执行按钮状态修改...");
 
             RelativeLayout robRL = (RelativeLayout) XposedHelpers.getObjectField(orderViewInstance, "RobTheOrder_RL");
 
@@ -166,15 +196,16 @@ public class xp implements IXposedHookLoadPackage {
             int pbfDrawableId = context.getResources().getIdentifier("pbf", "drawable", packageName);
             if (pbfDrawableId != 0) {
                 robBtn.setBackgroundResource(pbfDrawableId);
-                Log.d(TAG, "[成功] 按钮已修改为方形可点击状态！");
+                //Log.d(TAG, "[成功] 按钮已修改为方形可点击状态！");
             } else {
-                Log.w(TAG, "[警告] 未找到名为 'pbf' 的drawable资源。");
+                //Log.w(TAG, "[警告] 未找到名为 'pbf' 的drawable资源。");
             }
 
         } catch (Exception e) {
-            Log.e(TAG, "[错误] 修改按钮状态时发生异常: ", e);
+            //Log.e(TAG, "[错误] 修改按钮状态时发生异常: ", e);
         }
     }
+
     // 【核心新增】为新的订单界面创建一个新的Hook方法
     private void hookNewTypeOrderView(final LoadPackageParam lpparam) {
         // 假设您通过第一步侦查到，新类名叫 com.jiuzhou.TaxiDriver.Views.AnotherOrderActivity
@@ -220,9 +251,9 @@ public class xp implements IXposedHookLoadPackage {
                                 int pbfDrawableId = context.getResources().getIdentifier("pbf", "drawable", newClassName);
                                 if (pbfDrawableId != 0) {
                                     newRobBtn.setBackgroundResource(pbfDrawableId);
-                                    Log.d(TAG, "[成功] 按钮已修改为方形可点击状态！");
+                                    //Log.d(TAG, "[成功] 按钮已修改为方形可点击状态！");
                                 } else {
-                                    Log.w(TAG, "[警告] 未找到名为 'pbf' 的drawable资源。");
+                                    //Log.w(TAG, "[警告] 未找到名为 'pbf' 的drawable资源。");
                                 }
                                 XposedBridge.log("【新界面】按钮修改成功！");
                             }
@@ -236,10 +267,11 @@ public class xp implements IXposedHookLoadPackage {
 
     /**
      * 【核心新增】侦查兵方法：扫描并Hook整个App中所有参数为 (Intent) 的方法
+     *
      * @param lpparam LoadPackageParam
      */
     private void spyOnIntentMethods(final LoadPackageParam lpparam) {
-        Log.d(TAG, "【侦查兵】开始扫描所有 (Intent) 签名的方法...");
+        //Log.d(TAG, "【侦查兵】开始扫描所有 (Intent) 签名的方法...");
 
         List<String> classNames = getAllClassNames((Context) XposedHelpers.callMethod(XposedHelpers.findClass("android.app.ActivityThread", null), "currentApplication"));
 
@@ -266,17 +298,17 @@ public class xp implements IXposedHookLoadPackage {
                                 if (intent == null) return;
 
                                 // --- 开始打印详细的上下文信息 ---
-                                Log.d(TAG, "===================== (Intent) 方法被调用 =====================");
-                                Log.d(TAG, "【类名】: " + param.method.getDeclaringClass().getName());
-                                Log.d(TAG, "【方法名】: " + param.method.getName());
-                                Log.d(TAG, "【Intent Action】: " + intent.getAction());
-                                Log.d(TAG, "【Intent Type】: " + intent.getType());
-                                Log.d(TAG, "【Intent Component】: " + (intent.getComponent() != null ? intent.getComponent().toString() : "null"));
+                                //Log.d(TAG, "===================== (Intent) 方法被调用 =====================");
+                                //Log.d(TAG, "【类名】: " + param.method.getDeclaringClass().getName());
+                                //Log.d(TAG, "【方法名】: " + param.method.getName());
+                                //Log.d(TAG, "【Intent Action】: " + intent.getAction());
+                                //Log.d(TAG, "【Intent Type】: " + intent.getType());
+                                //Log.d(TAG, "【Intent Component】: " + (intent.getComponent() != null ? intent.getComponent().toString() : "null"));
 
                                 // 打印Intent中携带的所有附加数据(Extras)
                                 Bundle extras = intent.getExtras();
                                 if (extras != null && !extras.isEmpty()) {
-                                    Log.d(TAG, "【Intent Extras】:");
+                                    //Log.d(TAG, "【Intent Extras】:");
                                     for (String key : extras.keySet()) {
                                         Object value = extras.get(key);
                                         String valueStr = (value != null) ? value.toString() : "null";
@@ -284,12 +316,12 @@ public class xp implements IXposedHookLoadPackage {
                                         if (valueStr.length() > 200) {
                                             valueStr = valueStr.substring(0, 200) + "...";
                                         }
-                                        Log.d(TAG, "    " + key + " = " + valueStr);
+                                        //Log.d(TAG, "    " + key + " = " + valueStr);
                                     }
                                 } else {
-                                    Log.d(TAG, "【Intent Extras】: null or empty");
+                                    //Log.d(TAG, "【Intent Extras】: null or empty");
                                 }
-                                Log.d(TAG, "================================================================");
+                                //Log.d(TAG, "================================================================");
                             }
                         });
                     }
@@ -298,12 +330,14 @@ public class xp implements IXposedHookLoadPackage {
                 // 忽略
             }
         }
-        Log.d(TAG, "【侦查兵】所有 (Intent) 签名方法的扫描和Hook部署完毕。");
+        //Log.d(TAG, "【侦查兵】所有 (Intent) 签名方法的扫描和Hook部署完毕。");
     }
+
     /**
      * 辅助方法：对单个指定的类，Hook其 doinit 和 onNewIntent 两个入口点
+     *
      * @param className 要Hook的目标类名
-     * @param lpparam LoadPackageParam
+     * @param lpparam   LoadPackageParam
      */
     private void hookAllEntryPointsForClass(final String className, final LoadPackageParam lpparam) {
         // --- Hook 入口1: doinit ---
@@ -312,7 +346,7 @@ public class xp implements IXposedHookLoadPackage {
             XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, Bundle.class, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    Log.d(TAG, "【入口 doinit with Bundle】" + className + " 被触发！");
+                    //Log.d(TAG, "【入口 doinit with Bundle】" + className + " 被触发！");
                     changeButtonToRobMode(param.thisObject, lpparam.packageName);
                 }
             });
@@ -322,12 +356,12 @@ public class xp implements IXposedHookLoadPackage {
                 XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "doinit", Intent.class, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        Log.d(TAG, "【入口 doinit】" + className + " 被触发！");
+                        //Log.d(TAG, "【入口 doinit】" + className + " 被触发！");
                         changeButtonToRobMode(param.thisObject, lpparam.packageName);
                     }
                 });
             } catch (Throwable t2) {
-                Log.e(TAG, "Hook " + className + " 的 doinit 方法彻底失败: " + t2.getMessage());
+                //Log.e(TAG, "Hook " + className + " 的 doinit 方法彻底失败: " + t2.getMessage());
             }
         }
 
@@ -336,7 +370,7 @@ public class xp implements IXposedHookLoadPackage {
             XposedHelpers.findAndHookMethod(className, lpparam.classLoader, "onNewIntent", Intent.class, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    Log.d(TAG, "【入口 onNewIntent】" + className + " 被触发！");
+                    //Log.d(TAG, "【入口 onNewIntent】" + className + " 被触发！");
 
                     // onNewIntent后，App自身的UI更新需要一点时间，我们延迟修改以避免冲突
                     // 使用主线程的Handler来确保UI操作的线程安全
@@ -346,12 +380,13 @@ public class xp implements IXposedHookLoadPackage {
                 }
             });
         } catch (Throwable t) {
-            Log.e(TAG, "Hook " + className + " 的 onNewIntent 方法失败: " + t.getMessage());
+            //Log.e(TAG, "Hook " + className + " 的 onNewIntent 方法失败: " + t.getMessage());
         }
     }
 
     /**
      * 【核心】部署对两个订单界面的所有入口进行Hook
+     *
      * @param lpparam LoadPackageParam
      */
     private void deployOrderViewHooks(final LoadPackageParam lpparam) {
@@ -363,6 +398,7 @@ public class xp implements IXposedHookLoadPackage {
         hookAllEntryPointsForClass(className1, lpparam);
         hookAllEntryPointsForClass(className2, lpparam);
     }
+
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals(TARGET_PACKAGE_NAME)) return;
@@ -371,13 +407,15 @@ public class xp implements IXposedHookLoadPackage {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 Context appContext = (Context) param.thisObject;
-                Log.d(TAG, "模块已注入，开始部署...");
+                //Log.d(TAG, "模块已注入，开始部署...");
 
-                loadInitialState(appContext);
+//                loadInitialState(appContext);
                 registerBroadcastReceiver(appContext);
+                //Log.d(TAG, "模块已注入，开始部署2...");
 
                 // 直接使用我们最熟悉、最稳定的Hook入口
                 hookOrderView(lpparam);
+                //Log.d(TAG, "模块已注入，开始部署3...");
 
                 new Thread(() -> findAndHookPlayMethod(appContext)).start();
             }
@@ -386,11 +424,12 @@ public class xp implements IXposedHookLoadPackage {
 
     /**
      * 【核心新增】精准侦查兵：只扫描并Hook一个特定类中所有符合 (Intent) 签名的方法
-     * @param lpparam LoadPackageParam
+     *
+     * @param lpparam         LoadPackageParam
      * @param targetClassName 要侦查的目标类的完整名称
      */
     private void spyOnSpecificClassMethods(final LoadPackageParam lpparam, String targetClassName) {
-        Log.d(TAG, "【精准侦查】开始扫描类: " + targetClassName);
+        //Log.d(TAG, "【精准侦查】开始扫描类: " + targetClassName);
 
         try {
             Class<?> clazz = XposedHelpers.findClass(targetClassName, lpparam.classLoader);
@@ -399,7 +438,7 @@ public class xp implements IXposedHookLoadPackage {
             for (final Method method : clazz.getDeclaredMethods()) {
                 // 侦查参数为 (Intent) 的方法
                 if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == Intent.class) {
-                    Log.d(TAG, "【精准侦查】发现目标方法: " + method.getName() + "，已部署Hook。");
+                    //Log.d(TAG, "【精准侦查】发现目标方法: " + method.getName() + "，已部署Hook。");
 
                     XposedBridge.hookMethod(method, new XC_MethodHook() {
                         @Override
@@ -408,18 +447,18 @@ public class xp implements IXposedHookLoadPackage {
                             Intent intent = (Intent) param.args[0];
                             if (intent == null) return;
 
-                            Log.d(TAG, "===================== (Intent) 方法被调用 =====================");
-                            Log.d(TAG, "【类名】: " + param.method.getDeclaringClass().getName());
-                            Log.d(TAG, "【方法名】: " + param.method.getName());
+                            //Log.d(TAG, "===================== (Intent) 方法被调用 =====================");
+                            //Log.d(TAG, "【类名】: " + param.method.getDeclaringClass().getName());
+                            //Log.d(TAG, "【方法名】: " + param.method.getName());
                             // ... 其他打印Intent信息的代码 ...
-                            Log.d(TAG, "================================================================");
+                            //Log.d(TAG, "================================================================");
                         }
                     });
                 }
             }
-            Log.d(TAG, "【精准侦查】" + targetClassName + " 扫描完毕。");
+            //Log.d(TAG, "【精准侦查】" + targetClassName + " 扫描完毕。");
         } catch (Throwable t) {
-            Log.e(TAG, "【精准侦查】扫描类 " + targetClassName + " 失败: ", t);
+            //Log.e(TAG, "【精准侦查】扫描类 " + targetClassName + " 失败: ", t);
         }
     }
 // 在 xp.java 中
@@ -429,17 +468,18 @@ public class xp implements IXposedHookLoadPackage {
     /**
      * 【精准修改版】在指定的类中寻找并Hook订单界面的初始化方法。
      * 这个方法不再进行全局扫描，以避免触发加固保护。
-     * @param lpparam LoadPackageParam
+     *
+     * @param lpparam         LoadPackageParam
      * @param targetClassName 要处理的目标类的完整名称
      */
     private void findAndHookOrderViewDynamically(final LoadPackageParam lpparam, String targetClassName) {
-        Log.d(TAG, "【精准修改】开始处理类: " + targetClassName);
+        //Log.d(TAG, "【精准修改】开始处理类: " + targetClassName);
 
         try {
             // 1. 直接通过名字找到我们已经确定的目标类
             Class<?> clazz = XposedHelpers.findClass(targetClassName, lpparam.classLoader);
 
-            Log.d(TAG, "【精准修改】成功定位到类: " + clazz.getName());
+            //Log.d(TAG, "【精准修改】成功定位到类: " + clazz.getName());
 
             // 2. 遍历这个类中声明的所有方法
             for (final Method method : clazz.getDeclaredMethods()) {
@@ -448,13 +488,13 @@ public class xp implements IXposedHookLoadPackage {
                 if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == Intent.class) {
 
                     // 找到了一个符合条件的方法 (可能是 doinit, onNewIntent, 或者被混淆后的 a, b 等)
-                    Log.d(TAG, "【精准修改】发现目标方法: " + method.getName() + "，已部署修改按钮的Hook。");
+                    //Log.d(TAG, "【精准修改】发现目标方法: " + method.getName() + "，已部署修改按钮的Hook。");
 
                     // 4. 对这个找到的方法实施Hook
                     XposedBridge.hookMethod(method, new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                            Log.d(TAG, "【精准修改】Hook的方法 " + method.getName() + " 已被触发！");
+                            //Log.d(TAG, "【精准修改】Hook的方法 " + method.getName() + " 已被触发！");
 
                             // 调用我们统一的按钮修改逻辑
                             changeButtonToRobMode(param.thisObject, lpparam.packageName);
@@ -462,15 +502,16 @@ public class xp implements IXposedHookLoadPackage {
                     });
                 }
             }
-            Log.d(TAG, "【精准修改】" + targetClassName + " 的方法扫描和Hook部署完毕。");
+            //Log.d(TAG, "【精准修改】" + targetClassName + " 的方法扫描和Hook部署完毕。");
 
         } catch (Throwable t) {
-            Log.e(TAG, "【精准修改】处理类 " + targetClassName + " 失败: ", t);
+            //Log.e(TAG, "【精准修改】处理类 " + targetClassName + " 失败: ", t);
         }
     }
+
     // 在 xp.java 中
     private void findAndHookPlayMethod(Context context) {
-        Log.d(TAG, "开始动态扫描所有类以寻找播放方法...");
+        //Log.d(TAG, "开始动态扫描所有类以寻找播放方法...");
 
         // 【关键修改】不再使用 return; 语句
 
@@ -485,6 +526,7 @@ public class xp implements IXposedHookLoadPackage {
 
             try {
                 Class<?> clazz = XposedHelpers.findClass(className, context.getClassLoader());
+                //Log.d(TAG, "模块已注入，开始部署4...");
 
                 for (Method method : clazz.getDeclaredMethods()) {
                     // 签名 (File, int)，方法名叫 ManualPlay
@@ -493,7 +535,7 @@ public class xp implements IXposedHookLoadPackage {
                             method.getParameterTypes()[0] == File.class &&
                             method.getParameterTypes()[1] == int.class) {
 
-                        Log.d(TAG, "[成功!] 动态找到目标播放方法: " + method.toGenericString());
+                        //Log.d(TAG, "[成功!] 动态找到目标播放方法: " + method.toGenericString());
 
                         // 找到后立即Hook
                         XposedBridge.hookMethod(method, new XC_MethodHook() {
@@ -509,10 +551,10 @@ public class xp implements IXposedHookLoadPackage {
 
                                     if (iMediaPlayerInstance != null) {
                                         setPlayerSpeed(iMediaPlayerInstance);
-                                        Log.d(TAG, "已对 " + orderViewInstance.getClass().getSimpleName() + " 的播放器设置速度。");
+                                        //Log.d(TAG, "已对 " + orderViewInstance.getClass().getSimpleName() + " 的播放器设置速度。");
                                     }
                                 } catch (Exception e) {
-                                    Log.e(TAG, "设置播放速度时出错: ", e);
+//                                    //Log.e(TAG, "设置播放速度时出错: ", e);
                                 }
                             }
                         });
@@ -525,7 +567,7 @@ public class xp implements IXposedHookLoadPackage {
                 // ...
             }
         }
-        Log.d(TAG, "[扫描结束] 所有已知的播放方法Hook部署完毕。");
+        //Log.d(TAG, "[扫描结束] 所有已知的播放方法Hook部署完毕。");
     }
 
     /**
@@ -540,45 +582,53 @@ public class xp implements IXposedHookLoadPackage {
                 classNames.add(enumeration.nextElement());
             }
         } catch (Exception e) {
-           // Log.d(TAG , ": 获取所有类名时出错: " + e.getMessage());
         }
         return classNames;
     }
     // --- 辅助方法区 ---
 
-    private void loadInitialState(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-        currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
-        robDelayMs = prefs.getLong("rob_delay_ms", 150);
-        cdkValue = prefs.getInt("xsfvs", 0);
-        Log.d(TAG, "初始状态加载 -> Speed: " + currentSpeed + ", RobDelay: " + robDelayMs + "ms");
-    }
     private void registerBroadcastReceiver(Context context) {
         IntentFilter filter = new IntentFilter();
         filter.addAction("com.example.CHANGE_PLAYBACK_SPEED");
         filter.addAction("com.example.msphone.UPDATE_DELAY");
         filter.addAction("com.example.msphone.THISSHOWTIME");
+        filter.addAction("com.example.msphone.SETTINGS_UPDATED_SIGNAL");
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (intent == null || intent.getAction() == null) return;
-                SharedPreferences.Editor editor = context.getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
                 switch (intent.getAction()) {
                     case "com.example.CHANGE_PLAYBACK_SPEED":
+                        //位置
                         currentSpeed = intent.getFloatExtra("playback_speed", 1.0f);
-                        editor.putFloat("currentSpeed", currentSpeed);
                         break;
                     case "com.example.msphone.UPDATE_DELAY":
-                        robDelayMs = intent.getLongExtra("delay_ms", 150);
-                        editor.putLong("rob_delay_ms", robDelayMs);
-                        Log.d(TAG, "接收到 [延迟] 变更，新延迟: " + robDelayMs + "ms");
+                        if (intent.hasExtra("rob_delay_ms")) {
+                            rob_delay_ms = intent.getIntExtra("rob_delay_ms", 1500);
+                        }
+                        if (intent.hasExtra("rob_delay_ms_delay")) {
+                            rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
+                           // Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
+                        }else{
+                            //Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
+
+                        }
+                        if (intent.hasExtra("test1")) {
+                            test1 = intent.getIntExtra("test1", 0);
+                        }
+                        if (intent.hasExtra("test2")) {
+                            test1 = intent.getIntExtra("test2", 0);
+                        }
+                        if (intent.hasExtra("test3")) {
+                            test1 = intent.getIntExtra("test3", 0);
+                        }
+
                         break;
                     case "com.example.msphone.THISSHOWTIME":
+                        //最大值
                         cdkValue = intent.getIntExtra("xsfvs", 0);
-                        editor.putInt("xsfvs", cdkValue);
                         break;
                 }
-                editor.apply();
             }
         };
 
@@ -588,6 +638,7 @@ public class xp implements IXposedHookLoadPackage {
             context.registerReceiver(receiver, filter);
         }
     }
+
     private void hookActivityEvents(ClassLoader classLoader) {
         XposedHelpers.findAndHookMethod(Activity.class, "dispatchKeyEvent", KeyEvent.class, new XC_MethodHook() {
             @Override
@@ -609,19 +660,20 @@ public class xp implements IXposedHookLoadPackage {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && playerInstance instanceof MediaPlayer) {
                 PlaybackParams params = ((MediaPlayer) playerInstance).getPlaybackParams();
                 params.setSpeed(currentSpeed);
+
                 ((MediaPlayer) playerInstance).setPlaybackParams(params);
-               // Log.d(TAG , ": 通过标准API设置速度为 -> " + currentSpeed);
+                // //Log.d(TAG , ": 通过标准API设置速度为 -> " + currentSpeed);
             } else {
                 Method setSpeedMethod = XposedHelpers.findMethodExactIfExists(playerInstance.getClass(), "setSpeed", float.class);
                 if (setSpeedMethod != null) {
                     setSpeedMethod.invoke(playerInstance, currentSpeed);
-                   // Log.d(TAG , ": 通过反射调用setSpeed方法设置速度为 -> " + currentSpeed);
+                    // //Log.d(TAG , ": 通过反射调用setSpeed方法设置速度为 -> " + currentSpeed);
                 } else {
-                   // Log.d(TAG , ": 在播放器中未找到setSpeed(float)方法。");
+                    // //Log.d(TAG , ": 在播放器中未找到setSpeed(float)方法。");
                 }
             }
         } catch (Exception e) {
-           // Log.d(TAG , ": 设置播放器速度时发生异常: " + e.getMessage());
+            // //Log.d(TAG , ": 设置播放器速度时发生异常: " + e.getMessage());
         }
     }
 }

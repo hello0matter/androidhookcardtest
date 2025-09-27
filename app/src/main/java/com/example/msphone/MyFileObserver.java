@@ -33,7 +33,7 @@ public class MyFileObserver extends FileObserver {
                 try {
 //                    Object ijkMediaPlayerInstance = param3.thisObject;
                     String audioSource = path;//(String) param3.args[0]; // 假设第一个参数是音频源
-//                    Log.d("2332", "test" + audioSource + "");
+//                    //Log.d("2332", "test" + audioSource + "");
 //                    Method setSpeedMethod = ijkMediaPlayerInstance.getClass().getDeclaredMethod("pause");
 //                    setSpeedMethod.invoke(ijkMediaPlayerInstance);
 //                    setSpeedMethod = ijkMediaPlayerInstance.getClass().getDeclaredMethod("stop");
@@ -106,7 +106,7 @@ public class MyFileObserver extends FileObserver {
 
                         // 更新当前播放音频源的状态
 //                        currentPlayingUri = audioSource;
-//                                            Log.d("2332", "播放加速");
+//                                            //Log.d("2332", "播放加速");
 //                                            if (!test) {
 //                                                test = true;
 //
@@ -119,21 +119,21 @@ public class MyFileObserver extends FileObserver {
                     }
                 } catch (Exception e) {
                 }
-                Log.d(TAG, "File created: " + path);
+                //Log.d(TAG, "File created: " + path);
                 break;
             case FileObserver.DELETE:
-                Log.d(TAG, "File deleted: " + path);
+                //Log.d(TAG, "File deleted: " + path);
                 break;
         }
     }
 
     public void startWatching() {
         super.startWatching();
-        Log.d(TAG, "Start watching directory: " + DIRECTORY_PATH);
+        //Log.d(TAG, "Start watching directory: " + DIRECTORY_PATH);
     }
 
     public void stopWatching() {
         super.stopWatching();
-        Log.d(TAG, "Stop watching directory: " + DIRECTORY_PATH);
+        //Log.d(TAG, "Stop watching directory: " + DIRECTORY_PATH);
     }
 }

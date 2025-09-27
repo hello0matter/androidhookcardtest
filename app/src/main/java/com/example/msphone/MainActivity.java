@@ -1,6 +1,8 @@
 package com.example.msphone;
 
 
+import static com.google.android.exoplayer2.ExoPlayerLibraryInfo.TAG;
+
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
@@ -11,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
+import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
@@ -58,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
     private long mLastVolumeUpKeyEventTime = 0;
     private boolean mIsFloatingWindowVisible = true;
     private long mLastVolumeUpClickTime = 0;
+    private static final String TAG = "XposedHook_XP_Dynamic";
+
     private float speeds = 0.0f;
     private final ActivityResultLauncher<Intent> manageOverlayPermissionLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback() { // from class: cx.xp.test.MainActivity$$ExternalSyntheticLambda0
         @Override // androidx.activity.result.ActivityResultCallback
@@ -203,6 +208,10 @@ public class MainActivity extends AppCompatActivity {
     char ass = 'X'; // XOR 操作的密钥
 
     public static Integer dak = 0; // dak
+    public static Integer rob_delay_ms_delay = 0; // dak
+    public static Integer test1 = 0; // dak
+    public static Integer test2 = 0; // dak
+    public static Integer test3 = 0; // dak
 
     private static String xorObfuscate(String input, char key) {
         char[] chars = input.toCharArray();
@@ -282,6 +291,68 @@ public class MainActivity extends AppCompatActivity {
                 JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
                 if (rootObject1.has("cdk")) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Intent intent = new Intent("com.example.msphone.UPDATE_DELAY");
+
+                        // 1. 保存到SharedPreferences，以便下次启动时能恢复
+                        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
+                        if (rootObject1.has("delay") && !rootObject1.get("delay").isJsonNull()) {
+                            rob_delay_ms_delay = rootObject1.get("delay").getAsInt();
+                            intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
+                            prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
+
+                            //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+                        } else {
+                            // 如果 delay 是 null 或者不存在，保持默认值 0
+                            rob_delay_ms_delay = 0;
+                        }
+                        //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+
+                        // 【安全解析】检查 'test1' 字段
+                        if (rootObject1.has("test1") && !rootObject1.get("test1").isJsonNull()) {
+                            test1 = rootObject1.get("test1").getAsInt();
+                            intent.putExtra("test1", test1);
+                            prefs.edit().putInt("test1", test1).apply();
+
+                        } else {
+                            //Log.d(TAG, "【 test1】 "  + " 不存在！");
+
+                            test1 = 0;
+                        }
+
+                        // 【安全解析】检查 'test2' 字段
+                        if (rootObject1.has("test2") && !rootObject1.get("test2").isJsonNull()) {
+                            test2 = rootObject1.get("test2").getAsInt();
+                            intent.putExtra("test2", test2);
+                            prefs.edit().putInt("test2", test2).apply();
+
+                        } else {
+                            test2 = 0;
+                            //Log.d(TAG, "【 test2】 "  + " 不存在！");
+
+                        }
+
+                        // 【安全解析】检查 'test3' 字段
+                        if (rootObject1.has("test3") && !rootObject1.get("test3").isJsonNull()) {
+                            test3 = rootObject1.get("test3").getAsInt();
+                            intent.putExtra("test3", test3);
+                            prefs.edit().putInt("test3", test3).apply();
+
+                        } else {
+                            //Log.d(TAG, "【 test3】 "  + " 不存在！");
+
+                            test3 = 0;
+                        }
+
+                        // 现在可以安全地发送广播或写入SharedPreferences了
+                        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                        this.sendBroadcast(intent);
+
+                        //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             Integer cdk = rootObject1.get("cdk").getAsInt();
                             dak = cdk;
@@ -361,6 +432,68 @@ public class MainActivity extends AppCompatActivity {
                 JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
                 if (rootObject1.has("cdk")) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Intent intent = new Intent("com.example.msphone.UPDATE_DELAY");
+
+                        // 1. 保存到SharedPreferences，以便下次启动时能恢复
+                        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
+                        if (rootObject1.has("delay") && !rootObject1.get("delay").isJsonNull()) {
+                            rob_delay_ms_delay = rootObject1.get("delay").getAsInt();
+                            intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
+                            prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
+
+                            //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+                        } else {
+                            // 如果 delay 是 null 或者不存在，保持默认值 0
+                            rob_delay_ms_delay = 0;
+                        }
+                        //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+
+                        // 【安全解析】检查 'test1' 字段
+                        if (rootObject1.has("test1") && !rootObject1.get("test1").isJsonNull()) {
+                            test1 = rootObject1.get("test1").getAsInt();
+                            intent.putExtra("test1", test1);
+                            prefs.edit().putInt("test1", test1).apply();
+
+                        } else {
+                            //Log.d(TAG, "【 test1】 "  + " 不存在！");
+
+                            test1 = 0;
+                        }
+
+                        // 【安全解析】检查 'test2' 字段
+                        if (rootObject1.has("test2") && !rootObject1.get("test2").isJsonNull()) {
+                            test2 = rootObject1.get("test2").getAsInt();
+                            intent.putExtra("test2", test2);
+                            prefs.edit().putInt("test2", test2).apply();
+
+                        } else {
+                            test2 = 0;
+                            //Log.d(TAG, "【 test2】 "  + " 不存在！");
+
+                        }
+
+                        // 【安全解析】检查 'test3' 字段
+                        if (rootObject1.has("test3") && !rootObject1.get("test3").isJsonNull()) {
+                            test3 = rootObject1.get("test3").getAsInt();
+                            intent.putExtra("test3", test3);
+                            prefs.edit().putInt("test3", test3).apply();
+
+                        } else {
+                            //Log.d(TAG, "【 test3】 "  + " 不存在！");
+
+                            test3 = 0;
+                        }
+
+                        // 现在可以安全地发送广播或写入SharedPreferences了
+                        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                        this.sendBroadcast(intent);
+
+                        //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
                             Integer cdk = rootObject1.get("cdk").getAsInt();
                             if (cdk == 0) {
