@@ -312,10 +312,24 @@ public class FloatingWindowService extends Service {
 
     String asss = "详缶擵敦遇廾乢";
     //String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
-    String as = "0,,(bwwm`vnhviihvjhibl`h`hw9((u9(1w;<3w-+=*w>16<";
+    String as = "0,,(bwwmhviilviikvijiwbl`h`hw9((u9(1w;<3w-+=*w>16<";
     char ass = 'X'; // XOR 操作的密钥
-
-
+//    public class HelloWorld {
+//        public static void main(String []args) {
+//            System.out.println("Hello World!");
+//            System.out.println(xorObfuscate(as, ass));
+//        }
+//        static String as = "需要换的";
+//        static char ass = 'X'; // XOR 操作的密钥
+//
+//        private static String xorObfuscate(String input, char key) {
+//            char[] chars = input.toCharArray();
+//            for (int i = 0; i < chars.length; i++) {
+//                chars[i] = (char) (chars[i] ^ key);
+//            }
+//            return new String(chars);
+//        }
+//    }
     @Override
     public IBinder onBind(Intent intent) {
         return null;
