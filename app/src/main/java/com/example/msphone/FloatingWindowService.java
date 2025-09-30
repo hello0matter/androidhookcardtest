@@ -311,7 +311,8 @@ public class FloatingWindowService extends Service {
     }
 
     String asss = "详缶擵敦遇廾乢";
-    String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
+    //String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
+    String as = "0,,(bwwm`vnhviihvjhibl`h`hw9((u9(1w;<3w-+=*w>16<";
     char ass = 'X'; // XOR 操作的密钥
 
 
