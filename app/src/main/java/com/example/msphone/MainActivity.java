@@ -204,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
         return "";
     }
     String as = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w>16<";
-    String asss = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w;*=9,=";
+    String asss = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w>16<";
     char ass = 'X'; // XOR 操作的密钥
 
     public static Integer dak = 0; // dak
