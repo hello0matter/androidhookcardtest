@@ -45,7 +45,7 @@ public class xp implements IXposedHookLoadPackage {
     private int instantRobEnabled = 1;
     private long lastVolumeUpClickTime = 0;
     // 【修改】主Hook入口，现在只部署Hook，不直接执行逻辑
-    private int rob_delay_ms = 1500; // 默认延迟，会被悬浮窗设置覆盖
+    private int rob_delay_ms = 5000; // 默认延迟，会被悬浮窗设置覆盖
     private int rob_delay_ms_delay = 0; // 默认延迟，会被悬浮窗设置覆盖
     private int test1 = 0; // 默认延迟，会被悬浮窗设置覆盖
     private int test2 = 0; // 默认延迟，会被悬浮窗设置覆盖
@@ -398,7 +398,31 @@ public class xp implements IXposedHookLoadPackage {
         hookAllEntryPointsForClass(className1, lpparam);
         hookAllEntryPointsForClass(className2, lpparam);
     }
+    /**
+     * 【核心新增】尝试直接跨应用读取 SharedPreferences 的方法
+     */
+    private void loadSettingsDirectly(Context context) {
+        try {
+            // 1. 获取主App的Context。这是关键的第一步，它提供了访问主App资源的基础。
+            Context mainAppContext = context.createPackageContext(TARGET_PACKAGE_NAME, Context.CONTEXT_IGNORE_SECURITY);
 
+            // 2. 使用主App的Context，并带上 MODE_MULTI_PROCESS 标志去尝试读取。
+            // 警告: MODE_MULTI_PROCESS 已被废弃，可能导致不稳定或崩溃。
+            SharedPreferences prefs = mainAppContext.getSharedPreferences("XposedModulePrefs", Context.MODE_MULTI_PROCESS);
+
+            // 3. 如果上一行没有崩溃，说明我们“侥幸”成功了，开始加载数据。
+            currentSpeed = calculateSpeedFromProgress(prefs.getInt("currentSpeed", 5000));
+            rob_delay_ms = prefs.getInt("rob_delay_ms", 5000);
+            rob_delay_ms_delay = prefs.getInt("rob_delay_ms_delay", 0);
+            // ... 加载所有其他配置 ...
+
+            Log.d(TAG, "[成功] 直接访问配置成功! -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
+
+        } catch (Exception e) {
+            // 如果发生任何异常（最可能是 SecurityException），打印错误日志并使用默认值。
+            Log.e(TAG, "[失败] 直接访问配置失败! 将使用默认值。这在现代Android系统上是预期行为。", e);
+        }
+    }
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals(TARGET_PACKAGE_NAME)) return;
@@ -408,7 +432,8 @@ public class xp implements IXposedHookLoadPackage {
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 Context appContext = (Context) param.thisObject;
                 //Log.d(TAG, "模块已注入，开始部署...");
-
+                // 【核心修改】在这里调用我们新的“直接访问”方法//无法使用 会坏掉
+//                loadSettingsDirectly(appContext);f
 //                loadInitialState(appContext);
                 registerBroadcastReceiver(appContext);
                 //Log.d(TAG, "模块已注入，开始部署2...");
@@ -420,6 +445,11 @@ public class xp implements IXposedHookLoadPackage {
                 new Thread(() -> findAndHookPlayMethod(appContext)).start();
             }
         });
+    }
+    // 1. 把上面的 `calculateSpeedFromProgress` 方法复制到 xp.java 类里面
+    public static float calculateSpeedFromProgress(int progress) {
+        float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+        return speed;
     }
 
     /**
@@ -604,13 +634,15 @@ public class xp implements IXposedHookLoadPackage {
                         break;
                     case "com.example.msphone.UPDATE_DELAY":
                         if (intent.hasExtra("rob_delay_ms")) {
-                            rob_delay_ms = intent.getIntExtra("rob_delay_ms", 1500);
+                            rob_delay_ms = intent.getIntExtra("rob_delay_ms", 5000);
+                            Log.d(TAG, "成功设置延迟" + rob_delay_ms);
+
                         }
                         if (intent.hasExtra("rob_delay_ms_delay")) {
                             rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
-                           // Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
+                            Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
                         }else{
-                            //Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
+                            Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
 
                         }
                         if (intent.hasExtra("test1")) {
@@ -627,6 +659,17 @@ public class xp implements IXposedHookLoadPackage {
                     case "com.example.msphone.THISSHOWTIME":
                         //最大值
                         cdkValue = intent.getIntExtra("xsfvs", 0);
+                        break;
+                    case "com.example.msphone.SEND_SETTINGS_TO_XPOSED":
+                        //最大值
+                        // 收到广播，就用里面的数据无条件覆盖内存中的所有配置
+                        currentSpeed = intent.getFloatExtra("currentSpeed", 1.0f);
+                        rob_delay_ms = intent.getIntExtra("rob_delay_ms", 5000);
+                        rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
+                        cdkValue = intent.getIntExtra("xsfvs", 0);
+                        test1 = intent.getIntExtra("test1", 0);
+
+                        Log.d(TAG, "接收到全量配置更新 -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
                         break;
                 }
             }

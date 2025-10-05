@@ -1,5 +1,7 @@
 package com.example.msphone;
 
+import static android.app.ProgressDialog.show;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -60,7 +62,6 @@ public class FloatingWindowService extends Service {
     public static final String ACTION_CHANGE_PLAYBACK_SPEED = "com.example.CHANGE_PLAYBACK_SPEED";
     public static final String EXTRA_PLAYBACK_SPEED = "playback_speed";
     // 建议定义一个新的、更通用的广播Action名
-    public static final String ACTION_UPDATE_SETTINGS = "com.example.msphone.UPDATE_SETTINGS";
     private ImageButton mCloseButton;
     private View mFloatingView;
     private SeekBar mSeekBar;
@@ -88,15 +89,6 @@ public class FloatingWindowService extends Service {
             handler.postDelayed(this, 120000); // 2分钟心跳
         }
     };
-
-    // 【新增】一个更通用的广播方法
-    public void broadcastControlStatus(Integer cdk, Integer instantRob) {
-        Intent intent = new Intent(ACTION_UPDATE_SETTINGS); // 使用新的Action
-        intent.putExtra("xsfvs", cdk);
-        intent.putExtra("instant_rob", instantRob); // 增加新的数据
-        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-        sendBroadcast(intent);
-    }
 
 
     /**
@@ -137,13 +129,10 @@ public class FloatingWindowService extends Service {
                                 instantRobFlag = dataObject.get("instant_rob").getAsInt();
                             }
 
-                            // 【修改】调用新的广播方法，发送所有控制信息
-                            broadcastControlStatus(cdk, instantRobFlag);
-
                             if (mSeekBar != null) {
-                                handler.post(() -> mSeekBar.setMax(cdk > 0 ? cdk : 170)); // 更新滑块最大值
+                                mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
                                 SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-
+//                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
                                 mSeekBar.setProgress(prefs.getInt("currentSpeed",100));
 
                             }
@@ -539,13 +528,13 @@ public class FloatingWindowService extends Service {
     private void loadAndDisplayDelay() {
         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
         // 从本地读取延迟时间（毫秒），默认为150ms
-        int rob_delay_ms = prefs.getInt("rob_delay_ms", 1500);
+        int rob_delay_ms = prefs.getInt("rob_delay_ms", 5000);
         rob_delay_ms_delay = prefs.getInt("rob_delay_ms_delay", 0);
         test1 = prefs.getInt("test1", 0);
         test2 = prefs.getInt("test2", 0);
         test3 = prefs.getInt("test3", 0);
 
-        //Log.e(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
+//        Log.d(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
 
         mEtDelaySeconds.setText(String.format("%.2f", rob_delay_ms / 1000.0f));
         // 2. 发送广播，实时通知Xposed模块更新延迟时间
@@ -667,9 +656,10 @@ public class FloatingWindowService extends Service {
                         SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
 
                         float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
+      //                  SharedPreferences.Editor editor = sharedPreferences.edit();
 //                        editor.putInt("fdg341", (int) (progress * 1.7));
-                        editor.putInt("currentSpeed", progress).apply();
+             //           editor.putInt("currentSpeed", progress).apply();
+
                         // 使用 LENGTH_SHORT
                         Toast.makeText(seekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
                     }
@@ -693,6 +683,8 @@ public class FloatingWindowService extends Service {
                 intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
                 intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
                 SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
+//                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
+//                Log.d(TAG, String.valueOf(seekBar.getProgress()));
                 editor.putInt("currentSpeed", seekBar.getProgress()).apply();
 //                editor.putInt("fdg341", speed);
 //
@@ -737,6 +729,7 @@ public class FloatingWindowService extends Service {
                         return true; // 消费事件，表示正在拖动
 
                     case MotionEvent.ACTION_UP:
+
                         // 手指抬起，拖动结束
                         return true;
                 }
@@ -884,8 +877,7 @@ public class FloatingWindowService extends Service {
     public void adfaev(Integer cardNum) {
         SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putInt("fdg341", cardNum);
-        editor.commit();
+        editor.putInt("fdg341", cardNum).apply();
 //
 //        Intent intent = new Intent("xsfv");
 //        intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, cardNum);

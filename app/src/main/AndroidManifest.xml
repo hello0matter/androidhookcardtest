@@ -17,6 +17,8 @@
         tools:remove="android:maxSdkVersion" />
     <permission android:name="android.permission.DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <!-- 【第1步】申请接收开机广播的权限 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <permission
         android:name="cx.xp.test.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
         android:protectionLevel="signature" />
@@ -53,7 +55,16 @@
             android:name="xposedminversion"
             android:value="82" />
 
-        <service android:name="com.example.msphone.FloatingWindowService" android:exported="false" />
+         <!-- 【第2步】注册你的“开机哨兵” BroadcastReceiver -->
+         <receiver
+             android:name=".BootCompletedReceiver"
+             android:enabled="true"
+             android:exported="true">
+             <intent-filter>
+                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+             </intent-filter>
+         </receiver>
+        <service android:name="com.example.msphone.FloatingWindowService" android:exported="true" />
     </application>
 
 </manifest>

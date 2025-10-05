@@ -5,7 +5,7 @@
     android:orientation="vertical"
     android:padding="8dp"
     android:background="@drawable/floating_window_background">
-    <!-- 【新增】专门用于拖动的“拖动条/把手” -->
+    <!-- 【新增】专门用于·拖动的“拖动条/把手” -->
     <View
         android:id="@+id/drag_handle"
         android:layout_width="match_parent"
