@@ -686,6 +686,8 @@ public class FloatingWindowService extends Service {
 //                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
 //                Log.d(TAG, String.valueOf(seekBar.getProgress()));
                 editor.putInt("currentSpeed", seekBar.getProgress()).apply();
+                // 发送信号
+                sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
 //                editor.putInt("fdg341", speed);
 //
 
@@ -884,6 +886,7 @@ public class FloatingWindowService extends Service {
 //        context.sendBroadcast(intent);
         Intent intent = new Intent("com.example.msphone.THISSHOWTIME");
         intent.putExtra("xsfvs", cardNum);
+        sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
         FloatingWindowService.this.sendBroadcast(intent);
     }
 

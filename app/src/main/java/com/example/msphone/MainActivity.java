@@ -578,10 +578,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void adfaev(Integer cardNum) {
-//        SharedPreferences sharedPreferences = context.getSharedPreferences("XposedModulePrefs", 0);
-//        SharedPreferences.Editor editor = sharedPreferences.edit();
-//        editor.putInt("fdg341", cardNum);
-//        editor.commit();
+        SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt("fdg341", cardNum).apply();
 //
 //        Intent intent = new Intent("xsfv");
 //        intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, cardNum);

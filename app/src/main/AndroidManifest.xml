@@ -64,6 +64,10 @@
                  <action android:name="android.intent.action.BOOT_COMPLETED" />
              </intent-filter>
          </receiver>
+         <provider
+             android:name=".SettingsProvider"
+             android:authorities="com.example.msphone.provider"
+             android:exported="true" />
         <service android:name="com.example.msphone.FloatingWindowService" android:exported="true" />
     </application>
 

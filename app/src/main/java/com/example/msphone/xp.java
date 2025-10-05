@@ -1,5 +1,7 @@
 package com.example.msphone;
 
+import static android.media.tv.TvContract.AUTHORITY;
+
 import android.app.Activity;
 import android.app.Application;
 import android.content.BroadcastReceiver;
@@ -7,7 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.media.PlaybackParams;
 import android.os.Bundle;
@@ -51,6 +55,7 @@ public class xp implements IXposedHookLoadPackage {
     private int test2 = 0; // 默认延迟，会被悬浮窗设置覆盖
     private int test3 = 0; // 默认延迟，会被悬浮窗设置覆盖
 
+    private static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/settings");
     /**
      * 【核心逻辑】Hook OrderView 和 OrderViewWithMap
      */
@@ -433,8 +438,9 @@ public class xp implements IXposedHookLoadPackage {
                 Context appContext = (Context) param.thisObject;
                 //Log.d(TAG, "模块已注入，开始部署...");
                 // 【核心修改】在这里调用我们新的“直接访问”方法//无法使用 会坏掉
-//                loadSettingsDirectly(appContext);f
-//                loadInitialState(appContext);
+//                loadSettingsDirectly(appContext);
+                // 启动时加载一次
+//                loadSettingsFromProvider(appContext);
                 registerBroadcastReceiver(appContext);
                 //Log.d(TAG, "模块已注入，开始部署2...");
 
@@ -450,6 +456,35 @@ public class xp implements IXposedHookLoadPackage {
     public static float calculateSpeedFromProgress(int progress) {
         float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
         return speed;
+    }
+
+    private void loadSettingsFromProvider(Context context) {
+        Cursor cursor = null;
+        try {
+            if (context == null) return;
+            // 通过 ContentResolver 查询我们的 Provider
+            cursor = context.getContentResolver().query(CONTENT_URI, null, null, null, null);
+            if (cursor == null) return;
+
+            if (cursor.moveToFirst()) {
+                // 【取值】使用 Provider 对外暴露的 Key
+                currentSpeed = cursor.getFloat(cursor.getColumnIndex("currentSpeed")); // Provider已经算好了float
+                rob_delay_ms = cursor.getInt(cursor.getColumnIndex("rob_delay_ms"));
+                rob_delay_ms_delay = cursor.getInt(cursor.getColumnIndex("rob_delay_ms_delay"));
+                test1 = cursor.getInt(cursor.getColumnIndex("test1"));
+                test2 = cursor.getInt(cursor.getColumnIndex("test2"));
+                test3 = cursor.getInt(cursor.getColumnIndex("test3"));
+                cdkValue = cursor.getInt(cursor.getColumnIndex("xsfvs")); // Provider 暴露的是 xsfvs
+
+                Log.d(TAG, "Provider加载成功 -> Speed:" + currentSpeed + ", UserDelay:" + rob_delay_ms);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "从Provider加载配置异常!", e);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
     }
 
     /**
@@ -622,7 +657,9 @@ public class xp implements IXposedHookLoadPackage {
         filter.addAction("com.example.CHANGE_PLAYBACK_SPEED");
         filter.addAction("com.example.msphone.UPDATE_DELAY");
         filter.addAction("com.example.msphone.THISSHOWTIME");
+        filter.addAction("com.example.msphone.SEND_SETTINGS_TO_XPOSED");
         filter.addAction("com.example.msphone.SETTINGS_UPDATED_SIGNAL");
+        filter.addAction("com.example.msphone.SEND_SETTINGS_TO_XPOSED");
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -670,6 +707,18 @@ public class xp implements IXposedHookLoadPackage {
                         test1 = intent.getIntExtra("test1", 0);
 
                         Log.d(TAG, "接收到全量配置更新 -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
+                        break;
+                    case "com.example.msphone.SETTINGS_UPDATED_SIGNAL":
+                        //最大值
+                        // 收到广播，就用里面的数据无条件覆盖内存中的所有配置
+//                        currentSpeed = intent.getFloatExtra("currentSpeed", 1.0f);
+//                        rob_delay_ms = intent.getIntExtra("rob_delay_ms", 5000);
+//                        rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
+//                        cdkValue = intent.getIntExtra("xsfvs", 0);
+//                        test1 = intent.getIntExtra("test1", 0);
+//
+//                        Log.d(TAG, "接收到全量配置更新 -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
+                        loadSettingsFromProvider(context);
                         break;
                 }
             }
