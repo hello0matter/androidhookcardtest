@@ -14,7 +14,7 @@ public class BootCompletedReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         // 确保收到的确实是开机广播
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
-            Log.d(TAG, "检测到手机开机，正在准备推送配置...");
+//            Log.d(TAG, "检测到手机开机，正在准备推送配置...");
 
             try {
                 // 1. 读取自己App的 SharedPreferences

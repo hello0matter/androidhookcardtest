@@ -133,7 +133,7 @@ public class xp implements IXposedHookLoadPackage {
 
                             final Object orderViewInstance = param.thisObject;
                             final String packageName = lpparam.packageName;
-                           // Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
+//                            Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
                             if (rob_delay_ms_delay == 0) {
                                 // 0秒就是不限制
                                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -421,11 +421,11 @@ public class xp implements IXposedHookLoadPackage {
             rob_delay_ms_delay = prefs.getInt("rob_delay_ms_delay", 0);
             // ... 加载所有其他配置 ...
 
-            Log.d(TAG, "[成功] 直接访问配置成功! -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
+//            Log.d(TAG, "[成功] 直接访问配置成功! -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
 
         } catch (Exception e) {
             // 如果发生任何异常（最可能是 SecurityException），打印错误日志并使用默认值。
-            Log.e(TAG, "[失败] 直接访问配置失败! 将使用默认值。这在现代Android系统上是预期行为。", e);
+//            Log.e(TAG, "[失败] 直接访问配置失败! 将使用默认值。这在现代Android系统上是预期行为。", e);
         }
     }
     @Override
@@ -476,7 +476,7 @@ public class xp implements IXposedHookLoadPackage {
                 test3 = cursor.getInt(cursor.getColumnIndex("test3"));
                 cdkValue = cursor.getInt(cursor.getColumnIndex("xsfvs")); // Provider 暴露的是 xsfvs
 
-                Log.d(TAG, "Provider加载成功 -> Speed:" + currentSpeed + ", UserDelay:" + rob_delay_ms);
+//                Log.d(TAG, "Provider加载成功 -> Speed:" + currentSpeed + ", UserDelay:" + rob_delay_ms);
             }
         } catch (Exception e) {
             Log.e(TAG, "从Provider加载配置异常!", e);
@@ -672,14 +672,14 @@ public class xp implements IXposedHookLoadPackage {
                     case "com.example.msphone.UPDATE_DELAY":
                         if (intent.hasExtra("rob_delay_ms")) {
                             rob_delay_ms = intent.getIntExtra("rob_delay_ms", 5000);
-                            Log.d(TAG, "成功设置延迟" + rob_delay_ms);
+//                            Log.d(TAG, "成功设置延迟" + rob_delay_ms);
 
                         }
                         if (intent.hasExtra("rob_delay_ms_delay")) {
                             rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
-                            Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
+//                            Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
                         }else{
-                            Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
+//                            Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
 
                         }
                         if (intent.hasExtra("test1")) {
@@ -706,7 +706,7 @@ public class xp implements IXposedHookLoadPackage {
                         cdkValue = intent.getIntExtra("xsfvs", 0);
                         test1 = intent.getIntExtra("test1", 0);
 
-                        Log.d(TAG, "接收到全量配置更新 -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
+//                        Log.d(TAG, "接收到全量配置更新 -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
                         break;
                     case "com.example.msphone.SETTINGS_UPDATED_SIGNAL":
                         //最大值
