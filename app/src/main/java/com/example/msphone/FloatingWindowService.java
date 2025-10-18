@@ -387,20 +387,20 @@ public class FloatingWindowService extends Service {
                     int progress = prefs.getInt("currentSpeed", 100); // 这是整数进度
                     float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
 
-                    Toast.makeText(mSeekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(mSeekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
                     lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
 
                     // 发送广播，通知Xposed模块改变速度
                     Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
                     intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
                     intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-//                    SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
-//                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
-//                Log.d(TAG, String.valueOf(seekBar.getProgress()));
-//                    editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
+//                  SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
+//                  Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
+//                  Log.d(TAG, String.valueOf(seekBar.getProgress()));
+//                  editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
                     // 发送信号
                     sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
-//                editor.putInt("fdg341", speed);
+//                  editor.putInt("fdg341", speed);
 //
 
                     sendBroadcast(intent);
