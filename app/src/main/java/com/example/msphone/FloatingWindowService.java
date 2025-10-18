@@ -19,6 +19,7 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -78,7 +79,8 @@ public class FloatingWindowService extends Service {
     public static int test2 = 0; // dak
     public static int test3 = 0; // dak
     private static final String TAG = "XposedHook_XP_Dynamic";
-
+    private long lastVolumeDownClickTime = 0;
+    private static final int DOUBLE_CLICK_TIMEOUT = 500;
     private final Handler handler = new Handler();
     private final Runnable runnableCode = new Runnable() {
         @Override
@@ -90,6 +92,26 @@ public class FloatingWindowService extends Service {
         }
     };
 
+    // 【新增】用于监听去电的广播接收器
+    private OutgoingCallReceiver outgoingCallReceiver;
+
+    // --- 内部广播接收器类 ---
+    public class OutgoingCallReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent != null && Intent.ACTION_NEW_OUTGOING_CALL.equals(intent.getAction())) {
+
+                // 从Intent中获取拨打的电话号码（可选）
+                String phoneNumber = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER);
+                Log.i(TAG, ">>> Outgoing call detected! Dialing: " + phoneNumber);
+
+                // 【【【 核心操作 】】】
+                // 在这里调用我们切换悬浮窗可见性的方法
+                // 我们可以直接调用之前写好的 toggleAndSaveVisibility()
+                toggleAndSaveVisibility();
+            }
+        }
+    }
 
     /**
      * [重构核心] 将所有网络认证逻辑封装到这里，并在后台线程调用
@@ -128,18 +150,19 @@ public class FloatingWindowService extends Service {
                             if (dataObject.has("instant_rob")) {
                                 instantRobFlag = dataObject.get("instant_rob").getAsInt();
                             }
-
+                            adfaev(cdk);
                             if (mSeekBar != null) {
                                 mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
                                 SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
 //                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
-                                mSeekBar.setProgress(prefs.getInt("currentSpeed",100));
+                                mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
 
                             }
                         } else {
                             // [自毁逻辑]
                             broadcastCdkStatus(0);
                             stopSelf();
+                            adfaev(0);
                             System.exit(0);
                         }
                     }
@@ -147,18 +170,21 @@ public class FloatingWindowService extends Service {
                     // [自毁逻辑]
                     broadcastCdkStatus(0);
                     stopSelf();
+                    adfaev(0);
                     System.exit(0);
                 }
             } else {
                 // [自毁逻辑]
                 broadcastCdkStatus(0);
                 stopSelf();
+                adfaev(0);
                 System.exit(0);
             }
         } catch (Exception e) {
             // [自毁逻辑]
             broadcastCdkStatus(0);
             stopSelf();
+            adfaev(0);
             System.exit(0);
         }
     }
@@ -304,7 +330,8 @@ public class FloatingWindowService extends Service {
     String as = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w>16<";
     //http://50.114.113.121:48080/app-api/cdk/user/find
     char ass = 'X'; // XOR 操作的密钥
-//    public class HelloWorld {
+
+    //    public class HelloWorld {
 //        public static void main(String []args) {
 //            System.out.println("Hello World!");
 //            System.out.println(xorObfuscate(as, ass));
@@ -325,9 +352,60 @@ public class FloatingWindowService extends Service {
         return null;
     }
 
+    // 在 FloatingWindowService.java 的类成员变量区域添加：
+    private SharedPreferences prefs;
+    private static final String PREFS_NAME = "FloatingWindowPrefs";
+    private static final String KEY_IS_VISIBLE = "is_visible";
+    private boolean isFloatingWindowVisible = true; // 默认可见
+    // 【【【 新增：“自动抖动”定时器 】】】
+    private final Handler autoJitterHandler = new Handler();
+    private final Runnable autoJitterRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mSeekBar != null) {
+                Log.d(TAG, ">>> Auto Jitter: Simulating onStopTrackingTouch...");
+
+                // 【核心】直接调用 SeekBar 监听器的 onStopTrackingTouch 方法
+                // 这会模拟一次“松手”动作，从而发送广播
+                if (mSeekBar != null) {
+                    float speed = ((mSeekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
+                    // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
+                    Toast.makeText(mSeekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
+                    lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
+
+                    // 发送广播，通知Xposed模块改变速度
+                    Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
+                    intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
+                    intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                    SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
+//                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
+//                Log.d(TAG, String.valueOf(seekBar.getProgress()));
+                    editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
+                    // 发送信号
+                    sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
+//                editor.putInt("fdg341", speed);
+//
+
+                    sendBroadcast(intent);
+                }
+            }
+
+            // 安排下一次“抖动”
+            // 2000毫秒（2秒）的间隔足够了，太快可能会导致性能问题
+            autoJitterHandler.postDelayed(this, 2000);
+        }
+    };
     @Override
     public void onCreate() {
         super.onCreate();
+        // 【新增】注册我们的去电监听器
+        Log.d(TAG, "Registering OutgoingCallReceiver...");
+        outgoingCallReceiver = new OutgoingCallReceiver();
+        IntentFilter filter = new IntentFilter(Intent.ACTION_NEW_OUTGOING_CALL);
+        registerReceiver(outgoingCallReceiver, filter);
+        // 初始化 SharedPreferences 并加载状态
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        isFloatingWindowVisible = prefs.getBoolean(KEY_IS_VISIBLE, true); // 读取保存的状态，默认为true（可见）
 
         createNotificationChannel();
         Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -345,6 +423,9 @@ public class FloatingWindowService extends Service {
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行
         handler.postDelayed(runnableCode, 10000);
+
+        // 【【【 新增：在服务创建时，启动“自动抖动”定时器 】】】
+        autoJitterHandler.post(autoJitterRunnable);
     }
 
 
@@ -367,7 +448,13 @@ public class FloatingWindowService extends Service {
         mToggleFloatingWindowReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                toggleFloatingWindow();
+                // 【日志四】只要接收到任何广播，这里就应该打印
+                Log.d(TAG, "BroadcastReceiver onReceive triggered! Action: " + intent.getAction());
+
+                // 确保Action是我们想要的
+                if ("TOGGLE_FLOATING_WINDOW".equals(intent.getAction())) {
+                    toggleAndSaveVisibility();
+                }
             }
         };
         IntentFilter filter = new IntentFilter("TOGGLE_FLOATING_WINDOW");
@@ -396,12 +483,35 @@ public class FloatingWindowService extends Service {
         if (mFloatingView != null && mWindowManager != null) {
             mWindowManager.removeView(mFloatingView);
         }
+        // 【新增】当服务销毁时，务必注销监听器，防止内存泄漏
+        if (outgoingCallReceiver != null) {
+            Log.d(TAG, "Unregistering OutgoingCallReceiver...");
+            unregisterReceiver(outgoingCallReceiver);
+        }
+        // 【【【 新增：在服务销毁时，停止“自动抖动”定时器，防止内存泄漏 】】】
+        autoJitterHandler.removeCallbacks(autoJitterRunnable);
     }
 
-    private void toggleFloatingWindow() {
-        if (mFloatingView != null) {
-            mFloatingView.setVisibility(mFloatingView.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+// 【修改】您原来的 toggleFloatingWindow() 方法，改成下面这个新方法
+
+    /**
+     * 切换悬浮窗的可见性，并保存状态
+     */
+    private void toggleAndSaveVisibility() {
+        // 【日志五】如果这个方法被调用，这里应该打印
+        Log.d(TAG, "toggleAndSaveVisibility called. Current visibility: " + isFloatingWindowVisible);
+
+        if (mFloatingView == null) {
+            Log.e(TAG, "mFloatingView is null, cannot toggle visibility.");
+            return;
         }
+
+        isFloatingWindowVisible = !isFloatingWindowVisible;
+        mFloatingView.setVisibility(isFloatingWindowVisible ? View.VISIBLE : View.INVISIBLE);
+//        Toast.makeText(this, isFloatingWindowVisible ? "悬浮窗已显示" : "悬浮窗已隐藏", Toast.LENGTH_SHORT).show();
+
+        // 3. 将新状态保存到本地
+        prefs.edit().putBoolean(KEY_IS_VISIBLE, isFloatingWindowVisible).apply();
     }
 
     public String helolss(String bufff, String Key) {
@@ -636,14 +746,20 @@ public class FloatingWindowService extends Service {
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.CENTER;
 
-        // --- 4. 将 View 添加到窗口 ---
-        mWindowManager.addView(mFloatingView, params);
-
         // --- 5. 加载初始数据 ---
         loadAndDisplayDelay();
         new Thread(this::performNetworkAuth).start();
 
         // --- 6. 设置各个控件的监听器 ---
+        // 【新增】根据加载的状态，设置初始的可见性
+        if (mFloatingView != null) {
+            mFloatingView.setVisibility(isFloatingWindowVisible ? View.VISIBLE : View.GONE);
+        }
+
+
+        // --- 4. 将 View 添加到窗口 ---
+        mWindowManager.addView(mFloatingView, params);
+        mFloatingView.requestFocus();
 
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -656,9 +772,9 @@ public class FloatingWindowService extends Service {
                         SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
 
                         float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
-      //                  SharedPreferences.Editor editor = sharedPreferences.edit();
-//                        editor.putInt("fdg341", (int) (progress * 1.7));
-             //           editor.putInt("currentSpeed", progress).apply();
+                        //                  SharedPreferences.Editor editor = sharedPreferences.edit();
+                        //  editor.putInt("fdg341", (int) (progress * 1.7));
+                        //           editor.putInt("currentSpeed", progress).apply();
 
                         // 使用 LENGTH_SHORT
                         Toast.makeText(seekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
@@ -672,20 +788,27 @@ public class FloatingWindowService extends Service {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                float speed = ((seekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
+//                float speed = ((seekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
 
                 // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
-                Toast.makeText(seekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
                 lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
+
+                SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
+//                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
+//                Log.d(TAG, String.valueOf(seekBar.getProgress()));
+                editor.putInt("currentSpeed", seekBar.getProgress()).apply();
+                prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                // 2. 获取所有需要的配置
+                // 【重要】这里的 Key 和数据类型必须和你保存时完全一致
+                int progress = prefs.getInt("currentSpeed", 100); // 这是整数进度
+                float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+                Toast.makeText(seekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
 
                 // 发送广播，通知Xposed模块改变速度
                 Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
                 intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
                 intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-                SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
-//                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
-//                Log.d(TAG, String.valueOf(seekBar.getProgress()));
-                editor.putInt("currentSpeed", seekBar.getProgress()).apply();
                 // 发送信号
                 sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
 //                editor.putInt("fdg341", speed);
@@ -738,6 +861,7 @@ public class FloatingWindowService extends Service {
                 return false;
             }
         });
+
     }
 //    private void createFloatingWindow() {
 //        int LAYOUT_FLAG;

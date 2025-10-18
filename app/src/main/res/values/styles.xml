@@ -6,4 +6,12 @@
         <item name="android:progressTint">@color/yellow</item>
         <item name="android:thumbTint">@color/yellow</item>
     </style>
+    <!-- 新增一个完全透明的、没有标题栏的主题 -->
+    <style name="Theme.App.Transparent" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

@@ -48,10 +48,10 @@ public class BootCompletedReceiver extends BroadcastReceiver {
                 // 5. 发送广播
                 context.sendBroadcast(settingsIntent);
 
-                Log.d(TAG, "配置已通过广播发送 -> Speed: " + speed + ", Delay: " + rob_delay_ms);
+//                Log.d(TAG, "配置已通过广播发送 -> Speed: " + speed + ", Delay: " + rob_delay_ms);
 
             } catch (Exception e) {
-                Log.e(TAG, "开机推送配置时发生错误", e);
+//                Log.e(TAG, "开机推送配置时发生错误", e);
             }
         }
     }

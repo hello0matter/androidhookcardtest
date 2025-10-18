@@ -1,9 +1,8 @@
 package com.example.msphone;
 
 
-import static com.google.android.exoplayer2.ExoPlayerLibraryInfo.TAG;
-
 import android.Manifest;
+import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -11,9 +10,13 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
+import android.os.Environment;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.View;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
@@ -32,7 +35,14 @@ import com.zy.devicelibrary.utils.NetWorkUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -44,6 +54,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Enumeration;
 import java.util.concurrent.CompletableFuture;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -97,6 +109,213 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public X509Certificate[] getAcceptedIssuers() {
             return new X509Certificate[0];
+        }
+    }
+
+    // 定义一个请求码，用于识别权限请求的回调
+    private static final int STORAGE_PERMISSION_REQUEST_CODE = 1001;
+
+    /**
+     * 检查并请求存储权限，如果已有权限，则直接创建Magisk模块。
+     */
+    private void checkPermissionAndCreateModule() {
+        // 只在 Android 6.0 (API 23)及以上版本需要动态请求权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                // 如果没有权限，则请求权限
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        STORAGE_PERMISSION_REQUEST_CODE);
+            } else {
+                // 如果已经有权限，直接创建模块
+                createMagiskModuleOnSDCard();
+            }
+        } else {
+            // 对于 Android 6.0 以下的旧版本，权限在安装时已授予，直接创建
+            createMagiskModuleOnSDCard();
+        }
+    }
+
+    /**
+     * 这是权限请求的回调方法，系统会在用户做出选择后调用它。
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == STORAGE_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // 用户授予了权限
+                Toast.makeText(this, "存储权限已获取！", Toast.LENGTH_SHORT).show();
+                createMagiskModuleOnSDCard();
+            } else {
+                // 用户拒绝了权限
+                Toast.makeText(this, "未授予存储权限，无法生成模块文件。", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+//    private void createModuleFromTemplate() {
+//        String moduleName = "MyKeyMonitor";
+//        File sdcardDir = Environment.getExternalStorageDirectory();
+//        File finalModuleZip = new File(sdcardDir, moduleName + ".zip");
+//
+//        try {
+//            // 1. 从 res/raw 复制模板 zip 文件到临时位置
+//            InputStream templateInputStream = getResources().openRawResource(R.raw.template);
+//            File tempTemplateFile = new File(getCacheDir(), "template.zip");
+//            FileOutputStream fos = new FileOutputStream(tempTemplateFile);
+//            byte[] buffer = new byte[1024];
+//            int length;
+//            while ((length = templateInputStream.read(buffer)) > 0) {
+//                fos.write(buffer, 0, length);
+//            }
+//            fos.close();
+//            templateInputStream.close();
+//
+//            // 2. 创建一个新的 zip 输出流
+//            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(finalModuleZip));
+//            ZipFile zipFile = new ZipFile(tempTemplateFile);
+//            Enumeration<? extends ZipEntry> entries = zipFile.entries();
+//
+//            // 3. 遍历模板 zip 中的所有文件
+//            while (entries.hasMoreElements()) {
+//                ZipEntry entry = entries.nextElement();
+//                zos.putNextEntry(new ZipEntry(entry.getName()));
+//
+//                // 4. 如果是 service.sh，就写入我们的动态脚本内容
+//                if (entry.getName().equals("service.sh")) {
+//                    String serviceShContent = "#!/system/bin-sh\n... (完整脚本) ...";
+//                    zos.write(serviceShContent.getBytes());
+//                } else {
+//                    // 否则，就原样复制模板文件的内容
+//                    InputStream is = zipFile.getInputStream(entry);
+//                    while ((length = is.read(buffer)) > 0) {
+//                        zos.write(buffer, 0, length);
+//                    }
+//                    is.close();
+//                }
+//                zos.closeEntry();
+//            }
+//
+//            // 5. 完成并清理
+//            zos.close();
+//            zipFile.close();
+//            tempTemplateFile.delete();
+//
+//            Toast.makeText(this, "Magisk模块已成功生成！", Toast.LENGTH_LONG).show();
+//
+//        } catch (Exception e) {
+//            Toast.makeText(this, "从模板生成模块失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+//        }
+//    }
+
+    /**
+     * 核心方法：在SD卡根目录创建Magisk模块的zip文件。
+     */
+    private void createMagiskModuleOnSDCard() {
+        String moduleName = "MyKeyMonitor"; // 模块名
+        // 【核心修改】获取SD卡根目录的路径
+        File sdcardDir = Environment.getExternalStorageDirectory();
+        File moduleZipFile = new File(sdcardDir, moduleName + ".zip");
+
+        try {
+            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(moduleZipFile));
+
+            // 写入 module.prop
+            zos.putNextEntry(new ZipEntry("module.prop"));
+            String modulePropContent = "id=my-key-monitor\nname=My Key Monitor\nversion=v1\nauthor=YourApp\ndescription=Enables key monitoring.";
+            zos.write(modulePropContent.getBytes());
+            zos.closeEntry();
+
+            // 写入 service.sh (这里使用最终的三击脚本)
+            zos.putNextEntry(new ZipEntry("service.sh"));
+            String serviceShContent = "#!/system/bin-sh\n\n" +
+                    "key_monitor_loop() {\n" +
+                    "    TARGET_KEY=\"KEY_VOLUMEDOWN\"\n" +
+                    "    BROADCAST_ACTION=\"TOGGLE_FLOATING_WINDOW\"\n" +
+                    "    TRIPLE_CLICK_TIMEOUT=\"1.5\"\n" +
+                    "    click_count=0\n" +
+                    "    last_click_time=0\n" +
+                    "    getevent -l | while read line; do\n" +
+                    "        if echo \"$line\" | grep -q \"$TARGET_KEY\" && echo \"$line\" | grep -q \"value 0\"; then\n" +
+                    "            current_time=$(date +%s.%N)\n" +
+                    "            time_diff=$(echo \"$current_time - $last_click_time\" | bc)\n" +
+                    "            if [ $(echo \"$time_diff > $TRIPLE_CLICK_TIMEOUT\" | bc) -eq 1 ]; then\n" +
+                    "                click_count=1\n" +
+                    "            else\n" +
+                    "                click_count=$((click_count+1))\n" +
+                    "            fi\n" +
+                    "            last_click_time=$current_time\n" +
+                    "            if [ $click_count -eq 3 ]; then\n" +
+                    "                am broadcast -a \"$BROADCAST_ACTION\"\n" +
+                    "                click_count=0\n" +
+                    "            fi\n" +
+                    "        fi\n" +
+                    "    done\n" +
+                    "}\n\n" +
+                    "key_monitor_loop &\n";
+            zos.write(serviceShContent.getBytes());
+            zos.closeEntry();
+
+            zos.close();
+            Toast.makeText(this, "Magisk模块已成功生成到您的SD卡根目录！\n文件名: " + moduleName + ".zip", Toast.LENGTH_LONG).show();
+
+        } catch (IOException e) {
+            Toast.makeText(this, "生成模块失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("MagiskModule", "Failed to create Magisk module", e);
+        }
+    }
+
+    private void createMagiskModule() {
+        // 模块名叫 MyKeyMonitor
+        String moduleName = "MyKeyMonitor";
+        // 我们将把zip文件放在应用的外部缓存目录，方便用户找到
+        File moduleZipFile = new File(getExternalCacheDir(), moduleName + ".zip");
+
+        try {
+            // 创建Zip输出流
+            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(moduleZipFile));
+
+            // 1. 写入 module.prop 文件
+            zos.putNextEntry(new ZipEntry("module.prop"));
+            String modulePropContent = "id=my-key-monitor\n" +
+                    "name=My Key Monitor Service\n" +
+                    "version=v1.0\n" +
+                    "versionCode=1\n" +
+                    "author=YourApp\n" +
+                    "description=Enables key monitoring via a Magisk module.";
+            zos.write(modulePropContent.getBytes());
+            zos.closeEntry();
+
+            // 2. 写入 service.sh 文件
+            zos.putNextEntry(new ZipEntry("service.sh"));
+            String serviceShContent = "#!/system/bin-sh\n\n" +
+                    "key_monitor_loop() {\n" +
+                    "    LOG_FILE=\"/data/local/tmp/key_monitor.log\"\n" +
+                    "    TARGET_KEY=\"KEY_VOLUMEDOWN\"\n" +
+                    "    BROADCAST_ACTION=\"TOGGLE_FLOATING_WINDOW\"\n" +
+                    "    echo \"Magisk module script started at $(date)\" > \"$LOG_FILE\"\n" +
+                    "    getevent -l | while read line; do\n" +
+                    "        if echo \"$line\" | grep -q \"$TARGET_KEY\" && echo \"$line\" | grep -q \"value 0\"; then\n" +
+                    "            echo \"Volume Down Key Pressed at $(date) via Magisk module!\" >> \"$LOG_FILE\"\n" +
+                    "            am broadcast -a \"$BROADCAST_ACTION\"\n" +
+                    "        fi\n" +
+                    "    done\n" +
+                    "}\n\n" +
+                    "key_monitor_loop &\n";
+            zos.write(serviceShContent.getBytes());
+            zos.closeEntry();
+
+            // 完成写入
+            zos.close();
+
+            // 提示用户去安装
+            Toast.makeText(this, "Magisk模块已生成，请在Magisk中安装它: " + moduleZipFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+
+        } catch (IOException e) {
+            Toast.makeText(this, "生成模块失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("MagiskModule", "Failed to create Magisk module", e);
         }
     }
 
@@ -167,6 +386,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void checkUsageStatsPermission() {
+        AppOpsManager appOps = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+        int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getPackageName());
+        if (mode != AppOpsManager.MODE_ALLOWED) {
+            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+        }
+    }
+
     //解密
     public String helolss(String bufff, String Key) {
         String s = null;
@@ -203,15 +430,18 @@ public class MainActivity extends AppCompatActivity {
         }
         return "";
     }
+
     String as = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w>16<";
     String asss = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w;*=9,=";
     char ass = 'X'; // XOR 操作的密钥
-
+    private SharedPreferences prefs;
     public static Integer dak = 0; // dak
     public static Integer rob_delay_ms_delay = 0; // dak
     public static Integer test1 = 0; // dak
     public static Integer test2 = 0; // dak
     public static Integer test3 = 0; // dak
+    private static final String PREFS_NAME = "AppSettings";
+    private static final String KEY_TRANSPARENT = "isTransparent";
 
     private static String xorObfuscate(String input, char key) {
         char[] chars = input.toCharArray();
@@ -221,18 +451,150 @@ public class MainActivity extends AppCompatActivity {
         return new String(chars);
     }
 
+    // 用于记录上次音量下键按下的时间
+    private long lastVolumeDownClickTime = 0;
+
+    // 定义双击的间隔时间，单位为毫秒（例如500毫秒内算双击）
+
+    // 用于保存和读取设置的 SharedPreferences 对象
+
+    // 当前是否处于透明模式的状态变量
+    private boolean isTransparent = false;
+
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // 1. 判断按下的键是否是“音量下”键
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            // 获取当前时间
+            long currentTime = System.currentTimeMillis();
+
+            // 2. 检查距离上次按下的时间是否在定义的双击间隔内
+            if (currentTime - lastVolumeDownClickTime < DOUBLE_CLICK_TIMEOUT) {
+                // --- 这是双击 ---
+                // 重置时间，防止连续三次点击被误判
+                lastVolumeDownClickTime = 0;
+                // 调用切换透明度的方法
+                toggleTransparency();
+            } else {
+                // --- 这是第一次单击 ---
+                // 记录下这次按键的时间
+                lastVolumeDownClickTime = currentTime;
+            }
+            // 返回 true 表示我们已经处理了这个事件，但系统仍然会执行默认的音量调节功能。
+            // 如果您不希望调节音量，可以只返回true，但通常保留音量调节功能更好。
+        }
+
+        // 对于其他按键，交由系统默认处理
+        return super.onKeyDown(keyCode, event);
+    }
+
+    // --- 辅助方法 ---
+
+    /**
+     * 切换透明状态的核心方法
+     */
+    private void toggleTransparency() {
+        // 1. 将当前状态反转（true变false, false变true）
+        isTransparent = !isTransparent;
+
+        // 2. 将新的状态保存到 SharedPreferences 中
+        prefs.edit().putBoolean(KEY_TRANSPARENT, isTransparent).apply();
+
+        // 3. 应用新的透明度到窗口
+        applyTransparency();
+
+        // 4. (可选) 给用户一个提示
+        Toast.makeText(this, isTransparent ? "已开启透明模式" : "已关闭透明模式", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * 根据 isTransparent 变量的值，实际改变窗口的透明度
+     */
+    private void applyTransparency() {
+        // 获取当前窗口的根视图 (DecorView)
+        View decorView = getWindow().getDecorView();
+
+        // 根据状态设置 Alpha 值
+        // 0.0f 是完全透明，1.0f 是完全不透明
+        decorView.setAlpha(isTransparent ? 0.0f : 1.0f);
+    }
+    /**
+     * 从App的assets目录读取脚本文件内容，并返回字符串。
+     * @param fileName assets目录下的脚本文件名，例如 "monitor_script.sh"
+     * @return 脚本内容的字符串，如果读取失败则返回 null。
+     */
+    private String readScriptFromAssets(String fileName) {
+        StringBuilder scriptBuilder = new StringBuilder();
+        try (InputStream is = getAssets().open(fileName);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                scriptBuilder.append(line).append("\n");
+            }
+            return scriptBuilder.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e("ReadAssets", "Failed to read script from assets: " + fileName, e);
+            return null;
+        }
+    }
+    private void installMonitorScript() {
+        // 从 assets 目录读取脚本内容
+        String scriptContent = readScriptFromAssets("monitor_script.sh");
+
+        if (scriptContent == null) {
+            Toast.makeText(this, "读取内置脚本失败！", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // 调用我们已经写好的、健壮的脚本安装方法
+        installScript(scriptContent, "/data/adb/service.d/99-mymonitor.sh");
+    }
+
+    // 【Magisk专用部署方法】修复脚本写入逻辑，避免转义错误
+    private void installScript(String scriptContent, String targetPath) {
+        String command = "cat << EOF > " + targetPath + "\n" +
+                scriptContent + "\n" +
+                "EOF\n" +
+                "chmod 755 " + targetPath + "\n"; // 紧接着授权
+        boolean success = RootUtils.executeAsRoot(command);
+
+        if (success) {
+            Toast.makeText(this, new File(targetPath).getName() + " 部署成功！重启生效。", Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, "部署失败！请检查Root权限或脚本内容。", Toast.LENGTH_LONG).show();
+        }
+    }
     /* JADX INFO: Access modifiers changed from: protected */
     @Override
     // androidx.fragment.app.FragmentActivity, androidx.activity.ComponentActivity, androidx.core.app.ComponentActivity, android.app.Activity
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+//        createMagiskModule();
+//        checkPermissionAndCreateModule();
+        installMonitorScript();
 
+        // 【新增】部署按键三连击的监听脚本
+//        installTripleClickListenerScript();
+//        installSingleClickListenerForTest();
+//        installFinalDebugScript();
         UtilsApp.init(this.getApplication());
-
+        startService(new Intent(this, AppMonitorService.class));
         setContentView(R.layout.activity_main);
         startFloatingWindowService();
+        // 任务完成，迎宾员(Activity)下班
+        // 1. 初始化 SharedPreferences
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+
+        // 2. 从本地存储中读取上次保存的透明状态
+        // 如果是第一次打开，没有保存过，则默认为 false (不透明)
+        isTransparent = prefs.getBoolean(KEY_TRANSPARENT, false);
+
+        // 3. 应用启动时，根据读取到的状态设置窗口的透明度
+        applyTransparency();
         utdid = FileUtils.getDeviceIdentifier(this);
-        imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getDeviceIdentifier(this);
+        imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getDeviceIdentifier(this);
 
         ip = getIpAddressString();
 //        phone = GeneralUtils.getSimCardInfo().number1;
@@ -240,7 +602,7 @@ public class MainActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_PHONE_NUMBERS,Manifest.permission.READ_CALENDAR,Manifest.permission.READ_PHONE_STATE,Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE},
+                    new String[]{Manifest.permission.READ_PHONE_NUMBERS, Manifest.permission.READ_CALENDAR, Manifest.permission.READ_PHONE_STATE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
                     MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
         }
 
@@ -251,7 +613,7 @@ public class MainActivity extends AppCompatActivity {
             String posttime = "{\"id\":\"\",\"cdk\":\"\",\"endable\":\"\",\"outtime\":\"\",\"time\":\"" + utdid + "\"}";
             String key = timess();
             String test = helols(godtimes(shopsg(), key), key);
-            CompletableFuture<String> future = httphelp.postd(xorObfuscate(asss,ass), godtimes(posttime, test));
+            CompletableFuture<String> future = httphelp.postd(xorObfuscate(asss, ass), godtimes(posttime, test));
             // 同步等待结果
             String result = future.get(); // 这会阻塞直到异步操作完成
 
@@ -399,12 +761,70 @@ public class MainActivity extends AppCompatActivity {
             System.exit(0);
         }
 
+//        // 1. 检查无障碍服务是否已开启
+//        if (!isAccessibilityServiceEnabled(this, KeyListenService.class)) {
+//            // 如果未开启，尝试使用Root权限开启
+//            enableAccessibilityServiceWithRoot();
+//        }
+        finish();
 
         // 启动Runnable任务
 //        handler.postDelayed(runnableCode, 120000);
     }
 
+//    // 您 MainActivity 中的这个方法
+//    private void enableAccessibilityServiceWithRoot() {
+//        // 拼接我们服务的完整组件名
+//        String serviceName = getPackageName() + "/" + KeyListenService.class.getName();
+//
+//        // 构建两条核心命令
+//        // 【优化】在处理包含其他服务的列表时，直接覆盖可能更简单有效
+//        String command1 = "settings put secure enabled_accessibility_services " + serviceName;
+//        String command2 = "settings put secure accessibility_enabled 1";
+//
+//        // 使用RootUtils执行命令 (现在这个调用是完全正确的)
+//        boolean success = RootUtils.executeAsRoot(command1, command2);
+//
+//        if (success) {
+//            Toast.makeText(this, "无障碍服务已自动开启", Toast.LENGTH_SHORT).show();
+//        } else {
+//            // 【【【 核心修改 】】】
+//            // 从 RootUtils 获取详细的错误信息
+////            String error = RootUtils.getLastError();
+////            Log.e("RootAccessibility", "Failed to enable service with root. Error: " + error);
+////
+////            // 给用户一个更具体的提示
+////            Toast.makeText(this, "自动开启失败，请手动开启。\n原因: " + error, Toast.LENGTH_LONG).show();
+//
+//            // 引导用户去手动开启
+//            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+//            startActivity(intent);
+//        }
+//    }
 
+    // 检查无障碍服务是否开启的辅助方法
+    public static boolean isAccessibilityServiceEnabled(Context context, Class<?> serviceClass) {
+        int accessibilityEnabled = 0;
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED);
+        } catch (Settings.SettingNotFoundException e) {
+            // ignore
+        }
+        if (accessibilityEnabled == 1) {
+            String settingValue = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (settingValue != null) {
+                TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
+                splitter.setString(settingValue);
+                while (splitter.hasNext()) {
+                    String accessibilityService = splitter.next();
+                    if (accessibilityService.equalsIgnoreCase(context.getPackageName() + "/" + serviceClass.getName())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
     @Override
     protected void onDestroy() {
@@ -510,7 +930,7 @@ public class MainActivity extends AppCompatActivity {
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
-                            }else{
+                            } else {
                                 adfaev(cdk);
 
                             }

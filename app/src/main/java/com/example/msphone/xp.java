@@ -479,7 +479,7 @@ public class xp implements IXposedHookLoadPackage {
 //                Log.d(TAG, "Provider加载成功 -> Speed:" + currentSpeed + ", UserDelay:" + rob_delay_ms);
             }
         } catch (Exception e) {
-            Log.e(TAG, "从Provider加载配置异常!", e);
+//            Log.e(TAG, "从Provider加载配置异常!", e);
         } finally {
             if (cursor != null) {
                 cursor.close();

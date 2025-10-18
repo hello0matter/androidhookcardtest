@@ -46,7 +46,7 @@ public class SettingsProvider extends ContentProvider {
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
         Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null, cannot perform query.");
+//            Log.e(TAG, "Context is null, cannot perform query.");
             return null;
         }
 
@@ -79,7 +79,7 @@ public class SettingsProvider extends ContentProvider {
 
             return cursor;
         } catch (Exception e) {
-            Log.e(TAG, "Error while querying settings provider", e);
+//            Log.e(TAG, "Error while querying settings provider", e);
             return null; // 发生任何异常都安全返回 null
         }
     }
