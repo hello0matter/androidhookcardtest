@@ -403,31 +403,6 @@ public class xp implements IXposedHookLoadPackage {
         hookAllEntryPointsForClass(className1, lpparam);
         hookAllEntryPointsForClass(className2, lpparam);
     }
-    /**
-     * 【核心新增】尝试直接跨应用读取 SharedPreferences 的方法
-     */
-    private void loadSettingsDirectly(Context context) {
-        try {
-            // 1. 获取主App的Context。这是关键的第一步，它提供了访问主App资源的基础。
-            Context mainAppContext = context.createPackageContext(TARGET_PACKAGE_NAME, Context.CONTEXT_IGNORE_SECURITY);
-
-            // 2. 使用主App的Context，并带上 MODE_MULTI_PROCESS 标志去尝试读取。
-            // 警告: MODE_MULTI_PROCESS 已被废弃，可能导致不稳定或崩溃。
-            SharedPreferences prefs = mainAppContext.getSharedPreferences("XposedModulePrefs", Context.MODE_MULTI_PROCESS);
-
-            // 3. 如果上一行没有崩溃，说明我们“侥幸”成功了，开始加载数据。
-            currentSpeed = calculateSpeedFromProgress(prefs.getInt("currentSpeed", 5000));
-            rob_delay_ms = prefs.getInt("rob_delay_ms", 5000);
-            rob_delay_ms_delay = prefs.getInt("rob_delay_ms_delay", 0);
-            // ... 加载所有其他配置 ...
-
-//            Log.d(TAG, "[成功] 直接访问配置成功! -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
-
-        } catch (Exception e) {
-            // 如果发生任何异常（最可能是 SecurityException），打印错误日志并使用默认值。
-//            Log.e(TAG, "[失败] 直接访问配置失败! 将使用默认值。这在现代Android系统上是预期行为。", e);
-        }
-    }
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals(TARGET_PACKAGE_NAME)) return;

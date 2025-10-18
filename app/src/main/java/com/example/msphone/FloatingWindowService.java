@@ -368,8 +368,13 @@ public class FloatingWindowService extends Service {
                 // 【核心】直接调用 SeekBar 监听器的 onStopTrackingTouch 方法
                 // 这会模拟一次“松手”动作，从而发送广播
                 if (mSeekBar != null) {
-                    float speed = ((mSeekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
+//                    float speed = ((mSeekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
                     // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
+                    SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                    int progress = prefs.getInt("currentSpeed", 100); // 这是整数进度
+                    float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+
                     Toast.makeText(mSeekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
                     lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
 
@@ -377,10 +382,10 @@ public class FloatingWindowService extends Service {
                     Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
                     intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
                     intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-                    SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
+//                    SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
 //                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
 //                Log.d(TAG, String.valueOf(seekBar.getProgress()));
-                    editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
+//                    editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
                     // 发送信号
                     sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
 //                editor.putInt("fdg341", speed);
@@ -753,7 +758,7 @@ public class FloatingWindowService extends Service {
         // --- 6. 设置各个控件的监听器 ---
         // 【新增】根据加载的状态，设置初始的可见性
         if (mFloatingView != null) {
-            mFloatingView.setVisibility(isFloatingWindowVisible ? View.VISIBLE : View.GONE);
+            mFloatingView.setVisibility(isFloatingWindowVisible ? View.VISIBLE : View.INVISIBLE);
         }
 
 
