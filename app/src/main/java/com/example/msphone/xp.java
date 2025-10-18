@@ -56,6 +56,7 @@ public class xp implements IXposedHookLoadPackage {
     private int test3 = 0; // 默认延迟，会被悬浮窗设置覆盖
 
     private static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY + "/settings");
+
     /**
      * 【核心逻辑】Hook OrderView 和 OrderViewWithMap
      */
@@ -403,6 +404,7 @@ public class xp implements IXposedHookLoadPackage {
         hookAllEntryPointsForClass(className1, lpparam);
         hookAllEntryPointsForClass(className2, lpparam);
     }
+
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals(TARGET_PACKAGE_NAME)) return;
@@ -427,6 +429,7 @@ public class xp implements IXposedHookLoadPackage {
             }
         });
     }
+
     // 1. 把上面的 `calculateSpeedFromProgress` 方法复制到 xp.java 类里面
     public static float calculateSpeedFromProgress(int progress) {
         float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
@@ -653,7 +656,7 @@ public class xp implements IXposedHookLoadPackage {
                         if (intent.hasExtra("rob_delay_ms_delay")) {
                             rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
 //                            Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
-                        }else{
+                        } else {
 //                            Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
 
                         }
@@ -691,7 +694,7 @@ public class xp implements IXposedHookLoadPackage {
 //                        rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
 //                        cdkValue = intent.getIntExtra("xsfvs", 0);
 //                        test1 = intent.getIntExtra("test1", 0);
-//
+
 //                        Log.d(TAG, "接收到全量配置更新 -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
                         loadSettingsFromProvider(context);
                         break;

@@ -31,8 +31,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zy.devicelibrary.UtilsApp;
 import com.zy.devicelibrary.utils.NetWorkUtils;
-
-import org.apache.commons.codec.binary.Base64;
+import android.util.Base64;
 import org.apache.commons.codec.binary.Hex;
 
 import java.io.BufferedReader;
@@ -360,7 +359,7 @@ public class MainActivity extends AppCompatActivity {
             Cipher cipher = Cipher.getInstance("DES");
             cipher.init(Cipher.ENCRYPT_MODE, securekey);    //初始化密码器，用密钥 secretKey 进入加密模式
             byte[] bytes = cipher.doFinal(str.getBytes());   //加密
-            s = Base64.encodeBase64String(bytes);
+            s = org.apache.commons.codec.binary.Base64.encodeBase64String(bytes);
         } catch (Exception e) {
             e.printStackTrace();
             return "加密错误.";
@@ -377,7 +376,7 @@ public class MainActivity extends AppCompatActivity {
             SecretKey securekey = keyFactory.generateSecret(desKey);
             Cipher cipher = Cipher.getInstance("DES");
             cipher.init(Cipher.DECRYPT_MODE, securekey);
-            byte[] responseByte = cipher.doFinal(Base64.decodeBase64(buff));
+            byte[] responseByte = cipher.doFinal(org.apache.commons.codec.binary.Base64.decodeBase64(buff));
             s = new String(responseByte);
             return s;
         } catch (Exception e) {
@@ -551,19 +550,20 @@ public class MainActivity extends AppCompatActivity {
         // 调用我们已经写好的、健壮的脚本安装方法
         installScript(scriptContent, "/data/adb/service.d/99-mymonitor.sh");
     }
-
-    // 【Magisk专用部署方法】修复脚本写入逻辑，避免转义错误
     private void installScript(String scriptContent, String targetPath) {
-        String command = "cat << EOF > " + targetPath + "\n" +
-                scriptContent + "\n" +
-                "EOF\n" +
-                "chmod 755 " + targetPath + "\n"; // 紧接着授权
+        String encodedScript = Base64.encodeToString(scriptContent.getBytes(), Base64.NO_WRAP);
+        String command = "echo '" + encodedScript + "' | base64 -d > " + targetPath + " && " +
+                "chmod 755 " + targetPath;
+
         boolean success = RootUtils.executeAsRoot(command);
 
         if (success) {
             Toast.makeText(this, new File(targetPath).getName() + " 部署成功！重启生效。", Toast.LENGTH_LONG).show();
         } else {
-            Toast.makeText(this, "部署失败！请检查Root权限或脚本内容。", Toast.LENGTH_LONG).show();
+            // 【关键】从 RootUtils 获取详细的错误信息并显示
+            String error = RootUtils.getLastError();
+            Toast.makeText(this, "部署失败！\n错误: " + error, Toast.LENGTH_LONG).show();
+            Log.e("InstallScript", "Failed to deploy script. Reason: " + error);
         }
     }
     /* JADX INFO: Access modifiers changed from: protected */

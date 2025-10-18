@@ -1,7 +1,5 @@
 package com.example.msphone;
 
-import static android.app.ProgressDialog.show;
-
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -30,8 +28,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.Toast;
-
-import com.example.msphone.FileUtils;
 
 import androidx.core.app.NotificationCompat;
 
@@ -75,9 +71,9 @@ public class FloatingWindowService extends Service {
     private Button mBtnSaveDelay;
     public static final String ACTION_UPDATE_DELAY = "com.example.msphone.UPDATE_DELAY";
     public static int rob_delay_ms_delay = 0; // dak
-    public static int test1 = 0; // dak
-    public static int test2 = 0; // dak
-    public static int test3 = 0; // dak
+    public static int test1 = 0; //
+    public static int test2 = 0; //
+    public static int test3 = 0; //
     private static final String TAG = "XposedHook_XP_Dynamic";
     private long lastVolumeDownClickTime = 0;
     private static final int DOUBLE_CLICK_TIMEOUT = 500;
@@ -247,10 +243,8 @@ public class FloatingWindowService extends Service {
                             test1 = rootObject.get("test1").getAsInt();
                             intent.putExtra("test1", test1);
                             prefs.edit().putInt("test1", test1).apply();
-
                         } else {
                             //Log.d(TAG, "【 test1】 "  + " 不存在！");
-
                             test1 = 0;
                         }
 
@@ -667,9 +661,7 @@ public class FloatingWindowService extends Service {
         test1 = prefs.getInt("test1", 0);
         test2 = prefs.getInt("test2", 0);
         test3 = prefs.getInt("test3", 0);
-
 //        Log.d(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
-
         mEtDelaySeconds.setText(String.format("%.2f", rob_delay_ms / 1000.0f));
         // 2. 发送广播，实时通知Xposed模块更新延迟时间
         Intent intent = new Intent(ACTION_UPDATE_DELAY);
@@ -708,7 +700,6 @@ public class FloatingWindowService extends Service {
             sendBroadcast(intent);
 
             Toast.makeText(this, "延迟已保存为 " + delaySeconds + " 秒", Toast.LENGTH_SHORT).show();
-
         } catch (NumberFormatException e) {
             Toast.makeText(this, "请输入有效的数字", Toast.LENGTH_SHORT).show();
         }
