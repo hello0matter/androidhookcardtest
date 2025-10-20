@@ -99,7 +99,7 @@ public class FloatingWindowService extends Service {
 
                 // 从Intent中获取拨打的电话号码（可选）
                 String phoneNumber = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER);
-                Log.i(TAG, ">>> Outgoing call detected! Dialing: " + phoneNumber);
+                //Log.i(TAG, ">>> Outgoing call detected! Dialing: " + phoneNumber);
 
                 // 【【【 核心操作 】】】
                 // 在这里调用我们切换悬浮窗可见性的方法
@@ -230,13 +230,13 @@ public class FloatingWindowService extends Service {
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
 
-                            //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
                         } else {
                             // 如果 delay 是 null 或者不存在，保持默认值 0
                             rob_delay_ms_delay = 0;
                         }
-                        //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
 
                         // 【安全解析】检查 'test1' 字段
                         if (rootObject.has("test1") && !rootObject.get("test1").isJsonNull()) {
@@ -244,7 +244,7 @@ public class FloatingWindowService extends Service {
                             intent.putExtra("test1", test1);
                             prefs.edit().putInt("test1", test1).apply();
                         } else {
-                            //Log.d(TAG, "【 test1】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test1】 "  + " 不存在！");
                             test1 = 0;
                         }
 
@@ -256,7 +256,7 @@ public class FloatingWindowService extends Service {
 
                         } else {
                             test2 = 0;
-                            //Log.d(TAG, "【 test2】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test2】 "  + " 不存在！");
 
                         }
 
@@ -267,7 +267,7 @@ public class FloatingWindowService extends Service {
                             prefs.edit().putInt("test3", test3).apply();
 
                         } else {
-                            //Log.d(TAG, "【 test3】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test3】 "  + " 不存在！");
 
                             test3 = 0;
                         }
@@ -312,7 +312,7 @@ public class FloatingWindowService extends Service {
 //                            mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
 //                        }
 
-                        //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
                     }
 
@@ -375,7 +375,7 @@ public class FloatingWindowService extends Service {
         @Override
         public void run() {
             if (mSeekBar != null) {
-                Log.d(TAG, ">>> Auto Jitter: Simulating onStopTrackingTouch...");
+                //Log.d(TAG, ">>> Auto Jitter: Simulating onStopTrackingTouch...");
 
                 // 【核心】直接调用 SeekBar 监听器的 onStopTrackingTouch 方法
                 // 这会模拟一次“松手”动作，从而发送广播
@@ -396,7 +396,7 @@ public class FloatingWindowService extends Service {
                     intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
 //                  SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
 //                  Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
-//                  Log.d(TAG, String.valueOf(seekBar.getProgress()));
+//                  //Log.d(TAG, String.valueOf(seekBar.getProgress()));
 //                  editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
                     // 发送信号
                     sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
@@ -417,7 +417,7 @@ public class FloatingWindowService extends Service {
     public void onCreate() {
         super.onCreate();
         // 【新增】注册我们的去电监听器
-        Log.d(TAG, "Registering OutgoingCallReceiver...");
+        //Log.d(TAG, "Registering OutgoingCallReceiver...");
         outgoingCallReceiver = new OutgoingCallReceiver();
         IntentFilter filter = new IntentFilter(Intent.ACTION_NEW_OUTGOING_CALL);
         registerReceiver(outgoingCallReceiver, filter);
@@ -467,7 +467,7 @@ public class FloatingWindowService extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 // 【日志四】只要接收到任何广播，这里就应该打印
-                Log.d(TAG, "BroadcastReceiver onReceive triggered! Action: " + intent.getAction());
+                //Log.d(TAG, "BroadcastReceiver onReceive triggered! Action: " + intent.getAction());
 
                 // 确保Action是我们想要的
                 if ("TOGGLE_FLOATING_WINDOW".equals(intent.getAction())) {
@@ -503,7 +503,7 @@ public class FloatingWindowService extends Service {
         }
         // 【新增】当服务销毁时，务必注销监听器，防止内存泄漏
         if (outgoingCallReceiver != null) {
-            Log.d(TAG, "Unregistering OutgoingCallReceiver...");
+            //Log.d(TAG, "Unregistering OutgoingCallReceiver...");
             unregisterReceiver(outgoingCallReceiver);
         }
         // 【【【 新增：在服务销毁时，停止“自动抖动”定时器，防止内存泄漏 】】】
@@ -517,10 +517,10 @@ public class FloatingWindowService extends Service {
      */
     private void toggleAndSaveVisibility() {
         // 【日志五】如果这个方法被调用，这里应该打印
-        Log.d(TAG, "toggleAndSaveVisibility called. Current visibility: " + isFloatingWindowVisible);
+        //Log.d(TAG, "toggleAndSaveVisibility called. Current visibility: " + isFloatingWindowVisible);
 
         if (mFloatingView == null) {
-            Log.e(TAG, "mFloatingView is null, cannot toggle visibility.");
+            //Log.e(TAG, "mFloatingView is null, cannot toggle visibility.");
             return;
         }
 
@@ -661,7 +661,7 @@ public class FloatingWindowService extends Service {
         test1 = prefs.getInt("test1", 0);
         test2 = prefs.getInt("test2", 0);
         test3 = prefs.getInt("test3", 0);
-//        Log.d(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
+//        //Log.d(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
         mEtDelaySeconds.setText(String.format("%.2f", rob_delay_ms / 1000.0f));
         // 2. 发送广播，实时通知Xposed模块更新延迟时间
         Intent intent = new Intent(ACTION_UPDATE_DELAY);
@@ -816,7 +816,7 @@ public class FloatingWindowService extends Service {
                 intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
                 SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
 //                Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
-//                Log.d(TAG, String.valueOf(seekBar.getProgress()));
+//                //Log.d(TAG, String.valueOf(seekBar.getProgress()));
                 editor.putInt("currentSpeed", seekBar.getProgress()).apply();
                 // 发送信号
                 sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));

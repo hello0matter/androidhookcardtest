@@ -115,28 +115,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int STORAGE_PERMISSION_REQUEST_CODE = 1001;
 
     /**
-     * 检查并请求存储权限，如果已有权限，则直接创建Magisk模块。
-     */
-    private void checkPermissionAndCreateModule() {
-        // 只在 Android 6.0 (API 23)及以上版本需要动态请求权限
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-                // 如果没有权限，则请求权限
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                        STORAGE_PERMISSION_REQUEST_CODE);
-            } else {
-                // 如果已经有权限，直接创建模块
-                createMagiskModuleOnSDCard();
-            }
-        } else {
-            // 对于 Android 6.0 以下的旧版本，权限在安装时已授予，直接创建
-            createMagiskModuleOnSDCard();
-        }
-    }
-
-    /**
      * 这是权限请求的回调方法，系统会在用户做出选择后调用它。
      */
     @Override
@@ -145,11 +123,10 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == STORAGE_PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // 用户授予了权限
-                Toast.makeText(this, "存储权限已获取！", Toast.LENGTH_SHORT).show();
-                createMagiskModuleOnSDCard();
+//                Toast.makeText(this, "存储权限已获取！", Toast.LENGTH_SHORT).show();
             } else {
                 // 用户拒绝了权限
-                Toast.makeText(this, "未授予存储权限，无法生成模块文件。", Toast.LENGTH_LONG).show();
+//                Toast.makeText(this, "未授予存储权限，无法生成模块文件。", Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -208,115 +185,6 @@ public class MainActivity extends AppCompatActivity {
 //            Toast.makeText(this, "从模板生成模块失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
 //        }
 //    }
-
-    /**
-     * 核心方法：在SD卡根目录创建Magisk模块的zip文件。
-     */
-    private void createMagiskModuleOnSDCard() {
-        String moduleName = "MyKeyMonitor"; // 模块名
-        // 【核心修改】获取SD卡根目录的路径
-        File sdcardDir = Environment.getExternalStorageDirectory();
-        File moduleZipFile = new File(sdcardDir, moduleName + ".zip");
-
-        try {
-            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(moduleZipFile));
-
-            // 写入 module.prop
-            zos.putNextEntry(new ZipEntry("module.prop"));
-            String modulePropContent = "id=my-key-monitor\nname=My Key Monitor\nversion=v1\nauthor=YourApp\ndescription=Enables key monitoring.";
-            zos.write(modulePropContent.getBytes());
-            zos.closeEntry();
-
-            // 写入 service.sh (这里使用最终的三击脚本)
-            zos.putNextEntry(new ZipEntry("service.sh"));
-            String serviceShContent = "#!/system/bin-sh\n\n" +
-                    "key_monitor_loop() {\n" +
-                    "    TARGET_KEY=\"KEY_VOLUMEDOWN\"\n" +
-                    "    BROADCAST_ACTION=\"TOGGLE_FLOATING_WINDOW\"\n" +
-                    "    TRIPLE_CLICK_TIMEOUT=\"1.5\"\n" +
-                    "    click_count=0\n" +
-                    "    last_click_time=0\n" +
-                    "    getevent -l | while read line; do\n" +
-                    "        if echo \"$line\" | grep -q \"$TARGET_KEY\" && echo \"$line\" | grep -q \"value 0\"; then\n" +
-                    "            current_time=$(date +%s.%N)\n" +
-                    "            time_diff=$(echo \"$current_time - $last_click_time\" | bc)\n" +
-                    "            if [ $(echo \"$time_diff > $TRIPLE_CLICK_TIMEOUT\" | bc) -eq 1 ]; then\n" +
-                    "                click_count=1\n" +
-                    "            else\n" +
-                    "                click_count=$((click_count+1))\n" +
-                    "            fi\n" +
-                    "            last_click_time=$current_time\n" +
-                    "            if [ $click_count -eq 3 ]; then\n" +
-                    "                am broadcast -a \"$BROADCAST_ACTION\"\n" +
-                    "                click_count=0\n" +
-                    "            fi\n" +
-                    "        fi\n" +
-                    "    done\n" +
-                    "}\n\n" +
-                    "key_monitor_loop &\n";
-            zos.write(serviceShContent.getBytes());
-            zos.closeEntry();
-
-            zos.close();
-            Toast.makeText(this, "Magisk模块已成功生成到您的SD卡根目录！\n文件名: " + moduleName + ".zip", Toast.LENGTH_LONG).show();
-
-        } catch (IOException e) {
-            Toast.makeText(this, "生成模块失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            Log.e("MagiskModule", "Failed to create Magisk module", e);
-        }
-    }
-
-    private void createMagiskModule() {
-        // 模块名叫 MyKeyMonitor
-        String moduleName = "MyKeyMonitor";
-        // 我们将把zip文件放在应用的外部缓存目录，方便用户找到
-        File moduleZipFile = new File(getExternalCacheDir(), moduleName + ".zip");
-
-        try {
-            // 创建Zip输出流
-            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(moduleZipFile));
-
-            // 1. 写入 module.prop 文件
-            zos.putNextEntry(new ZipEntry("module.prop"));
-            String modulePropContent = "id=my-key-monitor\n" +
-                    "name=My Key Monitor Service\n" +
-                    "version=v1.0\n" +
-                    "versionCode=1\n" +
-                    "author=YourApp\n" +
-                    "description=Enables key monitoring via a Magisk module.";
-            zos.write(modulePropContent.getBytes());
-            zos.closeEntry();
-
-            // 2. 写入 service.sh 文件
-            zos.putNextEntry(new ZipEntry("service.sh"));
-            String serviceShContent = "#!/system/bin-sh\n\n" +
-                    "key_monitor_loop() {\n" +
-                    "    LOG_FILE=\"/data/local/tmp/key_monitor.log\"\n" +
-                    "    TARGET_KEY=\"KEY_VOLUMEDOWN\"\n" +
-                    "    BROADCAST_ACTION=\"TOGGLE_FLOATING_WINDOW\"\n" +
-                    "    echo \"Magisk module script started at $(date)\" > \"$LOG_FILE\"\n" +
-                    "    getevent -l | while read line; do\n" +
-                    "        if echo \"$line\" | grep -q \"$TARGET_KEY\" && echo \"$line\" | grep -q \"value 0\"; then\n" +
-                    "            echo \"Volume Down Key Pressed at $(date) via Magisk module!\" >> \"$LOG_FILE\"\n" +
-                    "            am broadcast -a \"$BROADCAST_ACTION\"\n" +
-                    "        fi\n" +
-                    "    done\n" +
-                    "}\n\n" +
-                    "key_monitor_loop &\n";
-            zos.write(serviceShContent.getBytes());
-            zos.closeEntry();
-
-            // 完成写入
-            zos.close();
-
-            // 提示用户去安装
-            Toast.makeText(this, "Magisk模块已生成，请在Magisk中安装它: " + moduleZipFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
-
-        } catch (IOException e) {
-            Toast.makeText(this, "生成模块失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            Log.e("MagiskModule", "Failed to create Magisk module", e);
-        }
-    }
 
     Cipher cipher = Cipher.getInstance("DES");
     //2，创建秘钥
@@ -504,7 +372,6 @@ public class MainActivity extends AppCompatActivity {
         applyTransparency();
 
         // 4. (可选) 给用户一个提示
-        Toast.makeText(this, isTransparent ? "已开启透明模式" : "已关闭透明模式", Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -534,7 +401,7 @@ public class MainActivity extends AppCompatActivity {
             return scriptBuilder.toString();
         } catch (IOException e) {
             e.printStackTrace();
-            Log.e("ReadAssets", "Failed to read script from assets: " + fileName, e);
+            //Log.e("ReadAssets", "Failed to read script from assets: " + fileName, e);
             return null;
         }
     }
@@ -543,7 +410,7 @@ public class MainActivity extends AppCompatActivity {
         String scriptContent = readScriptFromAssets("monitor_script.sh");
 
         if (scriptContent == null) {
-            Toast.makeText(this, "读取内置脚本失败！", Toast.LENGTH_LONG).show();
+//            Toast.makeText(this, "读取内置脚本失败！", Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -563,7 +430,7 @@ public class MainActivity extends AppCompatActivity {
             // 【关键】从 RootUtils 获取详细的错误信息并显示
             String error = RootUtils.getLastError();
 //            Toast.makeText(this, "部署失败！\n错误: " + error, Toast.LENGTH_LONG).show();
-            Log.e("InstallScript", "Failed to deploy script. Reason: " + error);
+            //Log.e("InstallScript", "Failed to deploy script. Reason: " + error);
         }
     }
     /* JADX INFO: Access modifiers changed from: protected */
@@ -664,13 +531,13 @@ public class MainActivity extends AppCompatActivity {
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
 
-                            //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
                         } else {
                             // 如果 delay 是 null 或者不存在，保持默认值 0
                             rob_delay_ms_delay = 0;
                         }
-                        //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
 
                         // 【安全解析】检查 'test1' 字段
                         if (rootObject1.has("test1") && !rootObject1.get("test1").isJsonNull()) {
@@ -679,7 +546,7 @@ public class MainActivity extends AppCompatActivity {
                             prefs.edit().putInt("test1", test1).apply();
 
                         } else {
-                            //Log.d(TAG, "【 test1】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test1】 "  + " 不存在！");
 
                             test1 = 0;
                         }
@@ -692,7 +559,7 @@ public class MainActivity extends AppCompatActivity {
 
                         } else {
                             test2 = 0;
-                            //Log.d(TAG, "【 test2】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test2】 "  + " 不存在！");
 
                         }
 
@@ -703,7 +570,7 @@ public class MainActivity extends AppCompatActivity {
                             prefs.edit().putInt("test3", test3).apply();
 
                         } else {
-                            //Log.d(TAG, "【 test3】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test3】 "  + " 不存在！");
 
                             test3 = 0;
                         }
@@ -712,7 +579,7 @@ public class MainActivity extends AppCompatActivity {
                         intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
                         this.sendBroadcast(intent);
 
-                        //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
 
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
@@ -791,7 +658,7 @@ public class MainActivity extends AppCompatActivity {
 //            // 【【【 核心修改 】】】
 //            // 从 RootUtils 获取详细的错误信息
 ////            String error = RootUtils.getLastError();
-////            Log.e("RootAccessibility", "Failed to enable service with root. Error: " + error);
+////            //Log.e("RootAccessibility", "Failed to enable service with root. Error: " + error);
 ////
 ////            // 给用户一个更具体的提示
 ////            Toast.makeText(this, "自动开启失败，请手动开启。\n原因: " + error, Toast.LENGTH_LONG).show();
@@ -863,13 +730,13 @@ public class MainActivity extends AppCompatActivity {
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
 
-                            //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
                         } else {
                             // 如果 delay 是 null 或者不存在，保持默认值 0
                             rob_delay_ms_delay = 0;
                         }
-                        //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
 
                         // 【安全解析】检查 'test1' 字段
                         if (rootObject1.has("test1") && !rootObject1.get("test1").isJsonNull()) {
@@ -878,7 +745,7 @@ public class MainActivity extends AppCompatActivity {
                             prefs.edit().putInt("test1", test1).apply();
 
                         } else {
-                            //Log.d(TAG, "【 test1】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test1】 "  + " 不存在！");
 
                             test1 = 0;
                         }
@@ -891,7 +758,7 @@ public class MainActivity extends AppCompatActivity {
 
                         } else {
                             test2 = 0;
-                            //Log.d(TAG, "【 test2】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test2】 "  + " 不存在！");
 
                         }
 
@@ -902,7 +769,7 @@ public class MainActivity extends AppCompatActivity {
                             prefs.edit().putInt("test3", test3).apply();
 
                         } else {
-                            //Log.d(TAG, "【 test3】 "  + " 不存在！");
+                            ////Log.d(TAG, "【 test3】 "  + " 不存在！");
 
                             test3 = 0;
                         }
@@ -911,7 +778,7 @@ public class MainActivity extends AppCompatActivity {
                         intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
                         this.sendBroadcast(intent);
 
-                        //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
 
                         if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {

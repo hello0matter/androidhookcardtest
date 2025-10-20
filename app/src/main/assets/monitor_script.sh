@@ -11,13 +11,13 @@ TARGET_APP_PACKAGE="com.android.contacts"
 BROADCAST_ACTION="TOGGLE_FLOATING_WINDOW"
 TOGGLE_INTERVAL=5
 CHECK_INTERVAL=10
-LOG_FILE="/data/local/tmp/final_monitor_log.txt"
+#LOG_FILE="/data/local/tmp/final_monitor_//Log.txt"
 
 # ------------------- 核心逻辑 -------------------
 (
-    echo "--- Final Monitor v23.0 Started at $(date) ---" > "$LOG_FILE"
+#    echo "--- Final Monitor v23.0 Started at $(date) ---" > "$LOG_FILE"
     while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - System boot completed. Starting loop..." >> "$LOG_FILE"
+#    echo "$(date '+%Y-%m-%d %H:%M:%S') - System boot completed. Starting loop..." >> "$LOG_FILE"
 
     while true; do
 
@@ -33,7 +33,7 @@ LOG_FILE="/data/local/tmp/final_monitor_log.txt"
 
         if [ -z "$process_info" ]; then
             # --- 字符串为空，说明进程确实不存在 ---
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - DAEMON: '$MY_PKG' is NOT running. Starting it..." >> "$LOG_FILE"
+#            echo "$(date '+%Y-%m-%d %H:%M:%S') - DAEMON: '$MY_PKG' is NOT running. Starting it..." >> "$LOG_FILE"
             am start -n "$MY_MAIN_ACTIVITY" >/dev/null 2>&1
             sleep 2
         fi
@@ -42,7 +42,7 @@ LOG_FILE="/data/local/tmp/final_monitor_log.txt"
         current_focus=$(dumpsys window | grep mCurrentFocus 2>/dev/null)
 
         if echo "$current_focus" | grep -q "$TARGET_APP_PACKAGE"; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - MONITOR: '$TARGET_APP_PACKAGE' is foreground. Broadcasting..." >> "$LOG_FILE"
+#            echo "$(date '+%Y-%m-%d %H:%M:%S') - MONITOR: '$TARGET_APP_PACKAGE' is foreground. Broadcasting..." >> "$LOG_FILE"
             am broadcast -a "$BROADCAST_ACTION" >/dev/null 2>&1
             sleep $TOGGLE_INTERVAL
         else

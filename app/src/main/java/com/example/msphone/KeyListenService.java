@@ -18,7 +18,7 @@ public class KeyListenService extends AccessibilityService {
     public void onServiceConnected() {
         super.onServiceConnected();
         longPressHandler = new Handler(Looper.getMainLooper());
-        Log.i(TAG, "Accessibility Service is connected!");
+        //Log.i(TAG, "Accessibility Service is connected!");
     }
 
     @Override
@@ -48,7 +48,7 @@ public class KeyListenService extends AccessibilityService {
     private final Runnable longPressRunnable = new Runnable() {
         @Override
         public void run() {
-            Log.i(TAG, "Long press on BACK key confirmed! Sending broadcast...");
+            //Log.i(TAG, "Long press on BACK key confirmed! Sending broadcast...");
             sendBroadcast(new Intent("TOGGLE_FLOATING_WINDOW"));
 //            Toast.makeText(KeyListenService.this, "悬浮窗状态已切换", Toast.LENGTH_SHORT).show();
         }

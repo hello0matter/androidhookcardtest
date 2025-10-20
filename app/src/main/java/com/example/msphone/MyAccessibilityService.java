@@ -14,7 +14,7 @@ public class MyAccessibilityService extends AccessibilityService {
             AccessibilityNodeInfo nodeInfo = event.getSource();
             if (nodeInfo != null && nodeInfo.getText() != null && nodeInfo.getText().toString().equals("三指截屏")) {
                 // 执行三指截屏的操作
-//                Log.e("aaaaaa", "asdsadasd");
+//                //Log.e("aaaaaa", "asdsadasd");
             }
         }
     }

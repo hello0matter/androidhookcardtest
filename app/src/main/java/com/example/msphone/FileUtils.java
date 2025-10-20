@@ -32,14 +32,14 @@ public class FileUtils {
 
         // 健壮性检查：如果外部存储不可用，则返回一个临时ID
         if (externalFilesDir == null) {
-            //Log.e(TAG, "External storage is not available.");
+            ////Log.e(TAG, "External storage is not available.");
             return UUID.randomUUID().toString();
         }
 
         // 2. 检查目录是否存在，如果不存在则创建
         if (!externalFilesDir.exists()) {
             if (!externalFilesDir.mkdirs()) {
-                //Log.e(TAG, "Failed to create directory for device identifier.");
+                ////Log.e(TAG, "Failed to create directory for device identifier.");
                 // 即使创建失败，也返回一个临时ID，保证程序能继续运行
                 return UUID.randomUUID().toString();
             }
@@ -54,7 +54,7 @@ public class FileUtils {
                  BufferedReader reader = new BufferedReader(new InputStreamReader(fis))) {
                 deviceId = reader.readLine();
             } catch (IOException e) {
-                //Log.e(TAG, "Failed to read device identifier file.", e);
+                ////Log.e(TAG, "Failed to read device identifier file.", e);
             }
         }
 
@@ -64,9 +64,9 @@ public class FileUtils {
             try (FileOutputStream fos = new FileOutputStream(idFile);
                  OutputStreamWriter writer = new OutputStreamWriter(fos)) {
                 writer.write(deviceId);
-                //Log.i(TAG, "Generated and saved new device identifier.");
+                ////Log.i(TAG, "Generated and saved new device identifier.");
             } catch (IOException e) {
-                //Log.e(TAG, "Failed to write new device identifier file.", e);
+                ////Log.e(TAG, "Failed to write new device identifier file.", e);
             }
         }
 

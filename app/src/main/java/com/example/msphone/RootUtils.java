@@ -42,7 +42,7 @@ public class RootUtils {
 
             // 遍历传入的所有命令，并逐一写入到shell中
             for (String command : commands) {
-                Log.d(TAG, "Executing command: " + command);
+                //Log.d(TAG, "Executing command: " + command);
                 os.writeBytes(command + "\n");
             }
 
@@ -63,7 +63,7 @@ public class RootUtils {
 
             // 如果错误信息不为空，也打印到Logcat，方便调试
             if (!lastError.isEmpty()) {
-                Log.e(TAG, "Root command execution error:\n" + lastError);
+                //Log.e(TAG, "Root command execution error:\n" + lastError);
             }
 
             // 只有当退出码为0 (表示最后一条命令成功)，并且没有任何错误输出时，才认为执行成功
@@ -72,7 +72,7 @@ public class RootUtils {
         } catch (Exception e) {
             // 捕获Java层面的异常，例如 "su" 命令不存在或被拒绝
             lastError = e.getMessage();
-            Log.e(TAG, "Exception while executing root command.", e);
+            //Log.e(TAG, "Exception while executing root command.", e);
             return false;
         } finally {
             // 确保所有流都被关闭
