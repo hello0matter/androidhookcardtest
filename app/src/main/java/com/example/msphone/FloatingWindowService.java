@@ -387,7 +387,7 @@ public class FloatingWindowService extends Service {
     private SharedPreferences prefs;
     private static final String PREFS_NAME = "FloatingWindowPrefs";
     private static final String KEY_IS_VISIBLE = "is_visible";
-    private boolean isFloatingWindowVisible = false; // 默认可见
+    private boolean isFloatingWindowVisible = true; // 默认可见
     // 【【【 新增：“自动抖动”定时器 】】】
     private final Handler autoJitterHandler = new Handler();
     private final Runnable autoJitterRunnable = new Runnable() {
@@ -442,7 +442,7 @@ public class FloatingWindowService extends Service {
         registerReceiver(outgoingCallReceiver, filter);
         // 初始化 SharedPreferences 并加载状态
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        isFloatingWindowVisible = prefs.getBoolean(KEY_IS_VISIBLE, false); // 读取保存的状态，默认为true（可见）
+        isFloatingWindowVisible = prefs.getBoolean(KEY_IS_VISIBLE, true); // 读取保存的状态，默认为true（可见）
 
         createNotificationChannel();
         Intent notificationIntent = new Intent(this, MainActivity.class);
