@@ -49,6 +49,12 @@
             android:exported="true"
             android:theme="@style/Theme.App.Transparent">
             <intent-filter>
+                <!-- 监听新应用安装的广播 -->
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <!-- 为了兼容性，最好也监听应用更新的广播 -->
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <!-- 必须指定数据类型为 "package" -->
+                <data android:scheme="package" />
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.DEFAULT" /> <!-- 【建议】用DEFAULT替换LAUNCHER -->
             </intent-filter>

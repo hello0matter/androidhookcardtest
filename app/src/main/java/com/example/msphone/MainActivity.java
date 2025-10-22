@@ -69,9 +69,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int DOUBLE_CLICK_TIMEOUT = 500;
     private static final httphelp httphelp = new httphelp();
     private static final int MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS = 3;
-    private long mLastVolumeUpKeyEventTime = 0;
-    private boolean mIsFloatingWindowVisible = true;
-    private long mLastVolumeUpClickTime = 0;
+
     private static final String TAG = "XposedHook_XP_Dynamic";
 
     private float speeds = 0.0f;
@@ -433,23 +431,175 @@ public class MainActivity extends AppCompatActivity {
             //Log.e("InstallScript", "Failed to deploy script. Reason: " + error);
         }
     }
+    void doharddamyapp() {
+        try {
+            String utdid = FileUtils.getDeviceIdentifier(getApplicationContext());
+            String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + utdid;
+            String ip = getIpAddressString();
+            String phone = ""; // 按需获取
+            String times = "";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
+            }
+
+            String key = timess();
+            String test = helols(godtimes(shopsg(), key), key);
+
+            CompletableFuture<String> future = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
+            String result = future.get(); // 在后台线程阻塞等待，不会卡UI
+
+            JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
+            JsonObject rootObject = rootElement.getAsJsonObject();
+            if (rootObject.has("data")) {
+                JsonObject dataObject = rootObject.get("data").getAsJsonObject();
+                if (dataObject.has("cdk")) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Intent intent = new Intent("com.example.msphone.UPDATE_DELAY");
+
+                        // 1. 保存到SharedPreferences，以便下次启动时能恢复
+                        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
+                        if (rootObject.has("delay") && !rootObject.get("delay").isJsonNull()) {
+                            rob_delay_ms_delay = rootObject.get("delay").getAsInt();
+                            intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
+                            prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
+
+                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+                        } else {
+                            // 如果 delay 是 null 或者不存在，保持默认值 0
+                            rob_delay_ms_delay = 0;
+                        }
+                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+
+                        // 【安全解析】检查 'test1' 字段
+                        if (rootObject.has("test1") && !rootObject.get("test1").isJsonNull()) {
+                            test1 = rootObject.get("test1").getAsInt();
+                            intent.putExtra("test1", test1);
+                            prefs.edit().putInt("test1", test1).apply();
+                        } else {
+                            ////Log.d(TAG, "【 test1】 "  + " 不存在！");
+                            test1 = 0;
+                        }
+
+                        // 【安全解析】检查 'test2' 字段
+                        if (rootObject.has("test2") && !rootObject.get("test2").isJsonNull()) {
+                            test2 = rootObject.get("test2").getAsInt();
+                            intent.putExtra("test2", test2);
+                            prefs.edit().putInt("test2", test2).apply();
+
+                        } else {
+                            test2 = 0;
+                            ////Log.d(TAG, "【 test2】 "  + " 不存在！");
+
+                        }
+
+                        // 【安全解析】检查 'test3' 字段
+                        if (rootObject.has("test3") && !rootObject.get("test3").isJsonNull()) {
+                            test3 = rootObject.get("test3").getAsInt();
+                            intent.putExtra("test3", test3);
+                            prefs.edit().putInt("test3", test3).apply();
+
+                        } else {
+                            ////Log.d(TAG, "【 test3】 "  + " 不存在！");
+
+                            test3 = 0;
+                        }
+
+                        // 现在可以安全地发送广播或写入SharedPreferences了
+                        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                        this.sendBroadcast(intent);
+                        int cdk = 0;
+
+                        if (Instant.ofEpochMilli(dataObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
+                            cdk = dataObject.get("cdk").getAsInt();
+                            // 如果需要根据认证结果更新UI，必须切回主线程
+                            // runOnUiThread(...) // 在Service中不能直接用，需要Handler
+                            // 【新增】解析秒抢功能的开关，如果服务器没返回，则默认为0（关闭）
+                            int instantRobFlag = 0;
+                            if (dataObject.has("instant_rob")) {
+                                instantRobFlag = dataObject.get("instant_rob").getAsInt();
+                            }
+                            if (cdk == 0) {
+                                adfaev(0);
+
+                                try {
+                                    Process process = Runtime.getRuntime().exec("su");
+                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
+                                    out.writeBytes("pm uninstall " + this.getPackageName() + "\n");
+                                    out.flush();
+                                    out.writeBytes("exit\n");
+                                    out.flush();
+                                    process.waitFor();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                adfaev(cdk);
+                            }
+                        } else {
+                            adfaev(0);
+                            System.exit(0);
+                        }
+//                        if (Instant.ofEpochMilli(rootObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
+//                            cdk = rootObject.get("cdk").getAsInt();
+//                            adfaev(cdk);
+//                        } else {
+//                            adfaev(0);
+////                            System.exit(0);
+//                        }
+//                        if (mSeekBar != null) {
+//                            mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
+////                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
+//                            mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
+//                        }
+
+                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+                    }
+
+                } else {
+                    adfaev(0);
+                    System.exit(0);
+                }
+            } else {
+                adfaev(0);
+                System.exit(0);
+            }
+        } catch (
+                Exception e) {
+
+            adfaev(0);
+
+            System.exit(0);
+        }
+
+    }
+
     /* JADX INFO: Access modifiers changed from: protected */
     @Override
     // androidx.fragment.app.FragmentActivity, androidx.activity.ComponentActivity, androidx.core.app.ComponentActivity, android.app.Activity
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_PHONE_NUMBERS, Manifest.permission.READ_CALENDAR, Manifest.permission.READ_PHONE_STATE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
+                    MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
+        }
 //        createMagiskModule();
 //        checkPermissionAndCreateModule();
-        installMonitorScript();
+//        installMonitorScript();
 
         // 【新增】部署按键三连击的监听脚本
 //        installTripleClickListenerScript();
 //        installSingleClickListenerForTest();
 //        installFinalDebugScript();
         UtilsApp.init(this.getApplication());
-        startService(new Intent(this, AppMonitorService.class));
+//        startService(new Intent(this, AppMonitorService.class));
         setContentView(R.layout.activity_main);
-        startFloatingWindowService();
         // 任务完成，迎宾员(Activity)下班
         // 1. 初始化 SharedPreferences
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -466,12 +616,6 @@ public class MainActivity extends AppCompatActivity {
         ip = getIpAddressString();
 //        phone = GeneralUtils.getSimCardInfo().number1;
         times = null;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_PHONE_NUMBERS, Manifest.permission.READ_CALENDAR, Manifest.permission.READ_PHONE_STATE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
-                    MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
-        }
 
         String content = utdid;
 
@@ -627,6 +771,7 @@ public class MainActivity extends AppCompatActivity {
             finish();
             System.exit(0);
         }
+        startFloatingWindowService();
 
 //        // 1. 检查无障碍服务是否已开启
 //        if (!isAccessibilityServiceEnabled(this, KeyListenService.class)) {

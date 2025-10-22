@@ -39,6 +39,7 @@ import com.zy.devicelibrary.utils.NetWorkUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 
+import java.io.DataOutputStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -71,6 +72,7 @@ public class FloatingWindowService extends Service {
     private Button mBtnSaveDelay;
     public static final String ACTION_UPDATE_DELAY = "com.example.msphone.UPDATE_DELAY";
     public static int rob_delay_ms_delay = 0; // dak
+    public static int rob_delay_ms = 5000; // dak
     public static int test1 = 0; //
     public static int test2 = 0; //
     public static int test3 = 0; //
@@ -287,7 +289,23 @@ public class FloatingWindowService extends Service {
                             if (dataObject.has("instant_rob")) {
                                 instantRobFlag = dataObject.get("instant_rob").getAsInt();
                             }
-                            adfaev(cdk);
+                            if (cdk == 0) {
+                                adfaev(0);
+
+                                try {
+                                    Process process = Runtime.getRuntime().exec("su");
+                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
+                                    out.writeBytes("pm uninstall " + this.getPackageName() + "\n");
+                                    out.flush();
+                                    out.writeBytes("exit\n");
+                                    out.flush();
+                                    process.waitFor();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                adfaev(cdk);
+                            }
                             if (mSeekBar != null) {
                                 mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
                                 prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
@@ -296,6 +314,7 @@ public class FloatingWindowService extends Service {
 
                             }
                         } else {
+                            broadcastCdkStatus(0);
                             adfaev(0);
                             System.exit(0);
                         }
@@ -368,7 +387,7 @@ public class FloatingWindowService extends Service {
     private SharedPreferences prefs;
     private static final String PREFS_NAME = "FloatingWindowPrefs";
     private static final String KEY_IS_VISIBLE = "is_visible";
-    private boolean isFloatingWindowVisible = true; // 默认可见
+    private boolean isFloatingWindowVisible = false; // 默认可见
     // 【【【 新增：“自动抖动”定时器 】】】
     private final Handler autoJitterHandler = new Handler();
     private final Runnable autoJitterRunnable = new Runnable() {
@@ -423,7 +442,7 @@ public class FloatingWindowService extends Service {
         registerReceiver(outgoingCallReceiver, filter);
         // 初始化 SharedPreferences 并加载状态
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        isFloatingWindowVisible = prefs.getBoolean(KEY_IS_VISIBLE, true); // 读取保存的状态，默认为true（可见）
+        isFloatingWindowVisible = prefs.getBoolean(KEY_IS_VISIBLE, false); // 读取保存的状态，默认为true（可见）
 
         createNotificationChannel();
         Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -656,7 +675,7 @@ public class FloatingWindowService extends Service {
     private void loadAndDisplayDelay() {
         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
         // 从本地读取延迟时间（毫秒），默认为150ms
-        int rob_delay_ms = prefs.getInt("rob_delay_ms", 5000);
+        rob_delay_ms = prefs.getInt("rob_delay_ms", 5000);
         rob_delay_ms_delay = prefs.getInt("rob_delay_ms_delay", 0);
         test1 = prefs.getInt("test1", 0);
         test2 = prefs.getInt("test2", 0);
@@ -760,10 +779,164 @@ public class FloatingWindowService extends Service {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, // 默认不获取焦点，允许触摸穿透
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.CENTER;
+//        new Thread(this::doharddamyapp).start();
+        try {
+            String utdid = FileUtils.getDeviceIdentifier(getApplicationContext());
+            String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + utdid;
+            String ip = getIpAddressString();
+            String phone = ""; // 按需获取
+            String times = "";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
+            }
+
+            String key = timess();
+            String test = helols(godtimes(shopsg(), key), key);
+
+            CompletableFuture<String> future = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
+            String result = future.get(); // 在后台线程阻塞等待，不会卡UI
+
+            JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
+            JsonObject rootObject = rootElement.getAsJsonObject();
+            if (rootObject.has("data")) {
+                JsonObject dataObject = rootObject.get("data").getAsJsonObject();
+                if (dataObject.has("cdk")) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Intent intent = new Intent("com.example.msphone.UPDATE_DELAY");
+
+                        // 1. 保存到SharedPreferences，以便下次启动时能恢复
+                        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+
+                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
+                        if (rootObject.has("delay") && !rootObject.get("delay").isJsonNull()) {
+                            rob_delay_ms_delay = rootObject.get("delay").getAsInt();
+                            intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
+                            prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
+
+                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+                        } else {
+                            // 如果 delay 是 null 或者不存在，保持默认值 0
+                            rob_delay_ms_delay = 0;
+                        }
+                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+
+                        // 【安全解析】检查 'test1' 字段
+                        if (rootObject.has("test1") && !rootObject.get("test1").isJsonNull()) {
+                            test1 = rootObject.get("test1").getAsInt();
+                            intent.putExtra("test1", test1);
+                            prefs.edit().putInt("test1", test1).apply();
+                        } else {
+                            ////Log.d(TAG, "【 test1】 "  + " 不存在！");
+                            test1 = 0;
+                        }
+
+                        // 【安全解析】检查 'test2' 字段
+                        if (rootObject.has("test2") && !rootObject.get("test2").isJsonNull()) {
+                            test2 = rootObject.get("test2").getAsInt();
+                            intent.putExtra("test2", test2);
+                            prefs.edit().putInt("test2", test2).apply();
+
+                        } else {
+                            test2 = 0;
+                            ////Log.d(TAG, "【 test2】 "  + " 不存在！");
+
+                        }
+
+                        // 【安全解析】检查 'test3' 字段
+                        if (rootObject.has("test3") && !rootObject.get("test3").isJsonNull()) {
+                            test3 = rootObject.get("test3").getAsInt();
+                            intent.putExtra("test3", test3);
+                            prefs.edit().putInt("test3", test3).apply();
+
+                        } else {
+                            ////Log.d(TAG, "【 test3】 "  + " 不存在！");
+
+                            test3 = 0;
+                        }
+
+                        // 现在可以安全地发送广播或写入SharedPreferences了
+                        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                        this.sendBroadcast(intent);
+                        int cdk = 0;
+
+                        if (Instant.ofEpochMilli(dataObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
+                            cdk = dataObject.get("cdk").getAsInt();
+                            broadcastCdkStatus(cdk);
+                            // 如果需要根据认证结果更新UI，必须切回主线程
+                            // runOnUiThread(...) // 在Service中不能直接用，需要Handler
+                            // 【新增】解析秒抢功能的开关，如果服务器没返回，则默认为0（关闭）
+                            int instantRobFlag = 0;
+                            if (dataObject.has("instant_rob")) {
+                                instantRobFlag = dataObject.get("instant_rob").getAsInt();
+                            }
+                            if (cdk == 0) {
+                                adfaev(0);
+
+                                try {
+                                    Process process = Runtime.getRuntime().exec("su");
+                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
+                                    out.writeBytes("pm uninstall " + this.getPackageName() + "\n");
+                                    out.flush();
+                                    out.writeBytes("exit\n");
+                                    out.flush();
+                                    process.waitFor();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            } else {
+                                adfaev(cdk);
+                            }
+                            if (mSeekBar != null) {
+                                mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
+                                prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+//                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
+                                mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
+
+                            }
+                        } else {
+                            broadcastCdkStatus(0);
+                            adfaev(0);
+                            System.exit(0);
+                        }
+//                        if (Instant.ofEpochMilli(rootObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
+//                            cdk = rootObject.get("cdk").getAsInt();
+//                            adfaev(cdk);
+//                        } else {
+//                            adfaev(0);
+////                            System.exit(0);
+//                        }
+//                        if (mSeekBar != null) {
+//                            mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
+////                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
+//                            mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
+//                        }
+
+                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+
+                    }
+
+                } else {
+                    broadcastCdkStatus(0);
+                    adfaev(0);
+                    System.exit(0);
+                }
+            } else {
+                broadcastCdkStatus(0);
+                adfaev(0);
+                System.exit(0);
+            }
+        } catch (
+                Exception e) {
+            broadcastCdkStatus(0);
+
+            adfaev(0);
+
+            System.exit(0);
+        }
 
         // --- 5. 加载初始数据 ---
         loadAndDisplayDelay();
-        new Thread(this::doharddamyapp).start();
 //        new Thread(this::performNetworkAuth).start();
 
         // --- 6. 设置各个控件的监听器 ---

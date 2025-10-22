@@ -134,17 +134,17 @@ public class xp implements IXposedHookLoadPackage {
 
                             final Object orderViewInstance = param.thisObject;
                             final String packageName = lpparam.packageName;
-//                            //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
+                            Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
                             if (rob_delay_ms_delay == 0) {
-                                // 0秒就是不限制
-                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                    changeButtonToRobMode(orderViewInstance, packageName);
-                                }, rob_delay_ms);
-                            } else if (rob_delay_ms_delay == 100000) {
-                                // 100秒就是不让用了
+                                // 200秒就是不hook
 //                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
 //                                    changeButtonToRobMode(orderViewInstance, packageName);
 //                                }, rob_delay_ms);
+                            } else if (rob_delay_ms_delay == 100000) {
+                                // 100秒就是不限制
+                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                    changeButtonToRobMode(orderViewInstance, packageName);
+                                }, rob_delay_ms);
                             } else {
                                 // 使用我们可控的延迟来执行修改,防止太快
                                 if (rob_delay_ms_delay > rob_delay_ms) {
@@ -153,7 +153,7 @@ public class xp implements IXposedHookLoadPackage {
                                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                         changeButtonToRobMode(orderViewInstance, packageName);
                                     }, rob_delay_ms_delay);
-                                } else {
+                                }else{
                                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                         changeButtonToRobMode(orderViewInstance, packageName);
                                     }, rob_delay_ms);
