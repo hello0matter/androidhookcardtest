@@ -85,8 +85,8 @@ public class FloatingWindowService extends Service {
             new Thread(FloatingWindowService.this::doharddamyapp).start();
 
             // 重复执行这个Runnable任务
-//            handler.postDelayed(this, 120000); // 2分钟心跳
-            handler.postDelayed(this, 2000); // 2分钟心跳
+            handler.postDelayed(this, 120000); // 2分钟心跳
+//            handler.postDelayed(this, 2000); // 2分钟心跳
         }
     };
 
@@ -369,7 +369,7 @@ public class FloatingWindowService extends Service {
         createFloatingWindow();
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行
-        handler.post(runnableCode);
+        handler.postDelayed(runnableCode,10000);
 
         // 【【【 新增：在服务创建时，启动“自动抖动”定时器 】】】
         autoJitterHandler.post(autoJitterRunnable);
