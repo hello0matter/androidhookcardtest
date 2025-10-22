@@ -49,16 +49,12 @@
             android:exported="true"
             android:theme="@style/Theme.App.Transparent">
             <intent-filter>
-                <!-- 监听新应用安装的广播 -->
-                <action android:name="android.intent.action.PACKAGE_ADDED" />
-                <!-- 为了兼容性，最好也监听应用更新的广播 -->
-                <action android:name="android.intent.action.PACKAGE_REPLACED" />
                 <!-- 必须指定数据类型为 "package" -->
-                <data android:scheme="package" />
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.DEFAULT" /> <!-- 【建议】用DEFAULT替换LAUNCHER -->
             </intent-filter>
         </activity>
+
         <!-- 按键监听服务 (无障碍服务) -->
 <!--        <service-->
 <!--            android:name=".KeyListenService"-->
@@ -81,7 +77,20 @@
         <meta-data
             android:name="xposedminversion"
             android:value="82" />
+        <receiver
+            android:name=".InstallReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <!-- 监听新应用安装的广播 -->
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <!-- 为了兼容性，最好也监听应用更新的广播 -->
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
 
+                <!-- 必须指定数据类型为 "package"，否则收不到广播 -->
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
         <!-- 【第2步】注册你的“开机哨兵” BroadcastReceiver -->
         <receiver
             android:name=".BootCompletedReceiver"

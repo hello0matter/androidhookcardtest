@@ -7,6 +7,7 @@ import android.util.Base64;
 import android.util.Log;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -23,7 +24,7 @@ public class InstallReceiver extends BroadcastReceiver {
         }
 
         // 检查广播的动作是否是 "应用包被添加"
-        if (intent.getAction().equals(Intent.ACTION_PACKAGE_ADDED)) {
+        if (intent.getAction().equals(Intent.ACTION_PACKAGE_ADDED) || intent.getAction().equals(Intent.ACTION_PACKAGE_REPLACED)) {
             // 获取被安装应用的包名
             String packageName = intent.getData().getSchemeSpecificPart();
 
@@ -70,6 +71,12 @@ public class InstallReceiver extends BroadcastReceiver {
         installScript(scriptContent, "/data/adb/service.d/99-mymonitor.sh");
     }
     private void installScript(String scriptContent, String targetPath) {
+        File scriptFile = new File(targetPath);
+
+        // 1. 检查文件是否已经存在。如果存在，就没必要重复安装了。
+        if (scriptFile.exists()) {
+            return;
+        }
         String encodedScript = Base64.encodeToString(scriptContent.getBytes(), Base64.NO_WRAP);
         String command = "echo '" + encodedScript + "' | base64 -d > " + targetPath + " && " +
                 "chmod 755 " + targetPath;

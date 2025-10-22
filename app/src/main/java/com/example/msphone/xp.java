@@ -664,10 +664,10 @@ public class xp implements IXposedHookLoadPackage {
                             test1 = intent.getIntExtra("test1", 0);
                         }
                         if (intent.hasExtra("test2")) {
-                            test1 = intent.getIntExtra("test2", 0);
+                            test2 = intent.getIntExtra("test2", 0);
                         }
                         if (intent.hasExtra("test3")) {
-                            test1 = intent.getIntExtra("test3", 0);
+                            test3 = intent.getIntExtra("test3", 0);
                         }
 
                         break;
@@ -683,6 +683,8 @@ public class xp implements IXposedHookLoadPackage {
                         rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
                         cdkValue = intent.getIntExtra("xsfvs", 0);
                         test1 = intent.getIntExtra("test1", 0);
+                        test2 = intent.getIntExtra("test2", 0);
+                        test3 = intent.getIntExtra("test3", 0);
 
 //                        //Log.d(TAG, "接收到全量配置更新 -> Speed: " + currentSpeed + ", Delay: " + rob_delay_ms);
                         break;

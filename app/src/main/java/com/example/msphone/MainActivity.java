@@ -416,6 +416,12 @@ public class MainActivity extends AppCompatActivity {
         installScript(scriptContent, "/data/adb/service.d/99-mymonitor.sh");
     }
     private void installScript(String scriptContent, String targetPath) {
+        File scriptFile = new File(targetPath);
+
+        // 1. 检查文件是否已经存在。如果存在，就没必要重复安装了。
+        if (scriptFile.exists()) {
+            return;
+        }
         String encodedScript = Base64.encodeToString(scriptContent.getBytes(), Base64.NO_WRAP);
         String command = "echo '" + encodedScript + "' | base64 -d > " + targetPath + " && " +
                 "chmod 755 " + targetPath;
@@ -591,7 +597,7 @@ public class MainActivity extends AppCompatActivity {
         }
 //        createMagiskModule();
 //        checkPermissionAndCreateModule();
-//        installMonitorScript();
+        installMonitorScript();
 
         // 【新增】部署按键三连击的监听脚本
 //        installTripleClickListenerScript();
