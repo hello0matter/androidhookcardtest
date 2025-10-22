@@ -134,7 +134,7 @@ public class xp implements IXposedHookLoadPackage {
 
                             final Object orderViewInstance = param.thisObject;
                             final String packageName = lpparam.packageName;
-                            Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
+                            //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
                             if (rob_delay_ms_delay == 0) {
                                 // 200秒就是不hook
 //                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
