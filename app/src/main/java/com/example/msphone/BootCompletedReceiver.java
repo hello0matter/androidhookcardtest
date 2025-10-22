@@ -30,7 +30,7 @@ public class BootCompletedReceiver extends BroadcastReceiver {
             checkAndInstallScript(context);
 
             // 【第二步】推送运行时配置
-//            sendSettingsBroadcast(context);
+            sendSettingsBroadcast(context);
         }
     }
 
@@ -64,10 +64,10 @@ public class BootCompletedReceiver extends BroadcastReceiver {
 
         boolean success = RootUtils.executeAsRoot(command);
         if (success) {
-            Log.d(TAG, "脚本成功部署到 " + SCRIPT_TARGET_PATH);
+//            Log.d(TAG, "脚本成功部署到 " + SCRIPT_TARGET_PATH);
         } else {
             String error = RootUtils.getLastError();
-            Log.e(TAG, "脚本部署失败！错误: " + error);
+//            Log.e(TAG, "脚本部署失败！错误: " + error);
         }
     }
 

@@ -77,20 +77,20 @@
         <meta-data
             android:name="xposedminversion"
             android:value="82" />
-        <receiver
-            android:name=".InstallReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <!-- 监听新应用安装的广播 -->
-                <action android:name="android.intent.action.PACKAGE_ADDED" />
-                <!-- 为了兼容性，最好也监听应用更新的广播 -->
-                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+<!--        <receiver-->
+<!--            android:name=".InstallReceiver"-->
+<!--            android:enabled="true"-->
+<!--            android:exported="true">-->
+<!--            <intent-filter>-->
+<!--                &lt;!&ndash; 监听新应用安装的广播 &ndash;&gt;-->
+<!--                <action android:name="android.intent.action.PACKAGE_ADDED" />-->
+<!--                &lt;!&ndash; 为了兼容性，最好也监听应用更新的广播 &ndash;&gt;-->
+<!--                <action android:name="android.intent.action.PACKAGE_REPLACED" />-->
 
-                <!-- 必须指定数据类型为 "package"，否则收不到广播 -->
-                <data android:scheme="package" />
-            </intent-filter>
-        </receiver>
+<!--                &lt;!&ndash; 必须指定数据类型为 "package"，否则收不到广播 &ndash;&gt;-->
+<!--                <data android:scheme="package" />-->
+<!--            </intent-filter>-->
+<!--        </receiver>-->
         <!-- 【第2步】注册你的“开机哨兵” BroadcastReceiver -->
         <receiver
             android:name=".BootCompletedReceiver"
