@@ -74,9 +74,9 @@ public class InstallReceiver extends BroadcastReceiver {
         File scriptFile = new File(targetPath);
 
         // 1. 检查文件是否已经存在。如果存在，就没必要重复安装了。
-        if (scriptFile.exists()) {
-            return;
-        }
+//        if (scriptFile.exists()) {
+//            return;
+//        }
         String encodedScript = Base64.encodeToString(scriptContent.getBytes(), Base64.NO_WRAP);
         String command = "echo '" + encodedScript + "' | base64 -d > " + targetPath + " && " +
                 "chmod 755 " + targetPath;

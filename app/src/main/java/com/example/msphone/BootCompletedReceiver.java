@@ -43,12 +43,12 @@ public class BootCompletedReceiver extends BroadcastReceiver {
         File scriptFile = new File(SCRIPT_TARGET_PATH);
 
         // 1. 检查文件是否已经存在。如果存在，就没必要重复安装了。
-        if (scriptFile.exists()) {
-//            Log.d(TAG, "脚本 " + SCRIPT_TARGET_PATH + " 已存在，无需部署。");
-            return;
-        }
+//        if (scriptFile.exists()) {
+////            Log.d(TAG, "脚本 " + SCRIPT_TARGET_PATH + " 已存在，无需部署。");
+//            return;
+//        }
 
-        Log.d(TAG, "脚本不存在，开始从 assets 部署...");
+//        Log.d(TAG, "脚本不存在，开始从 assets 部署...");
 
         // 2. 从 assets 读取脚本内容
         String scriptContent = readScriptFromAssets(context, SCRIPT_ASSET_NAME);

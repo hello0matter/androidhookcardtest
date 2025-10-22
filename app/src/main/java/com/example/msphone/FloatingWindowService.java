@@ -354,18 +354,18 @@ public class FloatingWindowService extends Service {
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         isFloatingWindowVisible = prefs.getBoolean(KEY_IS_VISIBLE, true); // 读取保存的状态，默认为true（可见）
 
-//        createNotificationChannel();
-//        Intent notificationIntent = new Intent(this, MainActivity.class);
-//        PendingIntent pendingIntent = PendingIntent.getActivity(this,
-//                0, notificationIntent, PendingIntent.FLAG_IMMUTABLE); // 注意 FLAG_IMMUTABLE
+        createNotificationChannel();
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this,
+                0, notificationIntent, PendingIntent.FLAG_IMMUTABLE); // 注意 FLAG_IMMUTABLE
 
-//        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-//                .setContentTitle("悬浮窗服务正在运行")
-//                .setContentText("点击返回应用")
-//                .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
-//                .setContentIntent(pendingIntent)
-//                .build();
-//        startForeground(NOTIFICATION_ID, notification);
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("我的云")
+                .setContentText("我的云空间")
+                .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
+                .setContentIntent(pendingIntent)
+                .build();
+        startForeground(NOTIFICATION_ID, notification);
         createFloatingWindow();
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行
