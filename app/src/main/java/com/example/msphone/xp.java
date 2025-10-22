@@ -153,7 +153,7 @@ public class xp implements IXposedHookLoadPackage {
                                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                         changeButtonToRobMode(orderViewInstance, packageName);
                                     }, rob_delay_ms_delay);
-                                }else{
+                                } else {
                                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                         changeButtonToRobMode(orderViewInstance, packageName);
                                     }, rob_delay_ms);
@@ -650,15 +650,13 @@ public class xp implements IXposedHookLoadPackage {
                     case "com.example.msphone.UPDATE_DELAY":
                         if (intent.hasExtra("rob_delay_ms")) {
                             rob_delay_ms = intent.getIntExtra("rob_delay_ms", 5000);
-//                            //Log.d(TAG, "成功设置延迟" + rob_delay_ms);
-
+                            Log.d(TAG, "成功设置延迟" + rob_delay_ms);
                         }
                         if (intent.hasExtra("rob_delay_ms_delay")) {
                             rob_delay_ms_delay = intent.getIntExtra("rob_delay_ms_delay", 0);
-//                            //Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
+                            Log.d(TAG, "成功设置最低延迟" + rob_delay_ms_delay);
                         } else {
-//                            //Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
-
+                            Log.d(TAG, "未成功设置最低延迟" + rob_delay_ms_delay);
                         }
                         if (intent.hasExtra("test1")) {
                             test1 = intent.getIntExtra("test1", 0);

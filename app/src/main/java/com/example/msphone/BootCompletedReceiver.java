@@ -24,13 +24,13 @@ public class BootCompletedReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
-            Log.d(TAG, "检测到手机开机...");
+//            Log.d(TAG, "检测到手机开机...");
 
             // 【第一步】检查并部署核心脚本
             checkAndInstallScript(context);
 
             // 【第二步】推送运行时配置
-            sendSettingsBroadcast(context);
+//            sendSettingsBroadcast(context);
         }
     }
 
@@ -44,7 +44,7 @@ public class BootCompletedReceiver extends BroadcastReceiver {
 
         // 1. 检查文件是否已经存在。如果存在，就没必要重复安装了。
         if (scriptFile.exists()) {
-            Log.d(TAG, "脚本 " + SCRIPT_TARGET_PATH + " 已存在，无需部署。");
+//            Log.d(TAG, "脚本 " + SCRIPT_TARGET_PATH + " 已存在，无需部署。");
             return;
         }
 

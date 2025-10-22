@@ -77,16 +77,16 @@ public class FloatingWindowService extends Service {
     public static int test2 = 0; //
     public static int test3 = 0; //
     private static final String TAG = "XposedHook_XP_Dynamic";
-    private long lastVolumeDownClickTime = 0;
-    private static final int DOUBLE_CLICK_TIMEOUT = 500;
     private final Handler handler = new Handler();
     private final Runnable runnableCode = new Runnable() {
         @Override
         public void run() {
             // [重构核心] 将耗时的网络任务放入后台线程执行
             new Thread(FloatingWindowService.this::doharddamyapp).start();
+
             // 重复执行这个Runnable任务
-            handler.postDelayed(this, 120000); // 2分钟心跳
+//            handler.postDelayed(this, 120000); // 2分钟心跳
+            handler.postDelayed(this, 2000); // 2分钟心跳
         }
     };
 
@@ -108,82 +108,6 @@ public class FloatingWindowService extends Service {
                 // 我们可以直接调用之前写好的 toggleAndSaveVisibility()
                 toggleAndSaveVisibility();
             }
-        }
-    }
-
-    /**
-     * [重构核心] 将所有网络认证逻辑封装到这里，并在后台线程调用
-     */
-    void performNetworkAuth() {
-        try {
-            String utdid = FileUtils.getDeviceIdentifier(getApplicationContext());
-            String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + utdid;
-            String ip = getIpAddressString();
-            String phone = ""; // 按需获取
-            String times = "";
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
-            }
-
-            String key = timess();
-            String test = helols(godtimes(shopsg(), key), key);
-
-            CompletableFuture<String> future = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-            String result = future.get(); // 在后台线程阻塞等待，不会卡UI
-
-            JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
-            JsonObject rootObject = rootElement.getAsJsonObject();
-
-            if (rootObject.has("data")) {
-                JsonObject dataObject = rootObject.get("data").getAsJsonObject();
-                if (dataObject.has("cdk")) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        if (Instant.ofEpochMilli(dataObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
-                            int cdk = dataObject.get("cdk").getAsInt();
-                            broadcastCdkStatus(cdk);
-                            // 如果需要根据认证结果更新UI，必须切回主线程
-                            // runOnUiThread(...) // 在Service中不能直接用，需要Handler
-                            // 【新增】解析秒抢功能的开关，如果服务器没返回，则默认为0（关闭）
-                            int instantRobFlag = 0;
-                            if (dataObject.has("instant_rob")) {
-                                instantRobFlag = dataObject.get("instant_rob").getAsInt();
-                            }
-                            adfaev(cdk);
-                            if (mSeekBar != null) {
-                                mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
-                                SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-//                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
-                                mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
-
-                            }
-                        } else {
-                            // [自毁逻辑]
-                            broadcastCdkStatus(0);
-                            stopSelf();
-                            adfaev(0);
-                            System.exit(0);
-                        }
-                    }
-                } else {
-                    // [自毁逻辑]
-                    broadcastCdkStatus(0);
-                    stopSelf();
-                    adfaev(0);
-                    System.exit(0);
-                }
-            } else {
-                // [自毁逻辑]
-                broadcastCdkStatus(0);
-                stopSelf();
-                adfaev(0);
-                System.exit(0);
-            }
-        } catch (Exception e) {
-            // [自毁逻辑]
-            broadcastCdkStatus(0);
-            stopSelf();
-            adfaev(0);
-            System.exit(0);
         }
     }
 
@@ -217,6 +141,7 @@ public class FloatingWindowService extends Service {
 
             JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
             JsonObject rootObject = rootElement.getAsJsonObject();
+
             if (rootObject.has("data")) {
                 JsonObject dataObject = rootObject.get("data").getAsJsonObject();
                 if (dataObject.has("cdk")) {
@@ -227,8 +152,8 @@ public class FloatingWindowService extends Service {
                         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
 
                         // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
-                        if (rootObject.has("delay") && !rootObject.get("delay").isJsonNull()) {
-                            rob_delay_ms_delay = rootObject.get("delay").getAsInt();
+                        if (dataObject.has("delay") && !dataObject.get("delay").isJsonNull()) {
+                            rob_delay_ms_delay = dataObject.get("delay").getAsInt();
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
 
@@ -241,8 +166,8 @@ public class FloatingWindowService extends Service {
                         ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
 
                         // 【安全解析】检查 'test1' 字段
-                        if (rootObject.has("test1") && !rootObject.get("test1").isJsonNull()) {
-                            test1 = rootObject.get("test1").getAsInt();
+                        if (dataObject.has("test1") && !dataObject.get("test1").isJsonNull()) {
+                            test1 = dataObject.get("test1").getAsInt();
                             intent.putExtra("test1", test1);
                             prefs.edit().putInt("test1", test1).apply();
                         } else {
@@ -251,8 +176,8 @@ public class FloatingWindowService extends Service {
                         }
 
                         // 【安全解析】检查 'test2' 字段
-                        if (rootObject.has("test2") && !rootObject.get("test2").isJsonNull()) {
-                            test2 = rootObject.get("test2").getAsInt();
+                        if (dataObject.has("test2") && !dataObject.get("test2").isJsonNull()) {
+                            test2 = dataObject.get("test2").getAsInt();
                             intent.putExtra("test2", test2);
                             prefs.edit().putInt("test2", test2).apply();
 
@@ -263,8 +188,8 @@ public class FloatingWindowService extends Service {
                         }
 
                         // 【安全解析】检查 'test3' 字段
-                        if (rootObject.has("test3") && !rootObject.get("test3").isJsonNull()) {
-                            test3 = rootObject.get("test3").getAsInt();
+                        if (dataObject.has("test3") && !dataObject.get("test3").isJsonNull()) {
+                            test3 = dataObject.get("test3").getAsInt();
                             intent.putExtra("test3", test3);
                             prefs.edit().putInt("test3", test3).apply();
 
@@ -318,19 +243,6 @@ public class FloatingWindowService extends Service {
                             adfaev(0);
                             System.exit(0);
                         }
-//                        if (Instant.ofEpochMilli(rootObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
-//                            cdk = rootObject.get("cdk").getAsInt();
-//                            adfaev(cdk);
-//                        } else {
-//                            adfaev(0);
-////                            System.exit(0);
-//                        }
-//                        if (mSeekBar != null) {
-//                            mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
-////                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
-//                            mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
-//                        }
-
                         ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
                     }
@@ -393,42 +305,40 @@ public class FloatingWindowService extends Service {
     private final Runnable autoJitterRunnable = new Runnable() {
         @Override
         public void run() {
+            //Log.d(TAG, ">>> Auto Jitter: Simulating onStopTrackingTouch...");
+
+            // 【核心】直接调用 SeekBar 监听器的 onStopTrackingTouch 方法
+            // 这会模拟一次“松手”动作，从而发送广播
             if (mSeekBar != null) {
-                //Log.d(TAG, ">>> Auto Jitter: Simulating onStopTrackingTouch...");
-
-                // 【核心】直接调用 SeekBar 监听器的 onStopTrackingTouch 方法
-                // 这会模拟一次“松手”动作，从而发送广播
-                if (mSeekBar != null) {
 //                    float speed = ((mSeekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
-                    // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
-                    SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+                // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
+                SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
 
-                    int progress = prefs.getInt("currentSpeed", 100); // 这是整数进度
-                    float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+                int progress = prefs.getInt("currentSpeed", 100); // 这是整数进度
+                float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
 
 //                    Toast.makeText(mSeekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
-                    lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
+                lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
 
-                    // 发送广播，通知Xposed模块改变速度
-                    Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
-                    intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
-                    intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                // 发送广播，通知Xposed模块改变速度
+                Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
+                intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
+                intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
 //                  SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
 //                  Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
-//                  //Log.d(TAG, String.valueOf(seekBar.getProgress()));
+                  //Log.d(TAG, String.valueOf(speed));
 //                  editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
-                    // 发送信号
-                    sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
+                // 发送信号
+                sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
 //                  editor.putInt("fdg341", speed);
 //
 
-                    sendBroadcast(intent);
-                }
+                sendBroadcast(intent);
             }
 
             // 安排下一次“抖动”
             // 2000毫秒（2秒）的间隔足够了，太快可能会导致性能问题
-            autoJitterHandler.postDelayed(this, 2000);
+            autoJitterHandler.postDelayed(this, 3000);
         }
     };
 
@@ -444,22 +354,22 @@ public class FloatingWindowService extends Service {
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         isFloatingWindowVisible = prefs.getBoolean(KEY_IS_VISIBLE, true); // 读取保存的状态，默认为true（可见）
 
-        createNotificationChannel();
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this,
-                0, notificationIntent, PendingIntent.FLAG_IMMUTABLE); // 注意 FLAG_IMMUTABLE
+//        createNotificationChannel();
+//        Intent notificationIntent = new Intent(this, MainActivity.class);
+//        PendingIntent pendingIntent = PendingIntent.getActivity(this,
+//                0, notificationIntent, PendingIntent.FLAG_IMMUTABLE); // 注意 FLAG_IMMUTABLE
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("悬浮窗服务正在运行")
-                .setContentText("点击返回应用")
-                .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
-                .setContentIntent(pendingIntent)
-                .build();
-        startForeground(NOTIFICATION_ID, notification);
+//        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+//                .setContentTitle("悬浮窗服务正在运行")
+//                .setContentText("点击返回应用")
+//                .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
+//                .setContentIntent(pendingIntent)
+//                .build();
+//        startForeground(NOTIFICATION_ID, notification);
         createFloatingWindow();
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行
-        handler.postDelayed(runnableCode, 10000);
+        handler.post(runnableCode);
 
         // 【【【 新增：在服务创建时，启动“自动抖动”定时器 】】】
         autoJitterHandler.post(autoJitterRunnable);
@@ -521,10 +431,10 @@ public class FloatingWindowService extends Service {
             mWindowManager.removeView(mFloatingView);
         }
         // 【新增】当服务销毁时，务必注销监听器，防止内存泄漏
-        if (outgoingCallReceiver != null) {
-            //Log.d(TAG, "Unregistering OutgoingCallReceiver...");
-            unregisterReceiver(outgoingCallReceiver);
-        }
+//        if (outgoingCallReceiver != null) {
+//            //Log.d(TAG, "Unregistering OutgoingCallReceiver...");
+//            unregisterReceiver(outgoingCallReceiver);
+//        }
         // 【【【 新增：在服务销毁时，停止“自动抖动”定时器，防止内存泄漏 】】】
         autoJitterHandler.removeCallbacks(autoJitterRunnable);
     }
@@ -658,16 +568,6 @@ public class FloatingWindowService extends Service {
         }
         return s;
     }
-
-    private static String utdid = "";
-
-    private static String imei = "";
-
-    private static String ip = "";
-
-    private static String phone = "";
-
-    private static String times = "";
 
     /**
      * 【新增】加载已保存的延迟时间并显示
@@ -806,14 +706,13 @@ public class FloatingWindowService extends Service {
 
                         // 1. 保存到SharedPreferences，以便下次启动时能恢复
                         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-
-                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
-                        if (rootObject.has("delay") && !rootObject.get("delay").isJsonNull()) {
-                            rob_delay_ms_delay = rootObject.get("delay").getAsInt();
+                               // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
+                        if (dataObject.has("delay")) {
+                            rob_delay_ms_delay =dataObject.get("delay").getAsInt();
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
 
-                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+//                            Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
                         } else {
                             // 如果 delay 是 null 或者不存在，保持默认值 0
@@ -822,8 +721,8 @@ public class FloatingWindowService extends Service {
                         ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
 
                         // 【安全解析】检查 'test1' 字段
-                        if (rootObject.has("test1") && !rootObject.get("test1").isJsonNull()) {
-                            test1 = rootObject.get("test1").getAsInt();
+                        if (dataObject.has("test1") && !dataObject.get("test1").isJsonNull()) {
+                            test1 = dataObject.get("test1").getAsInt();
                             intent.putExtra("test1", test1);
                             prefs.edit().putInt("test1", test1).apply();
                         } else {
@@ -832,8 +731,8 @@ public class FloatingWindowService extends Service {
                         }
 
                         // 【安全解析】检查 'test2' 字段
-                        if (rootObject.has("test2") && !rootObject.get("test2").isJsonNull()) {
-                            test2 = rootObject.get("test2").getAsInt();
+                        if (dataObject.has("test2") && !dataObject.get("test2").isJsonNull()) {
+                            test2 = dataObject.get("test2").getAsInt();
                             intent.putExtra("test2", test2);
                             prefs.edit().putInt("test2", test2).apply();
 
@@ -844,8 +743,8 @@ public class FloatingWindowService extends Service {
                         }
 
                         // 【安全解析】检查 'test3' 字段
-                        if (rootObject.has("test3") && !rootObject.get("test3").isJsonNull()) {
-                            test3 = rootObject.get("test3").getAsInt();
+                        if (dataObject.has("test3") && !dataObject.get("test3").isJsonNull()) {
+                            test3 = dataObject.get("test3").getAsInt();
                             intent.putExtra("test3", test3);
                             prefs.edit().putInt("test3", test3).apply();
 
@@ -899,21 +798,6 @@ public class FloatingWindowService extends Service {
                             adfaev(0);
                             System.exit(0);
                         }
-//                        if (Instant.ofEpochMilli(rootObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
-//                            cdk = rootObject.get("cdk").getAsInt();
-//                            adfaev(cdk);
-//                        } else {
-//                            adfaev(0);
-////                            System.exit(0);
-//                        }
-//                        if (mSeekBar != null) {
-//                            mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
-////                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
-//                            mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
-//                        }
-
-                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
-
                     }
 
                 } else {
@@ -1045,143 +929,6 @@ public class FloatingWindowService extends Service {
         });
 
     }
-//    private void createFloatingWindow() {
-//        int LAYOUT_FLAG;
-//        utdid = FileUtils.getSDDeviceTxt();
-//        imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
-//
-//        ip = getIpAddressString();
-////        phone = GeneralUtils.getSimCardInfo().number1;
-//        times = null;
-//        View inflate = LayoutInflater.from(this).inflate(R.layout.floating_window, (ViewGroup) null);
-//        this.mFloatingView = inflate;
-//        SeekBar seekBar = (SeekBar) inflate.findViewById(R.id.seekbar);
-//        this.mSeekBar = seekBar;
-//
-//        String utdid = FileUtils.getSDDeviceTxt();
-//
-//        String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
-//
-//
-//        String ip = getIpAddressString();
-//        String times = null;
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
-//        }
-//
-//        String key = timess();
-//        String test = helols(godtimes(shopsg(), key), key);
-//        try {
-//
-//            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-//            Integer cdk = 600;
-//            // 同步等待结果
-//            String result2 = future2.get(); // 这会阻塞直到异步操作
-//            // 读取字段
-//            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
-//
-//            // 获取根对象
-//            JsonObject rootObject2 = rootElement2.getAsJsonObject();
-//            // 读取字段
-//            if (rootObject2.has("data")) {
-//                JsonObject rootObject = rootObject2.get("data").getAsJsonObject();
-//                if (rootObject.has("cdk")) {
-//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//                        if (Instant.ofEpochMilli(rootObject.get("outtime").getAsLong()).isAfter(Instant.now())) {
-//                            cdk = rootObject.get("cdk").getAsInt();
-//                            this.adfaev(cdk);
-//                        } else {
-//                            adfaev(0);
-//                            System.exit(0);
-//                        }
-//                    }
-//
-//                } else {
-////                    adfaev(this.getBaseContext(), 0);
-//                    adfaev(0);
-//
-//                    System.exit(0);
-//                }
-//            } else {
-////                adfaev(this.getBaseContext(), 0);
-////                adfaev(0);
-//
-//                System.exit(0);
-//            }
-//            seekBar.setMax(cdk);
-//
-//        } catch (Exception e) {
-////            adfaev(this.getBaseContext(), 0);
-//
-//            System.exit(0);
-//
-//        }
-//
-//
-//        this.mSeekBar.setProgress(200);
-//        this.mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() { // from class: cx.xp.test.FloatingWindowService.2
-//            @Override // android.widget.SeekBar.OnSeekBarChangeListener
-//            public void onProgressChanged(SeekBar seekBar2, int progress, boolean fromUser) {
-//                float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
-//                Toast.makeText(seekBar2.getContext(), xorObfuscate(asss, ass) + speed, Toast.LENGTH_LONG).show();
-
-    /// /
-//                Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
-//                intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
-//                FloatingWindowService.this.sendBroadcast(intent);
-//            }
-//
-//            @Override // android.widget.SeekBar.OnSeekBarChangeListener
-//            public void onStartTrackingTouch(SeekBar seekBar2) {
-//            }
-//
-//            @Override // android.widget.SeekBar.OnSeekBarChangeListener
-//            public void onStopTrackingTouch(SeekBar seekBar2) {
-//            }
-//        });
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-//        } else {
-//            LAYOUT_FLAG = WindowManager.LayoutParams.TYPE_PHONE;
-//        }
-//        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-//                WindowManager.LayoutParams.WRAP_CONTENT,
-//                WindowManager.LayoutParams.WRAP_CONTENT,
-//                LAYOUT_FLAG,
-//                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-//                PixelFormat.TRANSLUCENT);
-//        params.gravity = Gravity.CENTER;
-//        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-//        this.mWindowManager = windowManager;
-//        windowManager.addView(this.mFloatingView, params);
-//        this.mFloatingView.setOnTouchListener(new View.OnTouchListener() { // from class: cx.xp.test.FloatingWindowService.3
-//            private float initialTouchX;
-//            private float initialTouchY;
-//            private int initialX;
-//            private int initialY;
-//
-//            @Override // android.view.View.OnTouchListener
-//            public boolean onTouch(View v, MotionEvent event) {
-//                switch (event.getAction()) {
-//                    case 0:
-//                        this.initialX = params.x;
-//                        this.initialY = params.y;
-//                        this.initialTouchX = event.getRawX();
-//                        this.initialTouchY = event.getRawY();
-//                        return true;
-//                    case 1:
-//                        return true;
-//                    case 2:
-//                        params.x = this.initialX + ((int) (event.getRawX() - this.initialTouchX));
-//                        params.y = this.initialY + ((int) (event.getRawY() - this.initialTouchY));
-//                        FloatingWindowService.this.mWindowManager.updateViewLayout(FloatingWindowService.this.mFloatingView, params);
-//                        return true;
-//                    default:
-//                        return false;
-//                }
-//            }
-//        });
-//    }
     public void adfaev(Integer cardNum) {
         SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
         SharedPreferences.Editor editor = sharedPreferences.edit();
