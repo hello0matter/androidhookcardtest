@@ -422,7 +422,7 @@ public class xp implements IXposedHookLoadPackage {
                 ////Log.d(TAG, "模块已注入，开始部署2...");
 
                 // 直接使用我们最熟悉、最稳定的Hook入口
-                hookOrderView(lpparam);
+                new Thread(() -> hookOrderView(lpparam)).start();
                 ////Log.d(TAG, "模块已注入，开始部署3...");
 
                 new Thread(() -> findAndHookPlayMethod(appContext)).start();

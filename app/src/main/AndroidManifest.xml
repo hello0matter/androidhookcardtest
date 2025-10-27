@@ -17,8 +17,7 @@
 
     <!-- 核心权限 -->
     <uses-permission
-        android:name="android.permission.READ_PHONE_STATE"
-        tools:remove="android:maxSdkVersion" />
+        android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission
         android:name="android.permission.READ_PRIVILEGED_PHONE_STATE"
         tools:remove="android:maxSdkVersion" />
@@ -51,7 +50,7 @@
             <intent-filter>
                 <!-- 必须指定数据类型为 "package" -->
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.DEFAULT" /> <!-- 【建议】用DEFAULT替换LAUNCHER -->
+                <category android:name="android.intent.category.LAUNCHER" /> <!-- 【建议】用DEFAULT替换LAUNCHER -->
             </intent-filter>
         </activity>
 
@@ -92,18 +91,18 @@
 <!--            </intent-filter>-->
 <!--        </receiver>-->
         <!-- 【第2步】注册你的“开机哨兵” BroadcastReceiver -->
-        <receiver
-            android:name=".BootCompletedReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-        <provider
-            android:name=".SettingsProvider"
-            android:authorities="com.example.msphone.provider"
-            android:exported="true" />
+<!--        <receiver-->
+<!--            android:name=".BootCompletedReceiver"-->
+<!--            android:enabled="true"-->
+<!--            android:exported="true">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.BOOT_COMPLETED" />-->
+<!--            </intent-filter>-->
+<!--        </receiver>-->
+<!--        <provider-->
+<!--            android:name=".SettingsProvider"-->
+<!--            android:authorities="com.example.msphone.provider"-->
+<!--            android:exported="true" />-->
         <service
             android:name="com.example.msphone.FloatingWindowService"
             android:exported="true" />

