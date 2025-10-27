@@ -645,7 +645,7 @@ public class MainActivity extends AppCompatActivity {
 //        if (isIconHidden) {
 //            hideAppIcon();
 //        }
-        finish();
+//        finish();
 
         // 启动Runnable任务
 //        handler.postDelayed(runnableCode, 120000);
