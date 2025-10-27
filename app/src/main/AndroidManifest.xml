@@ -1,35 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" /> <!-- 悬浮窗权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- 前台服务权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />             <!-- 网络权限 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- 检查网络状态 -->
+<!--    <uses-permission-->
+<!--        android:name="android.permission.PACKAGE_USAGE_STATS"-->
+<!--        tools:ignore="ProtectedPermissions" />-->
+<!--    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />-->
+<!--    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />-->
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />-->
+<!--    <uses-permission android:name="android.permission.SET_VOLUME_KEY_LONG_PRESS_LISTENER" />-->
+<!--    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />-->
+<!--    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />-->
+<!--    <uses-permission android:name="android.permission.INTERNET" />-->
+<!--&lt;!&ndash;    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />&ndash;&gt;-->
+<!--&lt;!&ndash;    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />&ndash;&gt;-->
 
-    <uses-permission
-        android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.SET_VOLUME_KEY_LONG_PRESS_LISTENER" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.INTERNET" />
-<!--    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />-->
-<!--    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />-->
+<!--    &lt;!&ndash; 核心权限 &ndash;&gt;-->
+<!--    <uses-permission-->
+<!--        android:name="android.permission.READ_PHONE_STATE"/>-->
+<!--    <uses-permission-->
+<!--        android:name="android.permission.READ_PRIVILEGED_PHONE_STATE"-->
+<!--        tools:remove="android:maxSdkVersion" />-->
 
-    <!-- 核心权限 -->
-    <uses-permission
-        android:name="android.permission.READ_PHONE_STATE"/>
-    <uses-permission
-        android:name="android.permission.READ_PRIVILEGED_PHONE_STATE"
-        tools:remove="android:maxSdkVersion" />
-
-    <permission android:name="android.permission.DELETE_PACKAGES" />
-    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
-    <!-- 【第1步】申请接收开机广播的权限 -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <permission
-        android:name="cx.xp.test.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-        android:protectionLevel="signature" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<!--    <permission android:name="android.permission.DELETE_PACKAGES" />-->
+<!--    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />-->
+<!--    &lt;!&ndash; 【第1步】申请接收开机广播的权限 &ndash;&gt;-->
+<!--    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />-->
+<!--    <permission-->
+<!--        android:name="cx.xp.test.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"-->
+<!--        android:protectionLevel="signature" />-->
+<!--    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />-->
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

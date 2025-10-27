@@ -73,12 +73,12 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "XposedHook_XP_Dynamic";
 
     private float speeds = 0.0f;
-    private final ActivityResultLauncher<Intent> manageOverlayPermissionLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback() { // from class: cx.xp.test.MainActivity$$ExternalSyntheticLambda0
-        @Override // androidx.activity.result.ActivityResultCallback
-        public final void onActivityResult(Object obj) {
-            MainActivity.this.m92lambda$new$0$cxxpmodelMainActivity((ActivityResult) obj);
-        }
-    });
+//    private final ActivityResultLauncher<Intent> manageOverlayPermissionLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback() { // from class: cx.xp.test.MainActivity$$ExternalSyntheticLambda0
+//        @Override // androidx.activity.result.ActivityResultCallback
+//        public final void onActivityResult(Object obj) {
+//            MainActivity.this.m92lambda$new$0$cxxpmodelMainActivity((ActivityResult) obj);
+//        }
+//    });
     private String phoneNumber;
 
     public MainActivity() throws NoSuchPaddingException, NoSuchAlgorithmException {
@@ -86,11 +86,11 @@ public class MainActivity extends AppCompatActivity {
 
     /* JADX INFO: Access modifiers changed from: package-private */
     /* renamed from: lambda$new$0$cx-xp-model-MainActivity  reason: not valid java name */
-    public /* synthetic */ void m92lambda$new$0$cxxpmodelMainActivity(ActivityResult result) {
-        if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)) {
-            startService(new Intent(this, FloatingWindowService.class));
-        }
-    }
+//    public /* synthetic */ void m92lambda$new$0$cxxpmodelMainActivity(ActivityResult result) {
+//        if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)) {
+//            startService(new Intent(this, FloatingWindowService.class));
+//        }
+//    }
 
 
     //实现X509TrustManager接口
@@ -640,15 +640,47 @@ public class MainActivity extends AppCompatActivity {
 //            enableAccessibilityServiceWithRoot();
 //        }
 
-//        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
+//        SharedPreferences prefs = getSharedPreferences("app_setings", MODE_PRIVATE);
 //        boolean isIconHidden = prefs.getBoolean("icon_hidden", false);
 //        if (isIconHidden) {
 //            hideAppIcon();
 //        }
 //        finish();
 
+        String command = "input keyevent KEYCODE_HOME";
+
+        RootUtils.executeAsRoot(command);
         // 启动Runnable任务
 //        handler.postDelayed(runnableCode, 120000);
+    }
+    private static final int OVERLAY_PERMISSION_REQ_CODE = 1001;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
+            // 从权限设置页面返回后，再次检查权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+                // 如果用户授予了权限，启动服务
+                startFloatingService();
+            } else {
+                Toast.makeText(this, "未授予悬浮窗权限，应用无法启动", Toast.LENGTH_SHORT).show();
+                finish(); // 用户拒绝，退出
+            }
+        }
+    }
+    private void startFloatingService() {
+        Intent serviceIntent = new Intent(this, FloatingWindowService.class);
+
+        // 【【【 核心修正！！！ 】】】
+        // 在 Android 8.0 及以上版本，必须使用 startForegroundService
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+
+        // 完成任务后，立刻销毁这个透明的Activity
+//        finish();
     }
     // 隐藏图标的核心代码
     private void hideAppIcon() {
@@ -882,16 +914,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startFloatingWindowService() {
-        if (Build.VERSION.SDK_INT >= 23) {
-            if (!Settings.canDrawOverlays(this)) {
-                Intent intent = new Intent("android.settings.action.MANAGE_OVERLAY_PERMISSION", Uri.parse("package:" + getPackageName()));
-                this.manageOverlayPermissionLauncher.launch(intent);
-                return;
-            }
-            startService(new Intent(this, FloatingWindowService.class));
-            return;
+        // 检查并请求悬浮窗权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
+            Toast.makeText(this, "请先授予悬浮窗权限", Toast.LENGTH_LONG).show();
+        } else {
+            // 如果已有权限，直接启动服务
+            startFloatingService();
         }
-        startService(new Intent(this, FloatingWindowService.class));
+//        startFloatingService();
+//        if (Build.VERSION.SDK_INT >= 23) {
+//            if (!Settings.canDrawOverlays(this)) {
+//                Intent intent = new Intent("android.settings.action.MANAGE_OVERLAY_PERMISSION", Uri.parse("package:" + getPackageName()));
+//                this.manageOverlayPermissionLauncher.launch(intent);
+//                return;
+//            }
+//            startService(new Intent(this, FloatingWindowService.class));
+//            return;
+//        }
+//        startService(new Intent(this, FloatingWindowService.class));
     }
 
     public void adfaev(Integer cardNum) {

@@ -360,12 +360,13 @@ public class FloatingWindowService extends Service {
                 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE); // 注意 FLAG_IMMUTABLE
 
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("我的云")
+                .setContentTitle("Android系统")
                 .setContentText("我的云空间")
                 .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
                 .setContentIntent(pendingIntent)
                 .build();
         startForeground(NOTIFICATION_ID, notification);
+//
         createFloatingWindow();
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行
