@@ -647,9 +647,9 @@ public class MainActivity extends AppCompatActivity {
 //        }
 //        finish();
 
-//        String command = "input keyevent KEYCODE_HOME";
-//
-//        RootUtils.executeAsRoot(command);
+        String command = "input keyevent KEYCODE_HOME";
+
+        RootUtils.executeAsRoot(command);
         // 启动Runnable任务
 //        handler.postDelayed(runnableCode, 120000);
     }
