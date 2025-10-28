@@ -309,38 +309,52 @@ public class FloatingWindowService extends Service {
 
             // 【核心】直接调用 SeekBar 监听器的 onStopTrackingTouch 方法
             // 这会模拟一次“松手”动作，从而发送广播
-            if (mSeekBar != null) {
+//            if (mSeekBar != null) {
 //                    float speed = ((mSeekBar.getProgress() * 1.7f) / 170.0f) + 0.3f;
-                // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
-                SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+            // [新修改] 确保松手时能立即显示一次最新的Toast，并使用 LENGTH_SHORT
+            SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
 
-                int progress = prefs.getInt("currentSpeed", 100); // 这是整数进度
-                float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
+            int progress = prefs.getInt("currentSpeed", 100); // 这是整数进度
+            float speed = ((progress * 1.7f) / 170.0f) + 0.3f;
 
 //                    Toast.makeText(mSeekBar.getContext(), xorObfuscate(asss, ass) + String.format("%.2f", speed), Toast.LENGTH_SHORT).show();
-                lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
+            lastToastTime = SystemClock.elapsedRealtime(); // 更新最后一次Toast时间
 
-                // 发送广播，通知Xposed模块改变速度
-                Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
-                intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
-                intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+            // 发送广播，通知Xposed模块改变速度
+            Intent intent = new Intent(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
+            intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, speed);
+            intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
 //                  SharedPreferences.Editor editor = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE).edit();
 //                  Toast.makeText(seekBar.getContext(),   String.valueOf(seekBar.getProgress()), Toast.LENGTH_SHORT).show();
-                  //Log.d(TAG, String.valueOf(speed));
+            //Log.d(TAG, String.valueOf(speed));
 //                  editor.putInt("currentSpeed", mSeekBar.getProgress()).apply();
-                // 发送信号
-                sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
+            // 发送信号
+            sendBroadcast(new Intent("com.example.msphone.SETTINGS_UPDATED_SIGNAL").setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES));
 //                  editor.putInt("fdg341", speed);
+            loadDelay();
 //
 
-                sendBroadcast(intent);
-            }
+            sendBroadcast(intent);
+//            }
 
             // 安排下一次“抖动”
             // 2000毫秒（2秒）的间隔足够了，太快可能会导致性能问题
-            autoJitterHandler.postDelayed(this, 3000);
+            autoJitterHandler.postDelayed(this, 2000);
         }
     };
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+//        Log.d(TAG, "Service Started");
+
+        // 将Service设置为前台Service
+        startForeground(1, notification);
+        loadDelay();
+
+        return START_STICKY;
+    }
+
+    Notification notification = new Notification();
 
     @Override
     public void onCreate() {
@@ -359,7 +373,7 @@ public class FloatingWindowService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
                 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE); // 注意 FLAG_IMMUTABLE
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+        notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Android系统")
                 .setContentText("我的云空间")
                 .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
@@ -370,7 +384,7 @@ public class FloatingWindowService extends Service {
         createFloatingWindow();
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行
-        handler.postDelayed(runnableCode,10000);
+        handler.postDelayed(runnableCode, 10000);
 
         // 【【【 新增：在服务创建时，启动“自动抖动”定时器 】】】
         autoJitterHandler.post(autoJitterRunnable);
@@ -569,6 +583,29 @@ public class FloatingWindowService extends Service {
         }
         return s;
     }
+    /**
+     * 【新增】加载已保存的延迟时间并显示
+     */
+    private void loadDelay() {
+        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+        // 从本地读取延迟时间（毫秒），默认为150ms
+        rob_delay_ms = prefs.getInt("rob_delay_ms", 5000);
+        rob_delay_ms_delay = prefs.getInt("rob_delay_ms_delay", 0);
+        test1 = prefs.getInt("test1", 0);
+        test2 = prefs.getInt("test2", 0);
+        test3 = prefs.getInt("test3", 0);
+        //Log.d(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
+        // 2. 发送广播，实时通知Xposed模块更新延迟时间
+        Intent intent = new Intent(ACTION_UPDATE_DELAY);
+        intent.putExtra("rob_delay_ms", rob_delay_ms);
+        intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
+        intent.putExtra("test1", test1);
+        intent.putExtra("test2", test2);
+        intent.putExtra("test3", test3);
+        //Log.d(TAG, rob_delay_ms + "rob_delay_ms" + rob_delay_ms_delay + "rob_delay_ms_delay" + test1 + "" + test2 + "" + test3);
+        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        sendBroadcast(intent);
+    }
 
     /**
      * 【新增】加载已保存的延迟时间并显示
@@ -581,15 +618,16 @@ public class FloatingWindowService extends Service {
         test1 = prefs.getInt("test1", 0);
         test2 = prefs.getInt("test2", 0);
         test3 = prefs.getInt("test3", 0);
-//        //Log.d(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
+        //Log.d(TAG, "rob_delay_ms_delay" + rob_delay_ms_delay + "rob_delay_ms" + rob_delay_ms +"prefs.getInt(\"currentSpeed\",100)"+prefs.getInt("currentSpeed",100));
         mEtDelaySeconds.setText(String.format("%.2f", rob_delay_ms / 1000.0f));
         // 2. 发送广播，实时通知Xposed模块更新延迟时间
         Intent intent = new Intent(ACTION_UPDATE_DELAY);
         intent.putExtra("rob_delay_ms", rob_delay_ms);
+        intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
         intent.putExtra("test1", test1);
         intent.putExtra("test2", test2);
         intent.putExtra("test3", test3);
-
+        Log.d(TAG, rob_delay_ms + "rob_delay_ms" + rob_delay_ms_delay + "rob_delay_ms_delay" + test1 + "" + test2 + "" + test3);
         intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
         sendBroadcast(intent);
     }
@@ -707,19 +745,19 @@ public class FloatingWindowService extends Service {
 
                         // 1. 保存到SharedPreferences，以便下次启动时能恢复
                         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-                               // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
+                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
                         if (dataObject.has("delay")) {
-                            rob_delay_ms_delay =dataObject.get("delay").getAsInt();
+                            rob_delay_ms_delay = dataObject.get("delay").getAsInt();
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
 
-//                            Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
+                            //Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
 
                         } else {
                             // 如果 delay 是 null 或者不存在，保持默认值 0
                             rob_delay_ms_delay = 0;
                         }
-                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
+                        //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
 
                         // 【安全解析】检查 'test1' 字段
                         if (dataObject.has("test1") && !dataObject.get("test1").isJsonNull()) {
@@ -882,6 +920,7 @@ public class FloatingWindowService extends Service {
 //
 
                 sendBroadcast(intent);
+                loadDelay();
             }
         });
 
@@ -930,6 +969,7 @@ public class FloatingWindowService extends Service {
         });
 
     }
+
     public void adfaev(Integer cardNum) {
         SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
         SharedPreferences.Editor editor = sharedPreferences.edit();

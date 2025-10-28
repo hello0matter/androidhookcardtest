@@ -126,7 +126,7 @@ public class xp implements IXposedHookLoadPackage {
                     XposedBridge.hookMethod(method, new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                            Context context = (Context) param.thisObject;
+//                            Context context = (Context) param.thisObject;
                             // 【核心修改】在真正执行抢单逻辑前，检查并应用新设置
 //                            applyPendingSettings(context);
                             ////Log.d(TAG, "【入口触发】" + className + "." + method.getName() + " 命中！");
@@ -422,10 +422,11 @@ public class xp implements IXposedHookLoadPackage {
                 ////Log.d(TAG, "模块已注入，开始部署2...");
 
                 // 直接使用我们最熟悉、最稳定的Hook入口
-                new Thread(() -> hookOrderView(lpparam)).start();
+//                new Thread(() -> hookOrderView(lpparam)).start();
                 ////Log.d(TAG, "模块已注入，开始部署3...");
 
-                new Thread(() -> findAndHookPlayMethod(appContext)).start();
+                new Thread(() -> findAndHookPlayMethod(appContext,lpparam)).start();
+//                findAndHookPlayMethod(appContext, lpparam);
             }
         });
     }
@@ -553,11 +554,11 @@ public class xp implements IXposedHookLoadPackage {
     }
 
     // 在 xp.java 中
-    private void findAndHookPlayMethod(Context context) {
+    private void findAndHookPlayMethod(Context context,final LoadPackageParam lpparam) {
         ////Log.d(TAG, "开始动态扫描所有类以寻找播放方法...");
 
         // 【关键修改】不再使用 return; 语句
-
+        hookOrderView(lpparam);
         List<String> classNames = getAllClassNames(context);
 
         for (String className : classNames) {
@@ -637,7 +638,6 @@ public class xp implements IXposedHookLoadPackage {
         filter.addAction("com.example.msphone.THISSHOWTIME");
         filter.addAction("com.example.msphone.SEND_SETTINGS_TO_XPOSED");
         filter.addAction("com.example.msphone.SETTINGS_UPDATED_SIGNAL");
-        filter.addAction("com.example.msphone.SEND_SETTINGS_TO_XPOSED");
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {

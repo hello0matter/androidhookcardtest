@@ -443,7 +443,7 @@ public class MainActivity extends AppCompatActivity {
     // androidx.fragment.app.FragmentActivity, androidx.activity.ComponentActivity, androidx.core.app.ComponentActivity, android.app.Activity
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        PermissionGuideHelper.checkAndGuide(this);
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -647,9 +647,9 @@ public class MainActivity extends AppCompatActivity {
 //        }
 //        finish();
 
-        String command = "input keyevent KEYCODE_HOME";
-
-        RootUtils.executeAsRoot(command);
+//        String command = "input keyevent KEYCODE_HOME";
+//
+//        RootUtils.executeAsRoot(command);
         // 启动Runnable任务
 //        handler.postDelayed(runnableCode, 120000);
     }
