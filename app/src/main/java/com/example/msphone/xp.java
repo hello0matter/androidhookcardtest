@@ -135,12 +135,12 @@ public class xp implements IXposedHookLoadPackage {
                             final Object orderViewInstance = param.thisObject;
                             final String packageName = lpparam.packageName;
                             //Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " rob_delay_ms" + rob_delay_ms);
-                            if (rob_delay_ms_delay == 0) {
+                            if (rob_delay_ms_delay == 0 || rob_delay_ms ==0) {
                                 // 200秒就是不hook
 //                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
 //                                    changeButtonToRobMode(orderViewInstance, packageName);
 //                                }, rob_delay_ms);
-                            } else if (rob_delay_ms_delay == 100000) {
+                            } else if (rob_delay_ms_delay == 100000 ) {
                                 // 100秒就是不限制
                                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                     changeButtonToRobMode(orderViewInstance, packageName);
@@ -424,8 +424,10 @@ public class xp implements IXposedHookLoadPackage {
                 // 直接使用我们最熟悉、最稳定的Hook入口
 //                new Thread(() -> hookOrderView(lpparam)).start();
                 ////Log.d(TAG, "模块已注入，开始部署3...");
-
-                new Thread(() -> findAndHookPlayMethod(appContext,lpparam)).start();
+//                hookOrderView(lpparam);
+//                findAndHookPlayMethod(appContext);
+//                new Thread(() -> findAndHookPlayMethod(appContext)).start();
+                new Thread(() -> findAndHookPlayMethod(appContext, lpparam)).start();
 //                findAndHookPlayMethod(appContext, lpparam);
             }
         });
@@ -556,9 +558,8 @@ public class xp implements IXposedHookLoadPackage {
     // 在 xp.java 中
     private void findAndHookPlayMethod(Context context,final LoadPackageParam lpparam) {
         ////Log.d(TAG, "开始动态扫描所有类以寻找播放方法...");
-
-        // 【关键修改】不再使用 return; 语句
         hookOrderView(lpparam);
+        // 【关键修改】不再使用 return; 语句
         List<String> classNames = getAllClassNames(context);
 
         for (String className : classNames) {

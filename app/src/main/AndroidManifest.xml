@@ -75,7 +75,11 @@
         <meta-data
             android:name="xposedminversion"
             android:value="82" />
-<!--        <receiver-->
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposed_scope" />
+
+        <!--        <receiver-->
 <!--            android:name=".InstallReceiver"-->
 <!--            android:enabled="true"-->
 <!--            android:exported="true">-->
