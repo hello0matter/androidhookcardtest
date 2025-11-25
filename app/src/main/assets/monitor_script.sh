@@ -26,9 +26,9 @@ FLAG_FILE="/data/local/tmp/cloud_reboot_done.flag"
 # ================= 工具函数 =================
 
 log_msg() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] $1"
-    echo "[$timestamp] $1" >> "$LOG_FILE"
+    #local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    #echo "[$timestamp] $1"
+    #echo "[$timestamp] $1" >> "$LOG_FILE"
 }
 
 # ================= 主逻辑 =================
