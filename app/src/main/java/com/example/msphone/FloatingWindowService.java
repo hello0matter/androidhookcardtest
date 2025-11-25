@@ -1,5 +1,7 @@
 package com.example.msphone;
 
+import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -348,7 +350,12 @@ public class FloatingWindowService extends Service {
 //        Log.d(TAG, "Service Started");
 
         // 将Service设置为前台Service
-        startForeground(1, notification);
+//        startForeground(1, notification);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
         loadDelay();
 
         return START_STICKY;
@@ -379,8 +386,13 @@ public class FloatingWindowService extends Service {
                 .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
                 .setContentIntent(pendingIntent)
                 .build();
-        startForeground(NOTIFICATION_ID, notification);
-//
+//        startForeground(NOTIFICATION_ID, notification);
+        // 新代码（适配 Android 14）：
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
         createFloatingWindow();
         initBroadcastReceivers();
         // 首次延迟10秒执行，之后按runnableCode内部的周期执行

@@ -5,6 +5,9 @@
 <!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> &lt;!&ndash; 前台服务权限 &ndash;&gt;-->
 <!--    <uses-permission android:name="android.permission.INTERNET" />             &lt;!&ndash; 网络权限 &ndash;&gt;-->
 <!--    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> &lt;!&ndash; 检查网络状态 &ndash;&gt;-->
+    <!-- Android 14 必须声明具体的权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
@@ -107,8 +110,10 @@
             android:authorities="com.example.msphone.provider"
             android:exported="true" />
         <service
-            android:name="com.example.msphone.FloatingWindowService"
-            android:exported="true" />
+            android:name=".FloatingWindowService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"/>
     </application>
 
 </manifest>

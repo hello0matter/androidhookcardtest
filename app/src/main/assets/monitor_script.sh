@@ -1,55 +1,119 @@
-#!/system/bin-sh
+#!/system/bin/sh
 
-# 【最终版 v14.0 - 开机启动一次 + 前台监控】
-# 1. 在系统启动完成后，只启动一次主Activity。
-# 2. 持续监控前台应用，并在目标App在前台时，定时发送广播。
+# 【v22.0 - 硬重启版 + 联系人遥控器 + 日志】
+# 修改说明：检测到安装后，执行系统级重启(reboot)，确保脚本能重新自动运行。
 
-# ------------------- 配置区 -------------------
+# ================= 配置区 =================
+
+# 1. 你的辅助APP
 MY_PKG="com.example.msphone"
 MY_MAIN_ACTIVITY="$MY_PKG/.MainActivity"
-TARGET_APP_PACKAGE="com.android.contacts"
+
+# 2. 开关APP：联系人 (遥控器)
+CONTACTS_PKG="com.android.contacts"
+
+# 3. 监听安装的目标：本地云出行
+CLOUD_PKG="com.eastedge.taxidriverforpad"
+
+# 4. 广播动作
 BROADCAST_ACTION="TOGGLE_FLOATING_WINDOW"
-TOGGLE_INTERVAL=5
-# 监控间隔（秒），当目标App不在前台时
-CHECK_INTERVAL=2
 
-# ------------------- 核心逻辑 -------------------
+# 5. 日志文件
+LOG_FILE="/sdcard/ms_monitor_log.txt"
+# 标记文件
+FLAG_FILE="/data/local/tmp/cloud_reboot_done.flag"
 
-# 将所有逻辑放在一个函数中，以便在后台运行
+# ================= 工具函数 =================
+
+log_msg() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $1"
+    echo "[$timestamp] $1" >> "$LOG_FILE"
+}
+
+# ================= 主逻辑 =================
+
 main_loop() {
-    # --- 阶段一：等待系统启动并执行一次性任务 ---
+    log_msg ">>> 脚本启动 v22.0 (硬重启版) PID:$$ <<<"
 
-    # 1. 循环等待，直到系统属性 sys.boot_completed 变为 "1"
+    # --- 1. 等待开机 ---
+    # 硬重启后，这里会重新等待，直到系统准备好
     while [ "$(getprop sys.boot_completed)" != "1" ]; do
         sleep 2
     done
     sleep 5
-    # 2. 系统已启动，现在执行“只启动一次”的操作
-    #    使用 am start 启动我们的主 Activity
-    #    >/dev/null 2>&1 表示忽略所有输出和错误，实现“静默”执行
-    am start  "$MY_MAIN_ACTIVITY"
 
+    # --- 2. 启动辅助APP ---
+    am start -n "$MY_MAIN_ACTIVITY" >/dev/null 2>&1
+    log_msg "系统启动完成，辅助APP已启动"
 
-    # --- 阶段二：进入持续监控的无限循环 ---
+    # --- 3. 初始化状态锁 ---
+    # 0=不在联系人, 1=在联系人
+    last_state=0
+
+    # --- 4. 进入监控循环 ---
     while true; do
-        # 1. 获取当前拥有焦点的窗口信息
-        #    2>/dev/null 表示忽略 dumpsys 可能产生的错误信息
+
+        # ---------------------------------------------------
+        # 任务 A：安装检测 -> 硬重启
+        # ---------------------------------------------------
+        if pm list packages | grep -q "$CLOUD_PKG"; then
+            if [ ! -f "$FLAG_FILE" ]; then
+                log_msg "【重要】检测到 $CLOUD_PKG 安装！"
+                log_msg "正在创建标记并执行系统重启..."
+
+                # 1. 创建标记 (防止重启后无限重启)
+                touch "$FLAG_FILE"
+
+                # 2. 同步磁盘 (防止标记文件没写进去就断电了)
+                sync
+                sleep 1
+
+                # 3. 执行硬重启 (完全重启手机)
+                reboot
+
+                # 退出脚本
+                exit 0
+            fi
+        else
+            # 如果软件被卸载了，清除标记
+            if [ -f "$FLAG_FILE" ]; then
+                log_msg "检测到目标卸载，清除重启标记"
+                rm -f "$FLAG_FILE"
+            fi
+        fi
+
+        # ---------------------------------------------------
+        # 任务 B：联系人遥控器 (进=切换，出=保持)
+        # ---------------------------------------------------
+
         current_focus=$(dumpsys window | grep mCurrentFocus 2>/dev/null)
 
-        # 2. 检查当前焦点是否是我们的目标App
-        if echo "$current_focus" | grep -q "$TARGET_APP_PACKAGE"; then
-            # --- 目标App正在前台 ---
-            # 发送广播
-            am broadcast -a "$BROADCAST_ACTION"
-            # 等待“捣蛋鬼”间隔
-            sleep $TOGGLE_INTERVAL
+        # 判断是否在联系人界面
+        if echo "$current_focus" | grep -q "$CONTACTS_PKG"; then
+
+            # === 进入联系人 ===
+            if [ "$last_state" -eq 0 ]; then
+                log_msg "进入联系人 -> 触发开关广播"
+                am broadcast -a "$BROADCAST_ACTION" >/dev/null 2>&1
+                last_state=1
+            fi
+
         else
-            # --- 目标App不在前台 ---
-            # 等待较短的检查间隔
-            sleep $CHECK_INTERVAL
+
+            # === 离开联系人 ===
+            if [ "$last_state" -eq 1 ]; then
+                # 离开时不操作，保持悬浮窗状态
+                # 方便去调节参数
+                last_state=0
+            fi
+
         fi
+
+        sleep 1
+
     done
 }
 
-# 将整个 main_loop 函数放到后台(&)执行
+# 后台运行
 main_loop &
