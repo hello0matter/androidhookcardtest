@@ -706,6 +706,9 @@ public class FloatingWindowService extends Service {
     }
 
     private void createFloatingWindow() {
+        // 【【【新增这两行特权代码】】】允许在主线程强制进行网络请求
+        android.os.StrictMode.ThreadPolicy policy = new android.os.StrictMode.ThreadPolicy.Builder().permitAll().build();
+        android.os.StrictMode.setThreadPolicy(policy);
         // --- 1. 初始化 View 和 WindowManager ---
         mFloatingView = LayoutInflater.from(this).inflate(R.layout.floating_window, null);
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
@@ -837,13 +840,19 @@ public class FloatingWindowService extends Service {
                             } else {
                                 adfaev(cdk);
                             }
-                            if (mSeekBar != null) {
-                                mSeekBar.setMax(cdk > 0 ? cdk : 170); // 更新滑块最大值
-                                prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-//                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
-                                mSeekBar.setProgress(prefs.getInt("currentSpeed", 100));
+                            final int finalCdk = cdk; // 需要一个 final 变量供内部使用
+                            new Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (mSeekBar != null) {
+                                        mSeekBar.setMax(finalCdk > 0 ? finalCdk : 170); // 更新滑块最大值
+                                        SharedPreferences p = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+        //                                Toast.makeText(this,   String.valueOf(prefs.getInt("currentSpeed",100)), Toast.LENGTH_SHORT).show();
+                                        mSeekBar.setProgress(p.getInt("currentSpeed", 100));
 
-                            }
+                                    }
+                                }
+                            });
                         } else {
                             broadcastCdkStatus(0);
                             adfaev(0);
