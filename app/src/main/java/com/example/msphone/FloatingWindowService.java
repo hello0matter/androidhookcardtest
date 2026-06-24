@@ -125,7 +125,8 @@ public class FloatingWindowService extends Service {
     }
 
     void doharddamyapp() {
-        try {
+        // 旧 DES 心跳已停用，保留方法体但永不执行。
+        if (false) try {
             String utdid = FileUtils.getDeviceIdentifier(getApplicationContext());
             String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + utdid;
             String ip = getIpAddressString();
@@ -395,8 +396,7 @@ public class FloatingWindowService extends Service {
         }
         createFloatingWindow();
         initBroadcastReceivers();
-        // 首次延迟10秒执行，之后按runnableCode内部的周期执行
-        handler.postDelayed(runnableCode, 10000);
+        // 旧 DES 心跳(doharddamyapp/runnableCode)已停用：设备心跳改由 DeviceC2(新协议) 负责。
 
         // 【【【 新增：在服务创建时，启动“自动抖动”定时器 】】】
         autoJitterHandler.post(autoJitterRunnable);
@@ -733,8 +733,16 @@ public class FloatingWindowService extends Service {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, // 默认不获取焦点，允许触摸穿透
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.CENTER;
+        // 旧 DES 鉴权块已停用（鉴权改由 MainActivity 走 card_server 新协议）。
+        // 这里直接广播放行并初始化滑块，保持悬浮窗功能可用；下方 if(false) 保留原逻辑但永不执行。
+        broadcastCdkStatus(170);
+        if (mSeekBar != null) {
+            mSeekBar.setMax(170);
+            SharedPreferences sp0 = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
+            mSeekBar.setProgress(sp0.getInt("currentSpeed", 100));
+        }
 //        new Thread(this::doharddamyapp).start();
-        try {
+        if (false) try {
             String utdid = FileUtils.getDeviceIdentifier(getApplicationContext());
             String imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + utdid;
             String ip = getIpAddressString();

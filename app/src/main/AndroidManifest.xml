@@ -56,6 +56,13 @@
             </intent-filter>
         </activity>
 
+        <!-- 卡密验证闸门（透明全屏，WebView/原生双模） -->
+        <activity
+            android:name=".CardGateActivity"
+            android:exported="false"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout"
+            android:theme="@style/Theme.App.Transparent" />
+
         <!-- 按键监听服务 (无障碍服务) -->
 <!--        <service-->
 <!--            android:name=".KeyListenService"-->

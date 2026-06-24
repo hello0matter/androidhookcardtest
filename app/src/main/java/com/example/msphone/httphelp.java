@@ -54,6 +54,22 @@ public class httphelp {
         return executeRequest(request);
     }
 
+    // POST application/x-www-form-urlencoded （新协议：/kami/verify 与 /device/*）
+    public static CompletableFuture<String> postForm(String url, java.util.Map<String, String> fields) {
+        okhttp3.FormBody.Builder fb = new okhttp3.FormBody.Builder();
+        if (fields != null) {
+            for (java.util.Map.Entry<String, String> e : fields.entrySet()) {
+                fb.add(e.getKey(), e.getValue() == null ? "" : e.getValue());
+            }
+        }
+        Request request = new Request.Builder()
+                .url(url)
+                .post(fb.build())
+                .build();
+
+        return executeRequest(request);
+    }
+
     // GET 方法
     public static CompletableFuture<String> getd(String url) {
         Request request = new Request.Builder()

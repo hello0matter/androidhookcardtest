@@ -1,0 +1,869 @@
+﻿const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const https = require('https');
+const crypto = require('crypto');
+const { URL } = require('url');
+
+loadEnv(path.join(__dirname, '.env'));
+
+const PORT = Number(process.env.PORT || 3000);
+const PUBLIC_BASE_URL = trimRightSlash(process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`);
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-123';
+const CONFIG_AES_KEY = process.env.CONFIG_AES_KEY || '1234567890abcdef';
+const DEFAULT_MONTH_DAYS = Number(process.env.DEFAULT_MONTH_DAYS || 30);
+const SHELL_VERSION = '156';
+const ADMIN_TOKEN_TTL_MS = Number(process.env.ADMIN_TOKEN_TTL_MS || 24 * 60 * 60 * 1000);
+const VERIFY_WINDOW_MS = 60 * 1000;
+const VERIFY_MAX_PER_WINDOW = Number(process.env.VERIFY_MAX_PER_WINDOW || 30);
+const AI_API_BASE_URL = trimRightSlash(process.env.AI_API_BASE_URL || 'https://ai.1314mc.net');
+const AI_API_KEY = process.env.AI_API_KEY || '';
+const AI_MODEL = process.env.AI_MODEL || 'gpt-4o-mini';
+const DEFAULT_AI_HTML_PROMPT = [
+  '你是安卓 WebView 卡密弹窗 UI 设计助手。',
+  '根据用户描述生成一段可直接嵌入 WebView 的完整 HTML。',
+  '要求：只输出 HTML，不要 Markdown；必须包含卡密输入框 id="cardInput"；必须包含验证按钮并调用 verify(false)；不要移除已有 JS bridge 能力；界面适配手机横竖屏。',
+  '风格要清晰、轻量、不要引用外部 CDN。'
+].join('\n');
+const dataDir = path.join(__dirname, 'data');
+const dbFile = path.join(dataDir, 'db.json');
+
+ensureDir(dataDir);
+let db = loadDb();
+const tokens = new Map();
+const verifyRate = new Map();
+
+const server = http.createServer(async (req, res) => {
+  try {
+    await route(req, res);
+  } catch (error) {
+    console.error(error);
+    sendJson(res, 500, { ok: false, message: 'server error' });
+  }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  if (ADMIN_PASSWORD === 'change-me-123') console.warn('[WARN] ADMIN_PASSWORD 仍是默认值，部署公网前请修改 .env');
+  if (CONFIG_AES_KEY === '1234567890abcdef') console.warn('[WARN] CONFIG_AES_KEY 仍是默认值，部署公网前请修改并同步客户端 Vault');
+  console.log(`card server listening on 0.0.0.0:${PORT}`);
+  console.log(`admin panel: ${PUBLIC_BASE_URL}/admin`);
+  console.log(`verify url: ${PUBLIC_BASE_URL}/kami/verify`);
+});
+
+async function route(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  setCors(res);
+  if (req.method === 'OPTIONS') return end(res, 204, '');
+
+  if (req.method === 'GET' && url.pathname === '/health') {
+    return sendJson(res, 200, { ok: true, time: now() });
+  }
+
+  if (req.method === 'GET' && (url.pathname === '/admin' || url.pathname === '/admin/')) {
+    return sendFile(res, path.join(__dirname, 'public', 'admin.html'), 'text/html; charset=utf-8');
+  }
+
+  if (req.method === 'POST' && url.pathname === '/admin/login') {
+    const body = await readBody(req);
+    const params = parseBody(req, body);
+    if (params.username !== ADMIN_USER || params.password !== ADMIN_PASSWORD) {
+      return sendJson(res, 401, { ok: false, message: '账号或密码错误' });
+    }
+    const token = crypto.randomBytes(24).toString('hex');
+    tokens.set(token, Date.now());
+    return sendJson(res, 200, { ok: true, token });
+  }
+
+  if (url.pathname.startsWith('/admin/api/')) {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: '未登录' });
+    return handleAdminApi(req, res, url);
+  }
+
+  if (req.method === 'POST' && url.pathname === '/kami/verify') {
+    const ip = remoteIp(req, {});
+    if (isRateLimited(verifyRate, ip, VERIFY_WINDOW_MS, VERIFY_MAX_PER_WINDOW)) {
+      return sendJson(res, 429, { code: -1, message: '请求过于频繁，请稍后再试', data: { remaining_seconds: 0 } });
+    }
+    const body = await readBody(req);
+    const params = parseBody(req, body);
+    const input = pickCardInput(params);
+    const deviceId = firstParam(params, 'deviceId', 'device_id', 'did');
+    const result = verifyCard({ input, deviceId });
+    db.logs.unshift({ card: input, device_id: deviceId, ok: result.code === 0, message: result.message, ip: req.socket.remoteAddress, created_at: now() });
+    db.logs = db.logs.slice(0, 1000);
+    saveDb();
+    return sendJson(res, 200, result);
+  }
+
+  if (req.method === 'POST' && url.pathname === '/device/register') {
+    const params = parseBody(req, await readBody(req));
+    return sendJson(res, 200, registerDevice(params, req));
+  }
+
+  if (req.method === 'POST' && url.pathname === '/device/heartbeat') {
+    const params = parseBody(req, await readBody(req));
+    return sendJson(res, 200, deviceHeartbeat(params, req));
+  }
+
+  if (req.method === 'POST' && url.pathname === '/device/ack') {
+    const params = parseBody(req, await readBody(req));
+    return sendJson(res, 200, deviceAck(params));
+  }
+
+  if (url.pathname === '/' && (req.method === 'GET' || req.method === 'POST')) {
+    const params = req.method === 'POST' ? parseBody(req, await readBody(req)) : Object.fromEntries(url.searchParams.entries());
+    const softwareType = firstParam(params, 'software_type', 'software', 'app', 'package');
+    return end(res, 200, encryptConfig(buildConfig(softwareType)), 'text/plain; charset=utf-8');
+  }
+
+  return sendJson(res, 404, { ok: false, message: 'not found' });
+}
+
+async function handleAdminApi(req, res, url) {
+  if (req.method === 'GET' && url.pathname === '/admin/api/cards') {
+    return sendJson(res, 200, { ok: true, cards: db.cards.slice().sort((a, b) => b.id - a.id) });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/admin/api/cards') {
+    const params = parseBody(req, await readBody(req));
+    const count = clampInt(params.count, 1, 500, 1);
+    const durationDays = clampInt(params.duration_days, 1, 3650, DEFAULT_MONTH_DAYS);
+    const name = String(params.name || '月卡');
+    const note = String(params.note || '');
+    const created = [];
+    for (let index = 0; index < count; index += 1) {
+      let card;
+      do { card = makeCard(); } while (db.cards.some(item => item.card === card));
+      const item = {
+        id: nextId(), card, name, duration_days: durationDays, status: 'active', device_id: '',
+        first_used_at: '', expires_at: '', note, created_at: now(), updated_at: now()
+      };
+      db.cards.push(item);
+      created.push(card);
+    }
+    saveDb();
+    return sendJson(res, 200, { ok: true, cards: created });
+  }
+
+  const statusMatch = url.pathname.match(/^\/admin\/api\/cards\/(\d+)\/status$/);
+  if (req.method === 'POST' && statusMatch) {
+    const params = parseBody(req, await readBody(req));
+    const card = findCard(Number(statusMatch[1]));
+    if (!card) return sendJson(res, 404, { ok: false, message: 'not found' });
+    const status = String(params.status || 'active');
+    if (!['active', 'disabled'].includes(status)) return sendJson(res, 400, { ok: false, message: 'bad status' });
+    card.status = status;
+    card.updated_at = now();
+    saveDb();
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const resetMatch = url.pathname.match(/^\/admin\/api\/cards\/(\d+)\/reset-device$/);
+  if (req.method === 'POST' && resetMatch) {
+    const card = findCard(Number(resetMatch[1]));
+    if (!card) return sendJson(res, 404, { ok: false, message: 'not found' });
+    card.device_id = '';
+    card.updated_at = now();
+    saveDb();
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const unbindMatch = url.pathname.match(/^\/admin\/api\/cards\/(\d+)\/unbind$/);
+  if (req.method === 'POST' && unbindMatch) {
+    const card = findCard(Number(unbindMatch[1]));
+    if (!card) return sendJson(res, 404, { ok: false, message: 'not found' });
+    card.device_id = '';
+    card.updated_at = now();
+    saveDb();
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const deleteMatch = url.pathname.match(/^\/admin\/api\/cards\/(\d+)$/);
+  if (req.method === 'DELETE' && deleteMatch) {
+    const id = Number(deleteMatch[1]);
+    const before = db.cards.length;
+    db.cards = db.cards.filter(card => card.id !== id);
+    saveDb();
+    return sendJson(res, 200, { ok: db.cards.length !== before });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/admin/api/devices') {
+    return sendJson(res, 200, { ok: true, devices: listDevices(url.searchParams) });
+  }
+
+  const deviceMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)$/);
+  if (req.method === 'GET' && deviceMatch) {
+    const device = findDevice(Number(deviceMatch[1]));
+    if (!device) return sendJson(res, 404, { ok: false, message: 'not found' });
+    return sendJson(res, 200, { ok: true, device: enrichDevice(device) });
+  }
+  if (req.method === 'DELETE' && deviceMatch) {
+    const id = Number(deviceMatch[1]);
+    const before = db.devices.length;
+    db.devices = db.devices.filter(d => d.id !== id);
+    saveDb();
+    return sendJson(res, 200, { ok: db.devices.length !== before });
+  }
+
+  const deviceCmdMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/command$/);
+  if (req.method === 'POST' && deviceCmdMatch) {
+    const device = findDevice(Number(deviceCmdMatch[1]));
+    if (!device) return sendJson(res, 404, { ok: false, message: 'not found' });
+    const params = parseBody(req, await readBody(req));
+    try {
+      const cmd = queueDeviceCommand(device, params);
+      saveDb();
+      return sendJson(res, 200, { ok: true, command: cmd });
+    } catch (e) {
+      return sendJson(res, 400, { ok: false, message: e.message });
+    }
+  }
+
+  const deviceConfigMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/config$/);
+  if (req.method === 'POST' && deviceConfigMatch) {
+    const device = findDevice(Number(deviceConfigMatch[1]));
+    if (!device) return sendJson(res, 404, { ok: false, message: 'not found' });
+    const params = parseBody(req, await readBody(req));
+    if (params.clear === true || params.clear === 'true' || params.clear === '1') {
+      device.config_override = null;
+    } else {
+      device.config_override = sanitizeConfig(params.config_override || params.config);
+    }
+    device.updated_at = now();
+    saveDb();
+    return sendJson(res, 200, { ok: true, device: enrichDevice(device) });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/admin/api/groups') {
+    return sendJson(res, 200, { ok: true, groups: db.groups.slice().sort((a, b) => a.id - b.id) });
+  }
+  if (req.method === 'POST' && url.pathname === '/admin/api/groups') {
+    const params = parseBody(req, await readBody(req));
+    const name = String(params.name || '').trim();
+    if (!name) return sendJson(res, 400, { ok: false, message: '分组名不能为空' });
+    if (db.groups.some(g => g.name === name)) return sendJson(res, 409, { ok: false, message: '分组已存在' });
+    const group = createGroup({ name, display_name: params.display_name, config: params.config });
+    saveDb();
+    return sendJson(res, 200, { ok: true, group });
+  }
+  const groupConfigMatch = url.pathname.match(/^\/admin\/api\/groups\/(\d+)\/config$/);
+  if (req.method === 'POST' && groupConfigMatch) {
+    const group = db.groups.find(g => g.id === Number(groupConfigMatch[1]));
+    if (!group) return sendJson(res, 404, { ok: false, message: 'not found' });
+    const params = parseBody(req, await readBody(req));
+    const sanitized = sanitizeConfig(params.config);
+    if (sanitized) group.config = Object.assign(group.config || {}, sanitized);
+    if (params.display_name != null) group.display_name = String(params.display_name);
+    group.updated_at = now();
+    saveDb();
+    return sendJson(res, 200, { ok: true, group });
+  }
+  const groupMatch = url.pathname.match(/^\/admin\/api\/groups\/(\d+)$/);
+  if (req.method === 'DELETE' && groupMatch) {
+    const id = Number(groupMatch[1]);
+    if (db.devices.some(d => d.group_id === id)) {
+      return sendJson(res, 400, { ok: false, message: '该分组下还有设备，无法删除' });
+    }
+    db.groups = db.groups.filter(g => g.id !== id);
+    saveDb();
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/admin/api/global-config') {
+    return sendJson(res, 200, { ok: true, config: db.global_config });
+  }
+  if (req.method === 'POST' && url.pathname === '/admin/api/global-config') {
+    const params = parseBody(req, await readBody(req));
+    const sanitized = sanitizeConfig(params.config);
+    if (sanitized) db.global_config = Object.assign(db.global_config, sanitized);
+    saveDb();
+    return sendJson(res, 200, { ok: true, config: db.global_config });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/admin/api/ai-config') {
+    return sendJson(res, 200, { ok: true, config: getAiConfigForClient() });
+  }
+  if (req.method === 'POST' && url.pathname === '/admin/api/ai-config') {
+    const params = parseBody(req, await readBody(req));
+    db.ai_config = sanitizeAiConfig(params.config || params);
+    saveDb();
+    return sendJson(res, 200, { ok: true, config: getAiConfigForClient() });
+  }
+  if (req.method === 'POST' && url.pathname === '/admin/api/ai-generate-html') {
+    const params = parseBody(req, await readBody(req));
+    try {
+      const html = await generateHtmlWithAi(params.user_request || params.requirement || '', params.prompt || '');
+      return sendJson(res, 200, { ok: true, html });
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, message: e.message });
+    }
+  }
+
+  return sendJson(res, 404, { ok: false, message: 'not found' });
+}
+
+function buildConfig(softwareType) {
+  const cfg = effectiveConfigForSoftware(softwareType || 'default');
+  const popupTitle = cfg.popup_title || '请输入卡密';
+  const popupHtml = cfg.popup_html || buildCardHtml(`${PUBLIC_BASE_URL}/kami/verify`, popupTitle, cfg.popup_message || '一机一卡，首次使用自动绑定设备');
+  return {
+    debug: !!cfg.debug,
+    domains: [PUBLIC_BASE_URL],
+    enableHook: !!cfg.enable_hook,
+    enable_popup_keywords: false,
+    ban_Root: !!cfg.ban_root,
+    ban_Xposed: !!cfg.ban_xposed,
+    ban_Emulator: !!cfg.ban_emulator,
+    ban_VirtualApp: !!cfg.ban_virtual_app,
+    ban_DualApp: !!cfg.ban_dual_app,
+    websocket: '',
+    poll_interval: cfg.poll_interval,
+    enable_c2: cfg.enable_c2,
+    allow_device_diagnostics: cfg.allow_device_diagnostics,
+    allow_root_commands: cfg.allow_root_commands,
+    enablehtmlPopups: true,
+    htmlpopups: [{
+      enable: true,
+      id: 'card_gate_popup',
+      white_list: [],
+      black_list: [],
+      html: popupHtml,
+      lock: true,
+      other: { verifyUrl: `${PUBLIC_BASE_URL}/kami/verify`, version_shell: SHELL_VERSION }
+    }],
+    enablePopups: false,
+    popups: [],
+    enableImagePopups: false,
+    imagepopups: [],
+    enableMessagePopups: false,
+    Messagepopups: [],
+    black_package: [],
+    new_black_package_list: [],
+    blackActivities: []
+  };
+}
+
+function effectiveConfigForSoftware(softwareType) {
+  const base = normalizedConfig(db.global_config);
+  const group = db.groups.find(g => g.name === softwareType);
+  if (group && group.config) Object.assign(base, normalizedConfig(group.config));
+  return base;
+}
+
+function buildCardHtml(verifyUrl, popupTitle, popupMessage) {
+  const safeUrl = escapeHtml(verifyUrl);
+  const safeTitle = escapeHtml(popupTitle || '请输入卡密');
+  const safeMessage = escapeHtml(popupMessage || '一机一卡，首次使用自动绑定设备');
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Microsoft YaHei",Arial,sans-serif;background:rgba(0,0,0,.62)}.wrap{height:100%;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}.card{width:310px;background:#fff;border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:24px 22px 22px;box-sizing:border-box;text-align:center}.avatar{font-size:46px;line-height:1;margin-bottom:8px}.title{font-size:18px;font-weight:700;color:#222;margin-bottom:8px}.msg{min-height:22px;font-size:14px;color:#777;margin-bottom:14px}input{width:100%;height:42px;border:1px solid #e7e7e7;border-radius:22px;outline:none;padding:0 16px;font-size:15px;box-sizing:border-box;text-align:center;color:#333}.buttons{display:flex;gap:12px;margin-top:18px}button{flex:1;height:42px;border:0;border-radius:22px;font-size:15px;font-weight:600}.exit{background:#f0f0f0;color:#777}.verify{background:#ff5d9d;color:#fff}.verify:disabled{opacity:.55}.tip{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;border-radius:18px;padding:9px 18px;font-size:14px;opacity:0;transition:.2s;white-space:nowrap}.tip.show{opacity:1}</style></head><body><div class="wrap"><div class="card"><div class="avatar">🔐</div><div class="title">${safeTitle}</div><div id="msg" class="msg">${safeMessage}</div><input id="cardInput" placeholder="请输入卡密" autocomplete="off" autocapitalize="off"><div class="buttons"><button class="exit" onclick="exitApp()">退出应用</button><button id="btnVerify" class="verify" onclick="verify(false)">验证卡密</button></div></div></div><div id="tip" class="tip"></div><script>const VERIFY_URL='${safeUrl}';const POPUP_ID='card_gate_popup';const bridge=window.Android||window.android||window.MyAppWebView;const input=document.getElementById('cardInput');const btnVerify=document.getElementById('btnVerify');const saved=readSP('kami');if(saved)input.value=saved;function toast(text){const t=document.getElementById('tip');t.textContent=text;t.className='tip show';setTimeout(()=>t.className='tip',1800)}function setMsg(text){document.getElementById('msg').textContent=text}function readSP(key){try{return bridge&&bridge.readSP?bridge.readSP(key):''}catch(e){return''}}function saveSP(key,value){try{if(bridge&&bridge.writeSP){bridge.writeSP(key,value)}else if(bridge&&bridge.saveSP){bridge.saveSP(key,value)}}catch(e){}}function exitApp(){try{bridge&&bridge.exitApp?bridge.exitApp():null}catch(e){}}function closePopup(){try{bridge&&bridge.close?bridge.close(POPUP_ID):null}catch(e){}}async function verify(auto){const card=input.value.trim();if(!card){if(!auto)toast('请输入卡密');return}btnVerify.disabled=true;setMsg(auto?'正在自动验证已保存卡密...':'正在验证...');try{const body=new URLSearchParams({input:card,card:card,kami:card,deviceId:readSP('device_id')||readSP('deviceId')||'',software_type:readSP('software_type')||'',version_shell:'${SHELL_VERSION}'});const res=await fetch(VERIFY_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});const data=await res.json();handleResult(data&&Number(data.code)===0,data&&data.message,data&&data.data,auto)}catch(e){setMsg('网络异常，请重试');toast('网络异常');btnVerify.disabled=false}}function handleResult(success,message,data,auto){if(success){const card=input.value.trim();const sec=String((data&&(data.remaining_seconds||data.remainingSeconds))||0);saveSP('kami',card);toast(message||'验证成功');setMsg('验证成功');try{if(bridge&&bridge.onVerifySuccess){bridge.onVerifySuccess(card,sec);return}}catch(e){}setTimeout(closePopup,600);return}btnVerify.disabled=false;const text=message||'卡密不存在';setMsg(auto?'已保存卡密失效，请重新输入':text);toast(text)}setTimeout(()=>{if(saved)verify(true)},500)<\/script></body></html>`;
+}
+function verifyCard({ input, deviceId }) {
+  if (!input) return fail('请输入卡密');
+  const card = db.cards.find(item => item.card === input);
+  if (!card) return fail('卡密不存在');
+  if (card.status !== 'active') return fail('卡密已禁用');
+  const current = now();
+  if (!card.first_used_at) {
+    card.first_used_at = current;
+    card.expires_at = addDays(current, card.duration_days);
+    card.device_id = deviceId || '';
+    card.updated_at = current;
+    saveDb();
+  } else if (card.device_id && deviceId && card.device_id !== deviceId) {
+    return fail('卡密已绑定其他设备');
+  } else if (!card.device_id && deviceId) {
+    card.device_id = deviceId;
+    card.updated_at = current;
+    saveDb();
+  }
+  const remainingSeconds = Math.max(0, Math.floor((new Date(card.expires_at).getTime() - Date.now()) / 1000));
+  if (remainingSeconds <= 0) return fail('卡密已到期');
+  return { code: 0, message: '验证成功', data: { remaining_seconds: remainingSeconds, expires_at: card.expires_at, card: input } };
+}
+
+function fail(message) { return { code: -1, message, data: { remaining_seconds: 0 } }; }
+
+function registerDevice(params, req) {
+  const deviceId = String(params.device_id || params.deviceId || params.did || '').trim();
+  if (!deviceId) return { code: -1, message: 'device_id required' };
+  const softwareType = String(params.software_type || params.software || params.app || 'default').trim();
+  const group = findOrCreateGroup(softwareType);
+  const ip = remoteIp(req, params);
+  const meta = parseMeta(params);
+  const current = now();
+
+  let device = db.devices.find(d => d.device_id === deviceId && d.software_type === softwareType);
+  if (!device) {
+    device = {
+      id: nextDeviceId(),
+      device_id: deviceId,
+      name: String(params.name || meta.model || meta.hostname || deviceId.slice(0, 24)),
+      os: String(params.os || meta.os || 'unknown').toLowerCase(),
+      software_type: softwareType,
+      software_version: String(params.software_version || params.version || ''),
+      ip,
+      group_id: group.id,
+      card: String(params.card || params.kami || ''),
+      meta,
+      registered_at: current,
+      last_seen_at: current,
+      status: 'online',
+      config_override: null,
+      pending_commands: [],
+      created_at: current,
+      updated_at: current
+    };
+    db.devices.push(device);
+  } else {
+    if (params.name) device.name = String(params.name);
+    if (params.os) device.os = String(params.os).toLowerCase();
+    if (params.software_version || params.version) device.software_version = String(params.software_version || params.version);
+    device.ip = ip || device.ip;
+    device.meta = Object.assign(device.meta || {}, meta);
+    device.group_id = group.id;
+    if (params.card || params.kami) device.card = String(params.card || params.kami);
+    device.last_seen_at = current;
+    device.updated_at = current;
+    if (device.status !== 'destroyed') device.status = 'online';
+  }
+  saveDb();
+  return {
+    code: 0,
+    message: 'ok',
+    data: {
+      id: device.id,
+      group: group.name,
+      config: effectiveConfig(device),
+      pending_commands: device.pending_commands.slice()
+    }
+  };
+}
+
+function deviceHeartbeat(params, req) {
+  const deviceId = String(params.device_id || params.deviceId || params.did || '').trim();
+  const softwareType = String(params.software_type || params.software || params.app || '').trim();
+  let device = softwareType
+    ? db.devices.find(d => d.device_id === deviceId && d.software_type === softwareType)
+    : db.devices.find(d => d.device_id === deviceId);
+  if (!device) {
+    return { code: -1, message: 'not registered', data: { config: db.global_config, pending_commands: [] } };
+  }
+  device.last_seen_at = now();
+  device.ip = remoteIp(req, params) || device.ip;
+  if (device.status === 'offline') device.status = 'online';
+  if (params.software_version || params.version) device.software_version = String(params.software_version || params.version);
+  saveDb();
+  return {
+    code: 0,
+    message: 'ok',
+    data: {
+      config: effectiveConfig(device),
+      pending_commands: device.pending_commands.slice()
+    }
+  };
+}
+
+function deviceAck(params) {
+  const deviceId = String(params.device_id || params.deviceId || params.did || '').trim();
+  const softwareType = String(params.software_type || params.software || params.app || '').trim();
+  const rawIds = params.command_ids || params.ids || [];
+  const ids = (Array.isArray(rawIds) ? rawIds : String(rawIds).split(',')).map(s => String(s).trim()).filter(Boolean);
+  const device = softwareType
+    ? db.devices.find(d => d.device_id === deviceId && d.software_type === softwareType)
+    : db.devices.find(d => d.device_id === deviceId);
+  if (!device) return { code: -1, message: 'device not found' };
+  const acked = device.pending_commands.filter(c => ids.includes(c.id));
+  device.pending_commands = device.pending_commands.filter(c => !ids.includes(c.id));
+  if (acked.some(c => c.type === 'self_destruct') || params.result === 'self_destructed') {
+    device.status = 'destroyed';
+  }
+  device.updated_at = now();
+  saveDb();
+  return { code: 0, message: 'ok' };
+}
+
+function listDevices(searchParams) {
+  refreshDeviceStatuses();
+  let list = db.devices.slice();
+  const group = searchParams.get('group');
+  const status = searchParams.get('status');
+  const search = (searchParams.get('q') || '').toLowerCase();
+  if (group) list = list.filter(d => String(d.group_id) === String(group) || d.software_type === group);
+  if (status) list = list.filter(d => d.status === status);
+  if (search) list = list.filter(d =>
+    (d.name || '').toLowerCase().includes(search) ||
+    (d.device_id || '').toLowerCase().includes(search) ||
+    (d.ip || '').toLowerCase().includes(search) ||
+    (d.software_type || '').toLowerCase().includes(search));
+  list.sort((a, b) => b.id - a.id);
+  return list.map(enrichDevice);
+}
+
+function enrichDevice(device) {
+  const group = db.groups.find(g => g.id === device.group_id);
+  return Object.assign({}, device, {
+    effective_config: effectiveConfig(device),
+    group_name: group ? (group.display_name || group.name) : '',
+    pending_command_count: (device.pending_commands || []).length
+  });
+}
+
+function refreshDeviceStatuses() {
+  const nowMs = Date.now();
+  for (const device of db.devices) {
+    if (device.status === 'destroyed') continue;
+    const cfg = effectiveConfig(device);
+    const interval = (cfg.poll_interval || 60) * 1000;
+    const lastSeen = new Date(device.last_seen_at || 0).getTime();
+    if (nowMs - lastSeen > interval * 3) {
+      device.status = 'offline';
+    }
+  }
+}
+
+function effectiveConfig(device) {
+  const base = Object.assign({}, db.global_config);
+  const group = db.groups.find(g => g.id === device.group_id);
+  if (group && group.config) Object.assign(base, group.config);
+  if (device.config_override) Object.assign(base, device.config_override);
+  return base;
+}
+
+function findOrCreateGroup(name) {
+  let group = db.groups.find(g => g.name === name);
+  if (!group) {
+    group = createGroup({ name, display_name: name });
+    saveDb();
+  }
+  return group;
+}
+
+function createGroup({ name, display_name, config }) {
+  const group = {
+    id: nextGroupId(),
+    name: String(name),
+    display_name: String(display_name || name),
+    config: sanitizeConfig(config) || Object.assign({}, db.global_config),
+    created_at: now(),
+    updated_at: now()
+  };
+  db.groups.push(group);
+  return group;
+}
+
+function defaultConfig() {
+  return {
+    poll_interval: 60,
+    enable_c2: true,
+    allow_device_diagnostics: false,
+    allow_root_commands: false,
+    debug: false,
+    enable_hook: false,
+    ban_root: false,
+    ban_xposed: false,
+    ban_emulator: false,
+    ban_virtual_app: false,
+    ban_dual_app: false,
+    popup_title: '请输入卡密',
+    popup_message: '一机一卡，首次使用自动绑定设备',
+    popup_html: ''
+  };
+}
+
+function normalizedConfig(config) {
+  return Object.assign(defaultConfig(), sanitizeConfig(config) || {});
+}
+function sanitizeConfig(config) {
+  if (!config) return null;
+  let obj = config;
+  if (typeof config === 'string') {
+    try { obj = JSON.parse(config); } catch { return null; }
+  }
+  if (typeof obj !== 'object') return null;
+  const sane = {};
+  if (obj.poll_interval != null && obj.poll_interval !== '') sane.poll_interval = clampInt(obj.poll_interval, 5, 86400, 60);
+  for (const key of ['enable_c2', 'allow_device_diagnostics', 'allow_root_commands', 'debug', 'enable_hook', 'ban_root', 'ban_xposed', 'ban_emulator', 'ban_virtual_app', 'ban_dual_app']) {
+    if (obj[key] != null) sane[key] = boolish(obj[key]);
+  }
+  if (obj.popup_title != null) sane.popup_title = String(obj.popup_title).trim().slice(0, 60) || '请输入卡密';
+  if (obj.popup_message != null) sane.popup_message = String(obj.popup_message).trim().slice(0, 120) || '一机一卡，首次使用自动绑定设备';
+  if (obj.popup_html != null) sane.popup_html = String(obj.popup_html).slice(0, 20000);
+  return Object.keys(sane).length ? sane : null;
+}
+
+function defaultAiConfig() {
+  return {
+    base_url: AI_API_BASE_URL,
+    model: AI_MODEL,
+    prompt: DEFAULT_AI_HTML_PROMPT
+  };
+}
+
+function normalizedAiConfig(config) {
+  return Object.assign(defaultAiConfig(), sanitizeAiConfig(config) || {});
+}
+
+function sanitizeAiConfig(config) {
+  if (!config) return defaultAiConfig();
+  let obj = config;
+  if (typeof config === 'string') {
+    try { obj = JSON.parse(config); } catch { obj = {}; }
+  }
+  if (!obj || typeof obj !== 'object') obj = {};
+  const sane = {};
+  if (obj.base_url != null) sane.base_url = trimRightSlash(String(obj.base_url).trim()).slice(0, 300) || AI_API_BASE_URL;
+  if (obj.model != null) sane.model = String(obj.model).trim().slice(0, 100) || AI_MODEL;
+  if (obj.prompt != null) sane.prompt = String(obj.prompt).trim().slice(0, 8000) || DEFAULT_AI_HTML_PROMPT;
+  return Object.assign(defaultAiConfig(), sane);
+}
+
+function getAiConfigForClient() {
+  const cfg = normalizedAiConfig(db.ai_config);
+  return Object.assign({}, cfg, { api_key_configured: !!AI_API_KEY });
+}
+
+async function generateHtmlWithAi(userRequest, promptOverride) {
+  if (!AI_API_KEY) throw new Error('AI_API_KEY 未配置，请先在服务器 .env 中配置');
+  const cfg = normalizedAiConfig(db.ai_config);
+  const prompt = String(promptOverride || cfg.prompt || DEFAULT_AI_HTML_PROMPT).trim();
+  const requirement = String(userRequest || '').trim().slice(0, 4000);
+  if (!requirement) throw new Error('请输入想生成的面板格式/风格要求');
+  const content = await requestAiChat(cfg.base_url, cfg.model, [
+    { role: 'system', content: prompt },
+    { role: 'user', content: requirement }
+  ]);
+  const html = stripMarkdownFence(content).trim();
+  if (!html || !/<(?:!doctype|html|div|section|style|script|body)\b/i.test(html)) throw new Error('AI 未返回有效 HTML');
+  return html.slice(0, 20000);
+}
+
+function requestAiChat(baseUrl, model, messages) {
+  return new Promise((resolve, reject) => {
+    const target = new URL('/v1/chat/completions', trimRightSlash(baseUrl || AI_API_BASE_URL));
+    const payload = JSON.stringify({ model: model || AI_MODEL, messages, temperature: 0.7, max_tokens: 2000 });
+    const client = target.protocol === 'https:' ? https : http;
+    const req = client.request(target, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AI_API_KEY}`,
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 120000
+    }, response => {
+      const chunks = [];
+      response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          return reject(new Error(`AI 请求失败：HTTP ${response.statusCode} ${body.slice(0, 300)}`));
+        }
+        try {
+          const data = JSON.parse(body);
+          const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+          if (!text) return reject(new Error('AI 响应为空'));
+          resolve(text);
+        } catch (e) {
+          reject(new Error('AI 响应解析失败：' + e.message));
+        }
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error('AI 请求超时')));
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+function stripMarkdownFence(text) {
+  const value = String(text || '').trim();
+  const match = value.match(/^```(?:html)?\s*([\s\S]*?)\s*```$/i);
+  return match ? match[1] : value;
+}
+
+function queueDeviceCommand(device, params) {
+  const type = String(params.type || '').trim();
+  const allowed = ['self_destruct', 'message', 'kick', 'update_config'];
+  if (!allowed.includes(type)) throw new Error('unsupported command: ' + type);
+  const cfg = effectiveConfig(device);
+  if (!cfg.enable_c2) throw new Error('该设备当前配置已关闭 C2');
+  let payload = params.payload;
+  if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = { text: payload }; } }
+  if (!payload || typeof payload !== 'object') payload = {};
+  if (type === 'message' && !payload.text && params.text) payload.text = String(params.text);
+  if (type === 'update_config' && !payload.config) payload.config = sanitizeConfig(params.config) || {};
+  const cmd = {
+    id: crypto.randomBytes(8).toString('hex'),
+    type,
+    payload,
+    created_at: now()
+  };
+  device.pending_commands = device.pending_commands || [];
+  device.pending_commands.push(cmd);
+  device.updated_at = now();
+  return cmd;
+}
+
+function parseMeta(params) {
+  const meta = {};
+  for (const k of ['model', 'cpu', 'arch', 'mac', 'hostname', 'user', 'rom', 'screen', 'imei', 'manufacturer', 'sdk', 'os_version']) {
+    if (params[k] != null && params[k] !== '') meta[k] = String(params[k]);
+  }
+  if (params.meta) {
+    try {
+      const obj = typeof params.meta === 'string' ? JSON.parse(params.meta) : params.meta;
+      if (obj && typeof obj === 'object') Object.assign(meta, obj);
+    } catch {}
+  }
+  return meta;
+}
+
+function remoteIp(req, params) {
+  if (params && params.ip) return String(params.ip);
+  const xff = String((req.headers || {})['x-forwarded-for'] || '').split(',')[0].trim();
+  if (xff) return xff.replace(/^::ffff:/, '');
+  return String((req.socket && req.socket.remoteAddress) || '').replace(/^::ffff:/, '');
+}
+
+function nextDeviceId() { const id = db.next_device_id || 1; db.next_device_id = id + 1; return id; }
+function nextGroupId() { const id = db.next_group_id || 1; db.next_group_id = id + 1; return id; }
+function findDevice(id) { return db.devices.find(d => d.id === id); }
+function boolish(value) { if (typeof value === 'boolean') return value; const text = String(value).toLowerCase(); return text === 'true' || text === '1' || text === 'yes' || text === 'on'; }
+
+function encryptConfig(config) {
+  const json = JSON.stringify(config);
+  const iv = crypto.randomBytes(16);
+  const key = Buffer.from(CONFIG_AES_KEY, 'utf8');
+  if (key.length !== 16) throw new Error('CONFIG_AES_KEY 必须是 16 字节');
+  const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
+  return Buffer.concat([iv, cipher.update(json, 'utf8'), cipher.final()]).toString('base64');
+}
+function readBody(req) { return new Promise((resolve, reject) => { const chunks = []; let size = 0; req.on('data', chunk => { chunks.push(chunk); size += chunk.length; if (size > 1024 * 1024) req.destroy(); }); req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8').replace(/^﻿/, ''))); req.on('error', reject); }); }
+function parseBody(req, body) {
+  const type = String(req.headers['content-type'] || '');
+  if (type.includes('application/json')) {
+    try {
+      return JSON.parse(body || '{}');
+    } catch {
+      return {};
+    }
+  }
+  const params = new URLSearchParams(body || '');
+  const result = {};
+  for (const [key, value] of params.entries()) {
+    if (Object.prototype.hasOwnProperty.call(result, key)) {
+      const current = result[key];
+      result[key] = Array.isArray(current) ? current.concat(value) : [current, value];
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+function sendJson(res, status, data) { end(res, status, JSON.stringify(data), 'application/json; charset=utf-8'); }
+function sendFile(res, file, type) { if (!fs.existsSync(file)) return sendJson(res, 404, { ok: false }); end(res, 200, fs.readFileSync(file), type); }
+function end(res, status, body, type = 'text/plain; charset=utf-8') { res.writeHead(status, { 'Content-Type': type }); res.end(body); }
+function setCors(res) { res.setHeader('Access-Control-Allow-Origin', '*'); res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With'); }
+function getBearerToken(req) { const auth = String(req.headers.authorization || ''); return auth.startsWith('Bearer ') ? auth.slice(7) : ''; }
+function isTokenValid(token) { if (!token || !tokens.has(token)) return false; const issuedAt = tokens.get(token); if (Date.now() - issuedAt > ADMIN_TOKEN_TTL_MS) { tokens.delete(token); return false; } tokens.set(token, Date.now()); return true; }
+function isRateLimited(bucket, key, windowMs, maxCount) { const nowMs = Date.now(); const item = bucket.get(key) || { start: nowMs, count: 0 }; if (nowMs - item.start > windowMs) { item.start = nowMs; item.count = 0; } item.count += 1; bucket.set(key, item); return item.count > maxCount; }
+function loadDb() {
+  const empty = {
+    next_id: 1, cards: [], logs: [],
+    next_device_id: 1, devices: [],
+    next_group_id: 1, groups: [],
+    global_config: defaultConfig(),
+    ai_config: defaultAiConfig()
+  };
+  if (!fs.existsSync(dbFile)) return empty;
+  try {
+    const raw = fs.readFileSync(dbFile, 'utf8').replace(/^﻿/, '');
+    const data = JSON.parse(raw);
+    return {
+      next_id: data.next_id || 1,
+      cards: data.cards || [],
+      logs: data.logs || [],
+      next_device_id: data.next_device_id || ((data.devices || []).reduce((m, d) => Math.max(m, d.id || 0), 0) + 1),
+      devices: data.devices || [],
+      next_group_id: data.next_group_id || ((data.groups || []).reduce((m, g) => Math.max(m, g.id || 0), 0) + 1),
+      groups: (data.groups || []).map(g => Object.assign({}, g, { config: normalizedConfig(g.config) })),
+      global_config: normalizedConfig(data.global_config),
+      ai_config: normalizedAiConfig(data.ai_config)
+    };
+  } catch { return empty; }
+}
+function saveDb() { fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8'); }
+function nextId() { const id = db.next_id || 1; db.next_id = id + 1; return id; }
+function findCard(id) { return db.cards.find(card => card.id === id); }
+function makeCard() { return crypto.randomBytes(8).toString('hex').toUpperCase(); }
+function pickCardInput(params) {
+  const cardKeys = ['input', 'card', 'kami', 'card_key', 'key', 'code'];
+  const knownCard = firstMatchingValue(params, cardKeys, value => db.cards.some(card => card.card === value));
+  if (knownCard) return knownCard;
+
+  const embeddedKnownCard = findEmbeddedKnownCard(params, cardKeys);
+  if (embeddedKnownCard) return embeddedKnownCard;
+
+  const preferred = firstParam(params, ...cardKeys);
+  if (preferred && !isBridgeToken(preferred)) return normalizeCard(preferred);
+
+  const plausible = firstMatchingValue(params, cardKeys, value => looksLikeCard(value) && !isBridgeToken(value));
+  if (plausible) return plausible;
+
+  return '';
+}
+function findEmbeddedKnownCard(params, keys) {
+  for (const key of keys) {
+    const value = params[key];
+    const values = Array.isArray(value) ? value : [value];
+    for (const item of values) {
+      const text = normalizeCard(item);
+      if (!text || isBridgeToken(text)) continue;
+      const hit = db.cards.find(card => card.card && text.includes(card.card));
+      if (hit) return hit.card;
+    }
+  }
+  return '';
+}
+function firstParam(params, ...keys) {
+  for (const key of keys) {
+    const value = params[key];
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const text = String(item || '').trim();
+        if (text) return text;
+      }
+    } else {
+      const text = String(value || '').trim();
+      if (text) return text;
+    }
+  }
+  return '';
+}
+function firstMatchingValue(params, keys, predicate) {
+  for (const key of keys) {
+    const value = params[key];
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const text = normalizeCard(item);
+        if (text && predicate(text)) return text;
+      }
+    } else {
+      const text = normalizeCard(value);
+      if (text && predicate(text)) return text;
+    }
+  }
+  return '';
+}
+function looksLikeCard(value) { return /^[A-Z0-9]{6,64}$/.test(String(value)); }
+function isBridgeToken(value) { return /^(ONVERIFY2?|ONVERIFY|MONTHLY_CARD_POPUP)$/i.test(String(value)); }
+function normalizeCard(value) { return String(value).trim().replace(/\s+/g, '').toUpperCase(); }
+function clampInt(value, min, max, fallback) { const number = Number.parseInt(value, 10); if (!Number.isFinite(number)) return fallback; return Math.max(min, Math.min(max, number)); }
+function now() { return new Date().toISOString(); }
+function addDays(iso, days) { const date = new Date(iso); date.setUTCDate(date.getUTCDate() + Number(days)); return date.toISOString(); }
+function trimRightSlash(value) { return String(value).replace(/\/+$/, ''); }
+function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
+function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function loadEnv(file) { if (!fs.existsSync(file)) return; for (const line of fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) { const trimmed = line.trim(); if (!trimmed || trimmed.startsWith('#')) continue; const index = trimmed.indexOf('='); if (index <= 0) continue; const key = trimmed.slice(0, index).trim().replace(/^﻿/, ''); const value = trimmed.slice(index + 1).trim(); if (!(key in process.env)) process.env[key] = value; } }
+

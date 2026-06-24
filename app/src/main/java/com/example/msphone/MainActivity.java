@@ -1,8 +1,8 @@
 package com.example.msphone;
 
-import android.content.ComponentName;
 import android.Manifest;
 import android.app.AppOpsManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,384 +10,202 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.Log;
+import android.util.Base64;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.zy.devicelibrary.UtilsApp;
-import com.zy.devicelibrary.utils.NetWorkUtils;
-import android.util.Base64;
-import org.apache.commons.codec.binary.Hex;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Enumeration;
-import java.util.concurrent.CompletableFuture;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.DESKeySpec;
-import javax.net.ssl.X509TrustManager;
-
-/* loaded from: classes3.dex */
+/**
+ * 入口。新协议流程：拉取远程配置(AES-CBC) → 安全闸门(Guard) → 卡密验证(CardGate) → 设备 C2(DeviceC2)。
+ * 旧的 DES/50.114.113.121 验证流程已移除，由 card_server 新协议取代。
+ */
 public class MainActivity extends AppCompatActivity {
+
     private static final int DOUBLE_CLICK_TIMEOUT = 500;
-    private static final httphelp httphelp = new httphelp();
     private static final int MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS = 3;
-
-    private static final String TAG = "XposedHook_XP_Dynamic";
-
-    private float speeds = 0.0f;
-//    private final ActivityResultLauncher<Intent> manageOverlayPermissionLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback() { // from class: cx.xp.test.MainActivity$$ExternalSyntheticLambda0
-//        @Override // androidx.activity.result.ActivityResultCallback
-//        public final void onActivityResult(Object obj) {
-//            MainActivity.this.m92lambda$new$0$cxxpmodelMainActivity((ActivityResult) obj);
-//        }
-//    });
-    private String phoneNumber;
-
-    public MainActivity() throws NoSuchPaddingException, NoSuchAlgorithmException {
-    }
-
-    /* JADX INFO: Access modifiers changed from: package-private */
-    /* renamed from: lambda$new$0$cx-xp-model-MainActivity  reason: not valid java name */
-//    public /* synthetic */ void m92lambda$new$0$cxxpmodelMainActivity(ActivityResult result) {
-//        if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)) {
-//            startService(new Intent(this, FloatingWindowService.class));
-//        }
-//    }
-
-
-    //实现X509TrustManager接口
-    public static class MyTrustManager implements X509TrustManager {
-        @Override
-        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-        }
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return new X509Certificate[0];
-        }
-    }
-
-    // 定义一个请求码，用于识别权限请求的回调
     private static final int STORAGE_PERMISSION_REQUEST_CODE = 1001;
+    private static final int OVERLAY_PERMISSION_REQ_CODE = 1001;
+    private static final int GATE_REQUEST_CODE = 2001;
 
-    /**
-     * 这是权限请求的回调方法，系统会在用户做出选择后调用它。
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == STORAGE_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 用户授予了权限
-//                Toast.makeText(this, "存储权限已获取！", Toast.LENGTH_SHORT).show();
-            } else {
-                // 用户拒绝了权限
-//                Toast.makeText(this, "未授予存储权限，无法生成模块文件。", Toast.LENGTH_LONG).show();
-            }
-        }
-    }
-
-//    private void createModuleFromTemplate() {
-//        String moduleName = "MyKeyMonitor";
-//        File sdcardDir = Environment.getExternalStorageDirectory();
-//        File finalModuleZip = new File(sdcardDir, moduleName + ".zip");
-//
-//        try {
-//            // 1. 从 res/raw 复制模板 zip 文件到临时位置
-//            InputStream templateInputStream = getResources().openRawResource(R.raw.template);
-//            File tempTemplateFile = new File(getCacheDir(), "template.zip");
-//            FileOutputStream fos = new FileOutputStream(tempTemplateFile);
-//            byte[] buffer = new byte[1024];
-//            int length;
-//            while ((length = templateInputStream.read(buffer)) > 0) {
-//                fos.write(buffer, 0, length);
-//            }
-//            fos.close();
-//            templateInputStream.close();
-//
-//            // 2. 创建一个新的 zip 输出流
-//            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(finalModuleZip));
-//            ZipFile zipFile = new ZipFile(tempTemplateFile);
-//            Enumeration<? extends ZipEntry> entries = zipFile.entries();
-//
-//            // 3. 遍历模板 zip 中的所有文件
-//            while (entries.hasMoreElements()) {
-//                ZipEntry entry = entries.nextElement();
-//                zos.putNextEntry(new ZipEntry(entry.getName()));
-//
-//                // 4. 如果是 service.sh，就写入我们的动态脚本内容
-//                if (entry.getName().equals("service.sh")) {
-//                    String serviceShContent = "#!/system/bin-sh\n... (完整脚本) ...";
-//                    zos.write(serviceShContent.getBytes());
-//                } else {
-//                    // 否则，就原样复制模板文件的内容
-//                    InputStream is = zipFile.getInputStream(entry);
-//                    while ((length = is.read(buffer)) > 0) {
-//                        zos.write(buffer, 0, length);
-//                    }
-//                    is.close();
-//                }
-//                zos.closeEntry();
-//            }
-//
-//            // 5. 完成并清理
-//            zos.close();
-//            zipFile.close();
-//            tempTemplateFile.delete();
-//
-//            Toast.makeText(this, "Magisk模块已成功生成！", Toast.LENGTH_LONG).show();
-//
-//        } catch (Exception e) {
-//            Toast.makeText(this, "从模板生成模块失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
-//        }
-//    }
-
-    Cipher cipher = Cipher.getInstance("DES");
-    //2，创建秘钥
-    SecretKey key = KeyGenerator.getInstance("DES").generateKey();
-    private static String utdid = "";
-
-    private static String imei = "";
-
-    private static String ip = "";
-
-    private static String phone = "";
-
-    private static String times = "";
-
-
-    public String timess() {
-        try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("DES");
-            keyGenerator.init(56);
-            // 生成一个Key
-            SecretKey generateKey = keyGenerator.generateKey();
-            // 转变为字节数组
-            byte[] encoded = generateKey.getEncoded();
-            // 生成密钥字符串
-            String encodeHexString = Hex.encodeHexString(encoded);
-            return encodeHexString;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "密钥生成错误.";
-        }
-    }
-
-    //加密
-    public String godtimes(String str, String Key) {
-        String s = null;
-        try {
-            DESKeySpec desKey = new DESKeySpec(Key.getBytes());
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");
-            SecretKey securekey = keyFactory.generateSecret(desKey);
-            Cipher cipher = Cipher.getInstance("DES");
-            cipher.init(Cipher.ENCRYPT_MODE, securekey);    //初始化密码器，用密钥 secretKey 进入加密模式
-            byte[] bytes = cipher.doFinal(str.getBytes());   //加密
-            s = org.apache.commons.codec.binary.Base64.encodeBase64String(bytes);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "加密错误.";
-        }
-        return s;
-    }
-
-    //解密
-    public String helols(String buff, String Key) {
-        String s = null;
-        try {
-            DESKeySpec desKey = new DESKeySpec(Key.getBytes());
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");
-            SecretKey securekey = keyFactory.generateSecret(desKey);
-            Cipher cipher = Cipher.getInstance("DES");
-            cipher.init(Cipher.DECRYPT_MODE, securekey);
-            byte[] responseByte = cipher.doFinal(org.apache.commons.codec.binary.Base64.decodeBase64(buff));
-            s = new String(responseByte);
-            return s;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "解密错误.";
-        }
-    }
-
-    private void checkUsageStatsPermission() {
-        AppOpsManager appOps = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
-        int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getPackageName());
-        if (mode != AppOpsManager.MODE_ALLOWED) {
-            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
-        }
-    }
-
-    //解密
-    public String helolss(String bufff, String Key) {
-        String s = null;
-        try {
-            DESKeySpec desKey = new DESKeySpec(Key.getBytes());
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");
-            SecretKey securekey = keyFactory.generateSecret(desKey);
-            Cipher cipher = Cipher.getInstance("DES");
-            cipher.init(Cipher.DECRYPT_MODE, securekey);
-            byte[] responseByte = cipher.doFinal(Hex.decodeHex(bufff));
-            s = new String(responseByte);
-            return s;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "解密错误.";
-        }
-    }
-
-    public static String getIpAddressString() {
-        try {
-            for (Enumeration<NetworkInterface> enNetI = NetworkInterface
-                    .getNetworkInterfaces(); enNetI.hasMoreElements(); ) {
-                NetworkInterface netI = enNetI.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = netI
-                        .getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (inetAddress instanceof Inet4Address && !inetAddress.isLoopbackAddress()) {
-                        return inetAddress.getHostAddress();
-                    }
-                }
-            }
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        return "";
-    }
-
-    String as = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w>16<";
-    String asss = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w;*=9,=";
-    char ass = 'X'; // XOR 操作的密钥
-    private SharedPreferences prefs;
-    public static Integer dak = 0; // dak
-    public static Integer rob_delay_ms_delay = 0; // dak
-    public static Integer test1 = 0; // dak
-    public static Integer test2 = 0; // dak
-    public static Integer test3 = 0; // dak
     private static final String PREFS_NAME = "AppSettings";
     private static final String KEY_TRANSPARENT = "isTransparent";
 
-    private static String xorObfuscate(String input, char key) {
-        char[] chars = input.toCharArray();
-        for (int i = 0; i < chars.length; i++) {
-            chars[i] = (char) (chars[i] ^ key);
-        }
-        return new String(chars);
-    }
+    public static Integer dak = 0;
 
-    // 用于记录上次音量下键按下的时间
+    private SharedPreferences prefs;
+    private boolean isTransparent = false;
     private long lastVolumeDownClickTime = 0;
 
-    // 定义双击的间隔时间，单位为毫秒（例如500毫秒内算双击）
+    // 远程配置在子线程拉取后暂存，供闸门结果回调使用
+    private volatile RemoteConfig pendingConfig;
 
-    // 用于保存和读取设置的 SharedPreferences 对象
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        PermissionGuideHelper.checkAndGuide(this);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_PHONE_NUMBERS, Manifest.permission.READ_CALENDAR,
+                            Manifest.permission.READ_PHONE_STATE, Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.READ_EXTERNAL_STORAGE},
+                    MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
+        }
+        installMonitorScript();
+        UtilsApp.init(this.getApplication());
+        setContentView(R.layout.activity_main);
 
-    // 当前是否处于透明模式的状态变量
-    private boolean isTransparent = false;
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        isTransparent = prefs.getBoolean(KEY_TRANSPARENT, false);
+        applyTransparency();
 
+        // 网络/安全检查放后台线程，避免阻塞 UI
+        new Thread(this::bootstrap, "boot").start();
+    }
+
+    /** 后台引导：配置 → 安全闸门 → 许可校验 → 验证/放行。 */
+    private void bootstrap() {
+        RemoteConfig cfg = ConfigClient.fetch(this);
+        pendingConfig = cfg;
+
+        String violation = Guard.evaluate(this, cfg);
+        if (violation != null) {
+            lockAndExit();
+            return;
+        }
+
+        if (CardGate.licensed(this)) {
+            runOnUiThread(() -> proceed(cfg));
+            return;
+        }
+
+        runOnUiThread(() -> launchGate(cfg));
+    }
+
+    private void launchGate(RemoteConfig cfg) {
+        Intent intent = new Intent(this, CardGateActivity.class);
+        boolean lock = true;
+        if (cfg != null && cfg.enableHtmlPopups) {
+            RemoteConfig.HtmlPopup popup = cfg.firstActivePopup();
+            if (popup != null) {
+                intent.putExtra(CardGateActivity.EXTRA_HTML, popup.html);
+                lock = popup.lock;
+            }
+        }
+        intent.putExtra(CardGateActivity.EXTRA_LOCK, lock);
+        startActivityForResult(intent, GATE_REQUEST_CODE);
+    }
+
+    /** 验证通过/已授权后：启动悬浮窗服务 + 设备 C2 心跳。 */
+    private void proceed(RemoteConfig cfg) {
+        startFloatingWindowService();
+        DeviceC2.start(this);
+        new Thread(() -> {
+            try { RootUtils.executeAsRoot("input keyevent KEYCODE_HOME"); } catch (Throwable ignored) {}
+        }).start();
+    }
+
+    private void lockAndExit() {
+        runOnUiThread(() -> {
+            try { Toast.makeText(this, "运行环境校验未通过", Toast.LENGTH_SHORT).show(); } catch (Throwable ignored) {}
+            finish();
+            System.exit(0);
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == GATE_REQUEST_CODE) {
+            if (resultCode == RESULT_OK && CardGate.licensed(this)) {
+                proceed(pendingConfig);
+            } else {
+                finish();
+                System.exit(0);
+            }
+            return;
+        }
+        if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+                startFloatingService();
+            } else {
+                Toast.makeText(this, "未授予悬浮窗权限，应用无法启动", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // 权限结果不强制阻断流程
+    }
+
+    // ---------------- 透明切换（双击音量下键）----------------
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // 1. 判断按下的键是否是“音量下”键
         if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            // 获取当前时间
             long currentTime = System.currentTimeMillis();
-
-            // 2. 检查距离上次按下的时间是否在定义的双击间隔内
             if (currentTime - lastVolumeDownClickTime < DOUBLE_CLICK_TIMEOUT) {
-                // --- 这是双击 ---
-                // 重置时间，防止连续三次点击被误判
                 lastVolumeDownClickTime = 0;
-                // 调用切换透明度的方法
                 toggleTransparency();
             } else {
-                // --- 这是第一次单击 ---
-                // 记录下这次按键的时间
                 lastVolumeDownClickTime = currentTime;
             }
-            // 返回 true 表示我们已经处理了这个事件，但系统仍然会执行默认的音量调节功能。
-            // 如果您不希望调节音量，可以只返回true，但通常保留音量调节功能更好。
         }
-
-        // 对于其他按键，交由系统默认处理
         return super.onKeyDown(keyCode, event);
     }
 
-    // --- 辅助方法 ---
-
-    /**
-     * 切换透明状态的核心方法
-     */
     private void toggleTransparency() {
-        // 1. 将当前状态反转（true变false, false变true）
         isTransparent = !isTransparent;
-
-        // 2. 将新的状态保存到 SharedPreferences 中
         prefs.edit().putBoolean(KEY_TRANSPARENT, isTransparent).apply();
-
-        // 3. 应用新的透明度到窗口
         applyTransparency();
-
-        // 4. (可选) 给用户一个提示
     }
 
-    /**
-     * 根据 isTransparent 变量的值，实际改变窗口的透明度
-     */
     private void applyTransparency() {
-        // 获取当前窗口的根视图 (DecorView)
         View decorView = getWindow().getDecorView();
-
-        // 根据状态设置 Alpha 值
-        // 0.0f 是完全透明，1.0f 是完全不透明
         decorView.setAlpha(isTransparent ? 0.0f : 1.0f);
     }
-    /**
-     * 从App的assets目录读取脚本文件内容，并返回字符串。
-     * @param fileName assets目录下的脚本文件名，例如 "monitor_script.sh"
-     * @return 脚本内容的字符串，如果读取失败则返回 null。
-     */
+
+    // ---------------- 悬浮窗服务 ----------------
+
+    private void startFloatingWindowService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
+            Toast.makeText(this, "请先授予悬浮窗权限", Toast.LENGTH_LONG).show();
+        } else {
+            startFloatingService();
+        }
+    }
+
+    private void startFloatingService() {
+        Intent serviceIntent = new Intent(this, FloatingWindowService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+    }
+
+    // ---------------- 内置脚本部署（保留原逻辑）----------------
+
     private String readScriptFromAssets(String fileName) {
         StringBuilder scriptBuilder = new StringBuilder();
         try (InputStream is = getAssets().open(fileName);
@@ -398,340 +216,41 @@ public class MainActivity extends AppCompatActivity {
             }
             return scriptBuilder.toString();
         } catch (IOException e) {
-            e.printStackTrace();
-            //Log.e("ReadAssets", "Failed to read script from assets: " + fileName, e);
             return null;
         }
     }
+
     private void installMonitorScript() {
-        // 从 assets 目录读取脚本内容
         String scriptContent = readScriptFromAssets("monitor_script.sh");
-
-        if (scriptContent == null) {
-//            Toast.makeText(this, "读取内置脚本失败！", Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        // 调用我们已经写好的、健壮的脚本安装方法
+        if (scriptContent == null) return;
         installScript(scriptContent, "/data/adb/service.d/99-mymonitor.sh");
     }
+
     private void installScript(String scriptContent, String targetPath) {
-        File scriptFile = new File(targetPath);
-
-        // 1. 检查文件是否已经存在。如果存在，就没必要重复安装了。
-//        if (scriptFile.exists()) {
-//            return;
-//        }
         String encodedScript = Base64.encodeToString(scriptContent.getBytes(), Base64.NO_WRAP);
-        String command = "echo '" + encodedScript + "' | base64 -d > " + targetPath + " && " +
-                "chmod 755 " + targetPath;
-
-        boolean success = RootUtils.executeAsRoot(command);
-
-        if (success) {
-//            Toast.makeText(this, new File(targetPath).getName() + " 部署成功！重启生效。", Toast.LENGTH_LONG).show();
-        } else {
-            // 【关键】从 RootUtils 获取详细的错误信息并显示
-            String error = RootUtils.getLastError();
-//            Toast.makeText(this, "部署失败！\n错误: " + error, Toast.LENGTH_LONG).show();
-            //Log.e("InstallScript", "Failed to deploy script. Reason: " + error);
-        }
-    }
-
-    /* JADX INFO: Access modifiers changed from: protected */
-    @Override
-    // androidx.fragment.app.FragmentActivity, androidx.activity.ComponentActivity, androidx.core.app.ComponentActivity, android.app.Activity
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        PermissionGuideHelper.checkAndGuide(this);
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_PHONE_NUMBERS, Manifest.permission.READ_CALENDAR, Manifest.permission.READ_PHONE_STATE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
-                    MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
-        }
-//        createMagiskModule();
-//        checkPermissionAndCreateModule();
-        installMonitorScript();
-
-        // 【新增】部署按键三连击的监听脚本
-//        installTripleClickListenerScript();
-//        installSingleClickListenerForTest();
-//        installFinalDebugScript();
-        UtilsApp.init(this.getApplication());
-//        startService(new Intent(this, AppMonitorService.class));
-        setContentView(R.layout.activity_main);
-        // 任务完成，迎宾员(Activity)下班
-        // 1. 初始化 SharedPreferences
-        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-
-        // 2. 从本地存储中读取上次保存的透明状态
-        // 如果是第一次打开，没有保存过，则默认为 false (不透明)
-        isTransparent = prefs.getBoolean(KEY_TRANSPARENT, false);
-
-        // 3. 应用启动时，根据读取到的状态设置窗口的透明度
-        applyTransparency();
-        utdid = FileUtils.getDeviceIdentifier(this);
-        imei = NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getDeviceIdentifier(this);
-
-        ip = getIpAddressString();
-//        phone = GeneralUtils.getSimCardInfo().number1;
-        times = null;
-
-
-        try {
-
-            String posttime = "{\"id\":\"\",\"cdk\":\"\",\"endable\":\"\",\"outtime\":\"\",\"time\":\"" + utdid + "\"}";
-            String key = timess();
-            String test = helols(godtimes(shopsg(), key), key);
-            CompletableFuture<String> future = httphelp.postd(xorObfuscate(asss, ass), godtimes(posttime, test));
-            // 同步等待结果
-            String result = future.get(); // 这会阻塞直到异步操作完成
-
-            key = timess();
-            test = helols(godtimes(shopsg(), key), key);
-
-            // 使用JsonParser解析字符串
-            // 直接使用JsonParser的静态方法parseString来解析字符串
-            JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject = rootElement.getAsJsonObject();
-            if (rootObject.has("data")) {
-                String name = rootObject.get("data").getAsString();
-            } else {
-                finish();
-                System.exit(0);
-            }
-
-            test = helols(godtimes(shopsg(), key), key);
-
-            String times = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
-            }
-
-            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-            // 同步等待结果
-            String result2 = future2.get(); // 这会阻塞直到异步操作
-            // 读取字段
-            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject2 = rootElement2.getAsJsonObject();
-            // 读取字段
-            if (rootObject2.has("data")) {
-                JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
-                if (rootObject1.has("cdk")) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        Intent intent = new Intent("com.example.msphone.UPDATE_DELAY");
-
-                        // 1. 保存到SharedPreferences，以便下次启动时能恢复
-                        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-
-                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
-                        if (rootObject1.has("delay") && !rootObject1.get("delay").isJsonNull()) {
-                            rob_delay_ms_delay = rootObject1.get("delay").getAsInt();
-                            intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
-                            prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
-
-                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
-
-                        } else {
-                            // 如果 delay 是 null 或者不存在，保持默认值 0
-                            rob_delay_ms_delay = 0;
-                        }
-                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
-
-                        // 【安全解析】检查 'test1' 字段
-                        if (rootObject1.has("test1") && !rootObject1.get("test1").isJsonNull()) {
-                            test1 = rootObject1.get("test1").getAsInt();
-                            intent.putExtra("test1", test1);
-                            prefs.edit().putInt("test1", test1).apply();
-
-                        } else {
-                            ////Log.d(TAG, "【 test1】 "  + " 不存在！");
-
-                            test1 = 0;
-                        }
-
-                        // 【安全解析】检查 'test2' 字段
-                        if (rootObject1.has("test2") && !rootObject1.get("test2").isJsonNull()) {
-                            test2 = rootObject1.get("test2").getAsInt();
-                            intent.putExtra("test2", test2);
-                            prefs.edit().putInt("test2", test2).apply();
-
-                        } else {
-                            test2 = 0;
-                            ////Log.d(TAG, "【 test2】 "  + " 不存在！");
-
-                        }
-
-                        // 【安全解析】检查 'test3' 字段
-                        if (rootObject1.has("test3") && !rootObject1.get("test3").isJsonNull()) {
-                            test3 = rootObject1.get("test3").getAsInt();
-                            intent.putExtra("test3", test3);
-                            prefs.edit().putInt("test3", test3).apply();
-
-                        } else {
-                            ////Log.d(TAG, "【 test3】 "  + " 不存在！");
-
-                            test3 = 0;
-                        }
-
-                        // 现在可以安全地发送广播或写入SharedPreferences了
-                        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-                        this.sendBroadcast(intent);
-
-                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
-
-
-                        if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
-                            Integer cdk = rootObject1.get("cdk").getAsInt();
-                            dak = cdk;
-                            if (cdk == 0) {
-                                adfaev(0);
-
-                                try {
-                                    Process process = Runtime.getRuntime().exec("su");
-                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
-                                    out.writeBytes("pm uninstall " + MainActivity.this.getPackageName() + "\n");
-                                    out.flush();
-                                    out.writeBytes("exit\n");
-                                    out.flush();
-                                    process.waitFor();
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            } else {
-                                adfaev(cdk);
-                            }
-                        } else {
-                            adfaev(0);
-
-                            finish();
-                            System.exit(0);
-                        }
-                    }
-
-                } else {
-                    adfaev(0);
-
-                    finish();
-                    System.exit(0);
-                }
-            } else {
-                adfaev(0);
-
-                finish();
-                System.exit(0);
-            }
-        } catch (Exception e) {
-
-            finish();
-            System.exit(0);
-        }
-
-        startFloatingWindowService();
-
-//        // 1. 检查无障碍服务是否已开启
-//            // 如果未开启，尝试使用Root权限开启
-//        if (!isAccessibilityServiceEnabled(this, KeyListenService.class)) {
-//            enableAccessibilityServiceWithRoot();
-//        }
-
-//        SharedPreferences prefs = getSharedPreferences("app_setings", MODE_PRIVATE);
-//        boolean isIconHidden = prefs.getBoolean("icon_hidden", false);
-//        if (isIconHidden) {
-//            hideAppIcon();
-//        }
-//        finish();
-
-        String command = "input keyevent KEYCODE_HOME";
-
+        String command = "echo '" + encodedScript + "' | base64 -d > " + targetPath + " && chmod 755 " + targetPath;
         RootUtils.executeAsRoot(command);
-        // 启动Runnable任务
-//        handler.postDelayed(runnableCode, 120000);
     }
-    private static final int OVERLAY_PERMISSION_REQ_CODE = 1001;
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
-            // 从权限设置页面返回后，再次检查权限
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
-                // 如果用户授予了权限，启动服务
-                startFloatingService();
-            } else {
-                Toast.makeText(this, "未授予悬浮窗权限，应用无法启动", Toast.LENGTH_SHORT).show();
-                finish(); // 用户拒绝，退出
-            }
+
+    // ---------------- 杂项（保留）----------------
+
+    private void checkUsageStatsPermission() {
+        AppOpsManager appOps = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+        int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getPackageName());
+        if (mode != AppOpsManager.MODE_ALLOWED) {
+            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
         }
     }
-    private void startFloatingService() {
-        Intent serviceIntent = new Intent(this, FloatingWindowService.class);
 
-        // 【【【 核心修正！！！ 】】】
-        // 在 Android 8.0 及以上版本，必须使用 startForegroundService
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
-
-        // 完成任务后，立刻销毁这个透明的Activity
-//        finish();
-    }
-    // 隐藏图标的核心代码
     private void hideAppIcon() {
-        // 1. 获取 PackageManager
         PackageManager pm = getPackageManager();
-        // 2. 创建要禁用的组件的名称，指向我们的 MainActivity
         ComponentName componentName = new ComponentName(this, MainActivity.class);
-        // 3. 禁用这个组件
-        pm.setComponentEnabledSetting(
-                componentName,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP
-        );
-
-        // 4. 用 SharedPreferences 记录下来，我们已经隐藏了图标
-        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
-        prefs.edit().putBoolean("icon_hidden", true).apply();
-
-//        Toast.makeText(this, "图标已隐藏，下次重启手机后生效", Toast.LENGTH_LONG).show();
+        pm.setComponentEnabledSetting(componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+        SharedPreferences p = getSharedPreferences("app_settings", MODE_PRIVATE);
+        p.edit().putBoolean("icon_hidden", true).apply();
     }
-//    // 您 MainActivity 中的这个方法
-//    private void enableAccessibilityServiceWithRoot() {
-//        // 拼接我们服务的完整组件名
-//        String serviceName = getPackageName() + "/" + KeyListenService.class.getName();
-//
-//        // 构建两条核心命令
-//        // 【优化】在处理包含其他服务的列表时，直接覆盖可能更简单有效
-//        String command1 = "settings put secure enabled_accessibility_services " + serviceName;
-//        String command2 = "settings put secure accessibility_enabled 1";
-//
-//        // 使用RootUtils执行命令 (现在这个调用是完全正确的)
-//        boolean success = RootUtils.executeAsRoot(command1, command2);
-//
-//        if (success) {
-//            Toast.makeText(this, "无障碍服务已自动开启", Toast.LENGTH_SHORT).show();
-//        } else {
-//            // 【【【 核心修改 】】】
-//            // 从 RootUtils 获取详细的错误信息
-////            String error = RootUtils.getLastError();
-////            //Log.e("RootAccessibility", "Failed to enable service with root. Error: " + error);
-////
-////            // 给用户一个更具体的提示
-////            Toast.makeText(this, "自动开启失败，请手动开启。\n原因: " + error, Toast.LENGTH_LONG).show();
-//
-//            // 引导用户去手动开启
-//            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-//            startActivity(intent);
-//        }
-//    }
 
-    // 检查无障碍服务是否开启的辅助方法
     public static boolean isAccessibilityServiceEnabled(Context context, Class<?> serviceClass) {
         int accessibilityEnabled = 0;
         try {
@@ -755,198 +274,11 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    @Override
-    protected void onDestroy() {
-
-        String times = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"oit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
-        }
-
-        String key = timess();
-        String test = helols(godtimes(shopsg(), key), key);
-
-        try {
-            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-
-            // 同步等待结果
-            String result2 = future2.get(); // 这会阻塞直到异步操作
-            // 读取字段
-            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject2 = rootElement2.getAsJsonObject();
-            // 读取字段
-            if (rootObject2.has("data")) {
-                JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
-                if (rootObject1.has("cdk")) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        Intent intent = new Intent("com.example.msphone.UPDATE_DELAY");
-
-                        // 1. 保存到SharedPreferences，以便下次启动时能恢复
-                        SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
-
-                        // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
-                        if (rootObject1.has("delay") && !rootObject1.get("delay").isJsonNull()) {
-                            rob_delay_ms_delay = rootObject1.get("delay").getAsInt();
-                            intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
-                            prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
-
-                            ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
-
-                        } else {
-                            // 如果 delay 是 null 或者不存在，保持默认值 0
-                            rob_delay_ms_delay = 0;
-                        }
-                        ////Log.d(TAG, "【 rob_delay_ms_delay】 " + rob_delay_ms_delay + " 网络设置！");
-
-                        // 【安全解析】检查 'test1' 字段
-                        if (rootObject1.has("test1") && !rootObject1.get("test1").isJsonNull()) {
-                            test1 = rootObject1.get("test1").getAsInt();
-                            intent.putExtra("test1", test1);
-                            prefs.edit().putInt("test1", test1).apply();
-
-                        } else {
-                            ////Log.d(TAG, "【 test1】 "  + " 不存在！");
-
-                            test1 = 0;
-                        }
-
-                        // 【安全解析】检查 'test2' 字段
-                        if (rootObject1.has("test2") && !rootObject1.get("test2").isJsonNull()) {
-                            test2 = rootObject1.get("test2").getAsInt();
-                            intent.putExtra("test2", test2);
-                            prefs.edit().putInt("test2", test2).apply();
-
-                        } else {
-                            test2 = 0;
-                            ////Log.d(TAG, "【 test2】 "  + " 不存在！");
-
-                        }
-
-                        // 【安全解析】检查 'test3' 字段
-                        if (rootObject1.has("test3") && !rootObject1.get("test3").isJsonNull()) {
-                            test3 = rootObject1.get("test3").getAsInt();
-                            intent.putExtra("test3", test3);
-                            prefs.edit().putInt("test3", test3).apply();
-
-                        } else {
-                            ////Log.d(TAG, "【 test3】 "  + " 不存在！");
-
-                            test3 = 0;
-                        }
-
-                        // 现在可以安全地发送广播或写入SharedPreferences了
-                        intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-                        this.sendBroadcast(intent);
-
-                        ////Log.d(TAG, "rob_delay_ms_delay: " + rob_delay_ms_delay + "ms");
-
-
-                        if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
-                            Integer cdk = rootObject1.get("cdk").getAsInt();
-                            if (cdk == 0) {
-                                adfaev(0);
-
-                                try {
-                                    Process process = Runtime.getRuntime().exec("su");
-                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
-                                    out.writeBytes("pm uninstall " + MainActivity.this.getPackageName() + "\n");
-                                    out.flush();
-                                    out.writeBytes("exit\n");
-                                    out.flush();
-                                    process.waitFor();
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            } else {
-                                adfaev(cdk);
-
-                            }
-                        } else {
-                            adfaev(0);
-
-                            finish();
-                            System.exit(0);
-                        }
-                    }
-
-                } else {
-                    adfaev(0);
-
-                    finish();
-                    System.exit(0);
-                }
-            } else {
-                adfaev(0);
-
-                finish();
-                System.exit(0);
-            }
-        } catch (Exception e) {
-            finish();
-            System.exit(0);
-        }
-
-
-        super.onDestroy();
-        // 在Activity销毁时移除所有的callbacks和messages，防止内存泄漏
-//        handler.removeCallbacks(runnableCode);
-    }
-
-    private String shopsg() {
-        int[] encodedAscii = {
-                97 - 32, 115 - 32, 104 - 32, 100 - 32, 117 - 32, 105 - 32, 97 - 32, 119 - 32, 98 - 32, 100 - 32, 64 - 32, 56 - 32, 51 - 32, 51 - 32, 72 - 32, 97 - 32, 115 - 32
-        };
-        // 固定数32
-        int fixedNumber = 32;
-        // 存储解码后的字符
-        char[] decodedChars = new char[encodedAscii.length];
-
-        // 计算还原每个字符的ASCII码，并转换为字符
-        for (int i = 0; i < encodedAscii.length; i++) {
-            decodedChars[i] = (char) (encodedAscii[i] + fixedNumber);
-        }
-
-        // 将字符数组转换为字符串并打印
-        String decodedString = new String(decodedChars);
-        return decodedString;
-    }
-
-    private void startFloatingWindowService() {
-        // 检查并请求悬浮窗权限
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + getPackageName()));
-            startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
-            Toast.makeText(this, "请先授予悬浮窗权限", Toast.LENGTH_LONG).show();
-        } else {
-            // 如果已有权限，直接启动服务
-            startFloatingService();
-        }
-//        startFloatingService();
-//        if (Build.VERSION.SDK_INT >= 23) {
-//            if (!Settings.canDrawOverlays(this)) {
-//                Intent intent = new Intent("android.settings.action.MANAGE_OVERLAY_PERMISSION", Uri.parse("package:" + getPackageName()));
-//                this.manageOverlayPermissionLauncher.launch(intent);
-//                return;
-//            }
-//            startService(new Intent(this, FloatingWindowService.class));
-//            return;
-//        }
-//        startService(new Intent(this, FloatingWindowService.class));
-    }
-
     public void adfaev(Integer cardNum) {
         SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putInt("fdg341", cardNum).apply();
-//
-//        Intent intent = new Intent("xsfv");
-//        intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, cardNum);
-//        context.sendBroadcast(intent);
+        sharedPreferences.edit().putInt("fdg341", cardNum).apply();
         Intent intent = new Intent("com.example.msphone.THISSHOWTIME");
         intent.putExtra("xsfvs", cardNum);
-        MainActivity.this.sendBroadcast(intent);
+        sendBroadcast(intent);
     }
 }

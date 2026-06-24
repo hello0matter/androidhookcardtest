@@ -1,0 +1,88 @@
+{
+  "next_id": 3,
+  "cards": [
+    {
+      "id": 1,
+      "card": "2AE990D2EC",
+      "name": "ADB????",
+      "duration_days": 30,
+      "status": "active",
+      "device_id": "",
+      "first_used_at": "",
+      "expires_at": "",
+      "note": "auto test",
+      "created_at": "2026-05-23T14:20:10.317Z",
+      "updated_at": "2026-05-23T16:30:06.502Z"
+    }
+  ],
+  "logs": [
+    {
+      "card": "NOTEXIST",
+      "device_id": "",
+      "ok": false,
+      "message": "卡密不存在",
+      "ip": "127.0.0.1",
+      "created_at": "2026-05-23T16:26:56.556Z"
+    },
+    {
+      "card": "NOTEXIST",
+      "device_id": "",
+      "ok": false,
+      "message": "卡密不存在",
+      "ip": "127.0.0.1",
+      "created_at": "2026-05-23T16:25:48.416Z"
+    },
+    {
+      "card": "NOTEXIST",
+      "device_id": "",
+      "ok": false,
+      "message": "卡密不存在",
+      "ip": "127.0.0.1",
+      "created_at": "2026-05-23T14:37:22.103Z"
+    }
+  ],
+  "next_device_id": 2,
+  "devices": [
+    {
+      "id": 1,
+      "device_id": "test-001",
+      "name": "���Ի�A",
+      "os": "android",
+      "software_type": "msphone",
+      "software_version": "1.0.0",
+      "ip": "127.0.0.1",
+      "group_id": 1,
+      "card": "",
+      "meta": {
+        "model": "TestPhone"
+      },
+      "registered_at": "2026-05-24T01:11:16.475Z",
+      "last_seen_at": "2026-05-24T01:11:28.662Z",
+      "status": "destroyed",
+      "config_override": null,
+      "pending_commands": [],
+      "created_at": "2026-05-24T01:11:16.475Z",
+      "updated_at": "2026-05-24T01:11:28.790Z"
+    }
+  ],
+  "next_group_id": 2,
+  "groups": [
+    {
+      "id": 1,
+      "name": "msphone",
+      "display_name": "msphone",
+      "config": {
+        "poll_interval": 60,
+        "enable_c2": true,
+        "enable_self_destruct": true
+      },
+      "created_at": "2026-05-24T01:11:16.474Z",
+      "updated_at": "2026-05-24T01:11:16.474Z"
+    }
+  ],
+  "global_config": {
+    "poll_interval": 60,
+    "enable_c2": true,
+    "enable_self_destruct": true
+  }
+}
