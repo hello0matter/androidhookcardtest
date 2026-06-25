@@ -266,7 +266,7 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
       <div class="row" style="justify-content:space-between"><h3>分组列表</h3><button onclick="loadGroups()">刷新</button></div>
       <div class="tableWrap">
         <table>
-          <thead><tr><th>ID</th><th>软件标识</th><th>显示名</th><th>轮询秒</th><th>启用 C2</th><th>能力开关</th><th>自动发卡</th><th>过期行为</th><th>弹窗标题</th><th>设备数</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>软件标识</th><th>显示名</th><th>轮询秒</th><th>启用 C2</th><th>能力开关</th><th>自动发卡</th><th>过期行为</th><th>自定义开关</th><th>弹窗标题</th><th>设备数</th><th>操作</th></tr></thead>
           <tbody id="groupsTbody"></tbody>
         </table>
       </div>
@@ -753,7 +753,7 @@ async function loadGroups(){
         <button class="small danger" onclick="deleteGroup(${g.id})">删除</button>
       </td>
     </tr>`;
-  }).join('') : '<tr><td colspan="11" style="text-align:center;color:#9ca3af;padding:20px">暂无分组</td></tr>';
+  }).join('') : '<tr><td colspan="12" style="text-align:center;color:#9ca3af;padding:20px">暂无分组</td></tr>';
 }
 async function createGroup(){
   const name = val('newGroupName'); if(!name){ alert('请填写软件标识'); return; }
@@ -766,6 +766,7 @@ async function createGroup(){
     allow_input_control: document.getElementById('newGroupInput').checked,
     auto_issue_card: document.getElementById('newGroupAutoIssue').checked,
     expire_action: document.getElementById('newGroupExpire').value,
+    switches: parseSwitches(document.getElementById('newGroupSwitches').value),
     popup_title: val('newGroupPopupTitle') || '请输入卡密',
     popup_message: val('newGroupPopupMsg') || '一机一卡，首次使用自动绑定设备'
   };
@@ -787,6 +788,7 @@ async function saveGroup(id){
     allow_input_control: document.getElementById('gInput_'+id) ? document.getElementById('gInput_'+id).checked : false,
     auto_issue_card: document.getElementById('gAutoIssue_'+id) ? document.getElementById('gAutoIssue_'+id).checked : false,
     expire_action: document.getElementById('gExpire_'+id) ? document.getElementById('gExpire_'+id).value : 'none',
+    switches: parseSwitches(document.getElementById('gSwitches_'+id) ? document.getElementById('gSwitches_'+id).value : ''),
     popup_title: document.getElementById('gPopupTitle_'+id).value || '请输入卡密'
   };
   const display_name = document.getElementById('gDisp_'+id).value;
@@ -1140,6 +1142,17 @@ function loadAuthImages() {
   });
 }
 
+// ---- 分组自定义开关 ----
+function parseSwitches(text){
+  if(!text) return [];
+  return text.split('\n').map(l=>l.trim()).filter(l=>l).map(l=>{
+    const parts=l.split(':');
+    return {key:parts[0]||'',name:parts[1]||parts[0]||'',default_on:parts[2]==='1'};
+  }).filter(s=>s.key);
+}
+function switchesToText(sw){
+  return (sw||[]).map(s=>s.key+':'+s.name+':'+(s.default_on?'1':'0')).join('\n');
+}
 // ---- helpers ----
 function showModal(html){ document.getElementById('modalContent').innerHTML = html; document.getElementById('modalMask').classList.remove('hide'); }
 function closeModal(){ document.getElementById('modalMask').classList.add('hide'); }
