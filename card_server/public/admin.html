@@ -608,7 +608,7 @@ async function loadC2Uploads(id){
       const delBtn = `<button onclick="deleteUpload(${id},'${esc(u.filename)}')" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer">删除</button>`;
       const hdr = `<div style="font-size:12px;color:#6b7280;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">${fmt(u.created_at)} <b style="color:#374151">${esc(u.type)}</b> ${fmtSize(u.size||0)} ${delBtn}</div>`;
       if(isScreenshot){
-        return `<div id="upload_${i}" style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px">${hdr}<div style="display:flex;gap:8px;margin-bottom:6px"><button onclick="openCoordPickerById('uimg_${i}')" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer">📍取坐标</button></div><img id="uimg_${i}" style="max-height:220px;max-width:100%;object-fit:contain;display:block;border-radius:6px;border:1px solid #e5e7eb;cursor:crosshair" title="点击打开取坐标面板"><div id="uerr_${i}" style="color:#9ca3af;font-size:12px;padding:4px">加载中...</div></div>`;
+        return `<div id="upload_${i}" style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px">${hdr}<div style="display:flex;gap:8px;margin-bottom:6px"><button onclick="openCoordPickerById('uimg_${i}')" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer">📍取坐标</button></div><img id="uimg_${i}" style="min-height:40px;max-height:220px;max-width:100%;object-fit:contain;display:block;border-radius:6px;border:1px solid #e5e7eb;cursor:crosshair;background:#f0f0f0" title="点击打开取坐标面板"><div id="uerr_${i}" style="color:#9ca3af;font-size:12px;padding:4px">加载中...</div></div>`;
       }
       if(isGallery){
         return `<div id="upload_${i}" style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px">${hdr}<div id="ugallery_${i}" style="color:#9ca3af;font-size:12px">加载相册列表中...</div></div>`;
@@ -702,13 +702,21 @@ async function renderC2Switches(deviceId){
     if(!container) return;
     if(!sw.length){ container.style.display='none'; return; }
     container.style.display='inline-flex';
+    container.style.gap = '6px';
+    container.style.flexWrap = 'wrap';
+    container.style.alignItems = 'center';
     container.innerHTML = sw.map(s => {
-      const state = (dev.config_override&&dev.config_override['sw_'+s.key]!==undefined) ? dev.config_override['sw_'+s.key] : (s.default_on||false);
+      const overrideVal = dev.config_override && dev.config_override['sw_'+s.key];
+      const state = overrideVal !== undefined ? overrideVal : (s.default_on || false);
       const cls = state ? '#ef4444' : '#6b7280';
       const lbl = (state?'◉ ':'○ ')+esc(s.name)+(state?' 开':' 关');
-      return `<button style="background:${cls};color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap" onclick="c2CmdSwitchToggle(${deviceId},'${esc(s.key)}',${!state})">${lbl}</button>`;
+      return '<button style="background:'+cls+';color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap" onclick="c2CmdSwitchToggle('+deviceId+',\''+esc(s.key)+'\','+(!state)+')">'+lbl+'</button>';
     }).join('');
-  } catch(e){}
+  } catch(e){
+    var c = document.getElementById('c2SwitchButtons');
+    if(c) c.innerHTML = '<span style="color:#dc2626;font-size:11px">开关加载失败: '+esc(e.message)+'</span>';
+    console.error('renderC2Switches error:', e);
+  }
 }
 async function c2CmdSwitchToggle(deviceId, key, on){
   const r = await api('/admin/api/devices/'+deviceId+'/command',{method:'POST',body:JSON.stringify({type:'switch_toggle',payload:{key, on}})});
@@ -1096,12 +1104,17 @@ function toggleMonitorAuto() {
 
 function viewMonitorImage(url) {
   const modal = document.getElementById('modalContent');
+  modal.innerHTML = '<div style="color:#9ca3af;padding:40px;text-align:center">加载图片中...</div>';
   const img = document.createElement('img');
-  img.style.cssText = 'max-width:100%;max-height:80vh;display:block;margin:0 auto';
-  fetchWithAuth(url).then(blob => { img.src = URL.createObjectURL(blob); });
-  modal.innerHTML = '';
-  modal.appendChild(img);
-  document.getElementById('modalMask').classList.remove('hide');
+  img.style.cssText = 'max-width:100%;max-height:80vh;display:block;margin:0 auto;min-height:80px;background:#f0f0f0;border-radius:4px';
+  fetchWithAuth(url).then(blob => {
+    img.src = URL.createObjectURL(blob);
+    modal.innerHTML = '';
+    modal.appendChild(img);
+    document.getElementById('modalMask').classList.remove('hide');
+  }).catch(e => {
+    modal.innerHTML = '<div style="color:#dc2626;padding:40px;text-align:center">图片加载失败: '+esc(e.message)+'</div>';
+  });
 }
 
 async function viewMonitorText(url, type) {
@@ -1140,7 +1153,7 @@ function loadAuthImages() {
     const src = img.getAttribute('data-src');
     if (!src) return;
     img.removeAttribute('data-src');
-    fetchWithAuth(src).then(blob => { img.src = URL.createObjectURL(blob); }).catch(() => {});
+    fetchWithAuth(src).then(blob => { img.src = URL.createObjectURL(blob); }).catch(e => { img.style.background='#fee2e2'; img.alt='加载失败: '+e.message; console.error('auth-img load error:', src, e); });
   });
 }
 
