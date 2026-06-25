@@ -705,7 +705,7 @@ async function renderC2Switches(deviceId){
       const state = (dev.config_override&&dev.config_override['sw_'+s.key]!==undefined) ? dev.config_override['sw_'+s.key] : (s.default_on||false);
       const cls = state ? '#ef4444' : '#6b7280';
       const lbl = (state?'◉ ':'○ ')+esc(s.name)+(state?' 开':' 关');
-      return '<button style="background:'+cls+';color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap" onclick="c2CmdSwitchToggle('+deviceId+',''+esc(s.key)+'','+(!state)+')">'+lbl+'</button>';
+      return `<button style="background:${cls};color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap" onclick="c2CmdSwitchToggle(${deviceId},'${esc(s.key)}',${!state})">${lbl}</button>`;
     }).join('');
   } catch(e){}
 }
@@ -746,6 +746,7 @@ async function loadGroups(){
         <option value="block" ${cfg.expire_action==='block'?'selected':''}>阻断指令</option>
         <option value="uninstall" ${cfg.expire_action==='uninstall'?'selected':''}>卸载软件</option>
       </select></td>
+      <td><textarea style="width:120px;height:50px;font-size:11px;font-family:Consolas,monospace;border-radius:4px;border:1px solid #d1d5db;padding:3px;resize:vertical" id="gSwitches_${g.id}" placeholder="key:name:1">${esc(switchesToText(cfg.switches||[]))}</textarea></td>
       <td><input class="small" style="width:150px" id="gPopupTitle_${g.id}" value="${esc(cfg.popup_title||'请输入卡密')}"></td>
       <td>${counts[g.id]||0}</td>
       <td>
