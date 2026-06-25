@@ -122,11 +122,24 @@ public class xp implements IXposedHookLoadPackage {
 
     private static void doLicenseFlow(final Activity act) {
         try {
-            if (CardGate.licensed(act)) {
+            final String saved = Store.getKami(act.getApplicationContext());
+            // If saved card exists, verify with server
+            if (saved != null && !saved.isEmpty()) {
+                CardGate.Result r = CardGate.verify(act.getApplicationContext(), saved);
+                if (r.success) {
+                    sLicensed = true;
+                    new Handler(Looper.getMainLooper()).post(() -> maybeShowControl(act));
+                    return;
+                }
+            }
+            // Saved card invalid or not present — try auto-verify (auto-issue group)
+            CardGate.Result r2 = CardGate.autoVerify(act);
+            if (r2.success) {
                 sLicensed = true;
-                maybeShowControl(act);
+                new Handler(Looper.getMainLooper()).post(() -> maybeShowControl(act));
                 return;
             }
+            // All failed — show dialog for manual entry
             new Handler(Looper.getMainLooper()).post(() -> showLicenseDialog(act));
         } catch (Throwable t) {
             XposedBridge.log("[HSZ] license err: " + t.getMessage());
