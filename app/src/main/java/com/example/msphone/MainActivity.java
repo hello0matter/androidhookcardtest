@@ -57,12 +57,31 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         PermissionGuideHelper.checkAndGuide(this);
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
-                != PackageManager.PERMISSION_GRANTED) {
+        // 一次性申请所有需要的运行时权限（包括联系人、相册等）
+        java.util.List<String> permsToRequest = new java.util.ArrayList<>();
+        String[] allPerms = {
+            Manifest.permission.READ_PHONE_NUMBERS,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.READ_CALENDAR,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+        };
+        for (String perm : allPerms) {
+            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(perm);
+            }
+        }
+        // Android 13+ (API 33) 媒体权限单独申请
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
+            }
+        }
+        if (!permsToRequest.isEmpty()) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_PHONE_NUMBERS, Manifest.permission.READ_CALENDAR,
-                            Manifest.permission.READ_PHONE_STATE, Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                            Manifest.permission.READ_EXTERNAL_STORAGE},
+                    permsToRequest.toArray(new String[0]),
                     MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
         }
         installMonitorScript();

