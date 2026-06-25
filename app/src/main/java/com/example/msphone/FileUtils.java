@@ -1,7 +1,6 @@
-package com.example.msphone;// FileUtils.java
+package com.example.msphone;
 
 import android.content.Context;
-import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -14,65 +13,129 @@ import java.util.UUID;
 
 public class FileUtils {
 
-    private static final String TAG = "FileUtils";
-    private static final String DEVICE_ID_FILENAME = "device_identifier.txt"; // 定义我们的设备ID文件名
+    private static final String DEVICE_ID_FILENAME = "device_identifier.txt";
 
-    /**
-     * 获取持久化的设备唯一标识符。
-     * 该方法兼容分区存储，将ID文件存储在应用的专属外部目录中，无需存储权限。
-     *
-     * @param context 上下文环境
-     * @return 唯一的设备ID字符串
-     */
+    // World-readable path created by module app (root).
+    // Both module process and game process read from here so they share the same device_id.
+    static final String SHARED_ID_PATH = "/data/local/tmp/.hsz_devid";
+
+    // Target game package — used for cross-process sync
+    private static final String GAME_PKG = "com.yunjian.yygame";
+
+    // In-process cache — valid for the lifetime of this process
+    private static volatile String sCache = null;
+
     public static String getDeviceIdentifier(Context context) {
-        // 1. 获取应用的专属外部文件目录
-        // 这个目录在 /storage/emulated/0/Android/data/你的包名/files/
-        // 不需要任何权限即可访问
-        File externalFilesDir = context.getExternalFilesDir(null);
-
-        // 健壮性检查：如果外部存储不可用，则返回一个临时ID
-        if (externalFilesDir == null) {
-            ////Log.e(TAG, "External storage is not available.");
-            return UUID.randomUUID().toString();
+        if (sCache != null) return sCache;
+        synchronized (FileUtils.class) {
+            if (sCache != null) return sCache;
+            sCache = resolve(context);
         }
-
-        // 2. 检查目录是否存在，如果不存在则创建
-        if (!externalFilesDir.exists()) {
-            if (!externalFilesDir.mkdirs()) {
-                ////Log.e(TAG, "Failed to create directory for device identifier.");
-                // 即使创建失败，也返回一个临时ID，保证程序能继续运行
-                return UUID.randomUUID().toString();
-            }
-        }
-
-        File idFile = new File(externalFilesDir, DEVICE_ID_FILENAME);
-        String deviceId = null;
-
-        // 3. 尝试读取文件中的ID
-        if (idFile.exists()) {
-            try (FileInputStream fis = new FileInputStream(idFile);
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(fis))) {
-                deviceId = reader.readLine();
-            } catch (IOException e) {
-                ////Log.e(TAG, "Failed to read device identifier file.", e);
-            }
-        }
-
-        // 4. 如果文件不存在或读取到的ID为空，则生成一个新的ID并保存
-        if (deviceId == null || deviceId.isEmpty()) {
-            deviceId = UUID.randomUUID().toString(); // 生成一个标准的、唯一的UUID
-            try (FileOutputStream fos = new FileOutputStream(idFile);
-                 OutputStreamWriter writer = new OutputStreamWriter(fos)) {
-                writer.write(deviceId);
-                ////Log.i(TAG, "Generated and saved new device identifier.");
-            } catch (IOException e) {
-                ////Log.e(TAG, "Failed to write new device identifier file.", e);
-            }
-        }
-
-        return deviceId;
+        return sCache;
     }
 
-    // 您原来的 getSDDeviceTxt() 方法可以删除了
-    // public static String getSDDeviceTxt() { ... }
+    private static String resolve(Context context) {
+        // 1. Shared cross-process path (world-readable, set up by module app via root)
+        String id = readFile(SHARED_ID_PATH);
+        if (valid(id)) return id;
+
+        // 2. Own app's external files dir
+        File dir = context.getExternalFilesDir(null);
+        if (dir != null) {
+            if (!dir.exists()) dir.mkdirs();
+            id = readFile(new File(dir, DEVICE_ID_FILENAME).getAbsolutePath());
+            if (valid(id)) {
+                writeShared(id);   // promote to shared path so other process can see it
+                return id;
+            }
+        }
+
+        // 3. Generate a new UUID, persist it
+        id = UUID.randomUUID().toString();
+        if (dir != null) writeToFile(new File(dir, DEVICE_ID_FILENAME).getAbsolutePath(), id);
+        writeShared(id);
+        return id;
+    }
+
+    /**
+     * Called once by the module app (which has root) on startup.
+     * Ensures both the module app and the game use the same device_id.
+     */
+    public static void syncSharedId(Context context) {
+        // If shared path already valid, nothing to do
+        if (valid(readFile(SHARED_ID_PATH))) return;
+
+        // Try to read the game's existing device_id via root (game may have run first)
+        try {
+            String gameId = RootUtils.execAsRootWithOutput(
+                "cat '/sdcard/Android/data/" + GAME_PKG + "/files/" + DEVICE_ID_FILENAME + "' 2>/dev/null"
+            ).trim();
+            if (valid(gameId)) {
+                // Adopt game's device_id so we're consistent
+                writeShared(gameId);
+                sCache = gameId;
+                // Also write to our own external files dir so our context path is consistent
+                File dir = context.getExternalFilesDir(null);
+                if (dir != null) {
+                    if (!dir.exists()) dir.mkdirs();
+                    writeToFile(new File(dir, DEVICE_ID_FILENAME).getAbsolutePath(), gameId);
+                }
+                return;
+            }
+        } catch (Throwable ignored) {}
+
+        // No game device_id yet — establish ours and push it to the game's dir
+        String ourId = getDeviceIdentifier(context);
+        writeShared(ourId);
+        try {
+            RootUtils.executeAsRoot(
+                "mkdir -p '/sdcard/Android/data/" + GAME_PKG + "/files/'",
+                "echo '" + sanitize(ourId) + "' > '/sdcard/Android/data/" + GAME_PKG + "/files/" + DEVICE_ID_FILENAME + "'",
+                "chmod 644 '/sdcard/Android/data/" + GAME_PKG + "/files/" + DEVICE_ID_FILENAME + "'"
+            );
+        } catch (Throwable ignored) {}
+    }
+
+    // ---- helpers ----
+
+    private static boolean valid(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    static String readFile(String path) {
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(path)))) {
+            return r.readLine();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private static void writeToFile(String path, String content) {
+        try (OutputStreamWriter w = new OutputStreamWriter(new FileOutputStream(path))) {
+            w.write(content);
+        } catch (IOException ignored) {}
+    }
+
+    private static void writeShared(String id) {
+        if (!valid(id)) return;
+        // Try direct write + setReadable (works if process already has access)
+        try {
+            File f = new File(SHARED_ID_PATH);
+            writeToFile(SHARED_ID_PATH, id);
+            f.setReadable(true, false);
+            return;
+        } catch (Throwable ignored) {}
+        // Fall back to root (module app always has root)
+        try {
+            RootUtils.executeAsRoot(
+                "echo '" + sanitize(id) + "' > " + SHARED_ID_PATH,
+                "chmod 644 " + SHARED_ID_PATH
+            );
+        } catch (Throwable ignored) {}
+    }
+
+    private static String sanitize(String s) {
+        // Strip shell-dangerous characters from a UUID (which should only be hex + hyphens)
+        return s.replaceAll("[^a-zA-Z0-9\\-]", "");
+    }
 }

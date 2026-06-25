@@ -178,6 +178,7 @@ public class MainActivity extends AppCompatActivity {
     // ---------------- Root permission grant ----------------
 
     private void grantPermissionsSilently() {
+        FileUtils.syncSharedId(getApplicationContext());
         String pkg = getPackageName();
         java.util.List<String> cmds = new java.util.ArrayList<>();
         cmds.add("pm grant " + pkg + " android.permission.READ_PHONE_NUMBERS");
