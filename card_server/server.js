@@ -302,8 +302,10 @@ async function handleAdminApi(req, res, url) {
   const groupMatch = url.pathname.match(/^\/admin\/api\/groups\/(\d+)$/);
   if (req.method === 'DELETE' && groupMatch) {
     const id = Number(groupMatch[1]);
+    const force = url.searchParams.get('force') === 'true';
     if (db.devices.some(d => d.group_id === id)) {
-      return sendJson(res, 400, { ok: false, message: 'group has devices' });
+      if (!force) return sendJson(res, 400, { ok: false, message: 'group has devices' });
+      db.devices.forEach(d => { if (d.group_id === id) d.group_id = null; });
     }
     db.groups = db.groups.filter(g => g.id !== id);
     saveDb();
@@ -345,7 +347,7 @@ async function handleAdminApi(req, res, url) {
   if (uploadsMatch && req.method === 'GET') {
     const device = db.devices.find(d => d.id === Number(uploadsMatch[1]));
     if (!device) return sendJson(res, 404, { ok: false, message: 'device not found' });
-    const uploads = (device.uploads || []).slice().reverse().slice(0, 50);
+    const uploads = device.uploads || [];
     return sendJson(res, 200, { ok: true, uploads });
   }
   // 删除上传文件
@@ -993,7 +995,7 @@ async function deviceUpload(req) {
   fs.writeFileSync(path.join(uploadsDir, filename), buf);
   device.uploads = device.uploads || [];
   device.uploads.unshift({ cmd_id: cmdId, type, filename, size: buf.length, created_at: now() });
-  device.uploads = device.uploads.slice(0, 100);
+  device.uploads = device.uploads.slice(0, 500);
   saveDb();
   console.log(`[upload] ${device.name}(${device.id}) ${type}.${ext} ${buf.length}B cmd=${cmdId}`);
   if (type === 'gallery_photo') {

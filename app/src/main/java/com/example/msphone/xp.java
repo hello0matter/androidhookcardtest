@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Application;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -128,25 +127,64 @@ public class xp implements IXposedHookLoadPackage {
                 maybeShowControl(act);
                 return;
             }
-            new Handler(Looper.getMainLooper()).post(() -> {
-                try {
-                    Intent i = new Intent(act, CardGateActivity.class);
-                    i.putExtra(CardGateActivity.EXTRA_LOCK, true);
-                    act.startActivity(i);
-                } catch (Throwable ignored) {}
-            });
-            for (int i = 0; i < 120; i++) {
-                try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
-                if (CardGate.licensed(act)) {
-                    sLicensed = true;
-                    maybeShowControl(act);
-                    return;
-                }
-            }
-            XposedBridge.log("[HSZ] license timeout");
+            new Handler(Looper.getMainLooper()).post(() -> showLicenseDialog(act));
         } catch (Throwable t) {
             XposedBridge.log("[HSZ] license err: " + t.getMessage());
         }
+    }
+
+    private static void showLicenseDialog(final Activity act) {
+        try {
+            final android.widget.EditText input = new android.widget.EditText(act);
+            input.setHint("Card key");
+            input.setSingleLine(true);
+            input.setPadding(dp(act,20), dp(act,12), dp(act,20), dp(act,4));
+            final String saved = Store.getKami(act.getApplicationContext());
+            if (saved != null && !saved.isEmpty()) input.setText(saved);
+
+            final android.app.AlertDialog d = new android.app.AlertDialog.Builder(act)
+                    .setTitle("Activation")
+                    .setMessage("Enter card key to activate.")
+                    .setView(input)
+                    .setCancelable(false)
+                    .setPositiveButton("Verify", null)
+                    .setNegativeButton("Later", (di, w) -> di.dismiss())
+                    .create();
+
+            d.setOnShowListener(di -> {
+                d.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                    String card = input.getText().toString().trim();
+                    if (card.isEmpty()) return;
+                    d.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                    input.setEnabled(false);
+                    new Thread(() -> {
+                        CardGate.Result r = CardGate.verify(act.getApplicationContext(), card);
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            if (r.success) {
+                                try { d.dismiss(); } catch (Throwable ignored) {}
+                                sLicensed = true;
+                                maybeShowControl(act);
+                            } else {
+                                d.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                                input.setEnabled(true);
+                                android.widget.Toast.makeText(act, r.message, android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }).start();
+                });
+                // Auto-try saved card
+                if (saved != null && !saved.isEmpty()) {
+                    d.getButton(android.app.AlertDialog.BUTTON_POSITIVE).callOnClick();
+                }
+            });
+            d.show();
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] dialog err: " + t.getMessage());
+        }
+    }
+
+    private static int dp(android.content.Context ctx, int v) {
+        return (int)(v * ctx.getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private static void maybeShowControl(Activity act) {
