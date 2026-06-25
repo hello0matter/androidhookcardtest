@@ -70,6 +70,21 @@ public class httphelp {
         return executeRequest(request);
     }
 
+    // POST multipart/form-data 上传文件 (fields 为文本字段，fileField 为文件名，fileBytes 为文件内容)
+    public static CompletableFuture<String> postMultipart(String url, java.util.Map<String, String> fields, String fileField, String filename, byte[] fileBytes, String mimeType) {
+        okhttp3.MultipartBody.Builder mb = new okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM);
+        if (fields != null) {
+            for (java.util.Map.Entry<String, String> e : fields.entrySet()) {
+                mb.addFormDataPart(e.getKey(), e.getValue() == null ? "" : e.getValue());
+            }
+        }
+        if (fileBytes != null) {
+            mb.addFormDataPart(fileField, filename, RequestBody.create(okhttp3.MediaType.parse(mimeType), fileBytes));
+        }
+        Request request = new Request.Builder().url(url).post(mb.build()).build();
+        return executeRequest(request);
+    }
+
     // GET 方法
     public static CompletableFuture<String> getd(String url) {
         Request request = new Request.Builder()

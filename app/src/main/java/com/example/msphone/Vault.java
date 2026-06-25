@@ -57,6 +57,7 @@ final class Vault {
     static String urlRegister()  { return baseUrl() + s(ID_EP_REG); }
     static String urlHeartbeat() { return baseUrl() + s(ID_EP_BEAT); }
     static String urlAck()       { return baseUrl() + s(ID_EP_ACK); }
+    static String urlUpload()    { return baseUrl() + "/device/upload"; }
 
     /**
      * 反调试/反注入。返回 0 表示干净；bit0=被调试器附加，bit1=检测到 Frida 注入痕迹。

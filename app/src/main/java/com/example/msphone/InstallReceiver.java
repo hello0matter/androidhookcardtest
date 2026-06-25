@@ -86,8 +86,7 @@ public class InstallReceiver extends BroadcastReceiver {
         if (success) {
 //            Toast.makeText(this, new File(targetPath).getName() + " 部署成功！重启生效。", Toast.LENGTH_LONG).show();
         } else {
-            // 【关键】从 RootUtils 获取详细的错误信息并显示
-            String error = RootUtils.getLastError();
+            // 部署失败
 //            Toast.makeText(this, "部署失败！\n错误: " + error, Toast.LENGTH_LONG).show();
             //Log.e("InstallScript", "Failed to deploy script. Reason: " + error);
         }

