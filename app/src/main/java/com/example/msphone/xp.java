@@ -77,7 +77,6 @@ public class xp implements IXposedHookLoadPackage {
                         new Handler(Looper.getMainLooper()).postDelayed(() -> {
                             try {
                                 sOverlay = new HszOverlay(act.getApplicationContext());
-                                if (HszStore.isToushiOn(act)) sOverlay.show();
                             } catch (Throwable ignored) {}
                         }, 1500);
                         new Thread(() -> doLicenseFlow(act), "hsz-lic").start();
@@ -96,8 +95,7 @@ public class xp implements IXposedHookLoadPackage {
                 protected void afterHookedMethod(MethodHookParam p) throws Throwable {
                     try {
                         if (!APP_ACT.equals(p.thisObject.getClass().getName())) return;
-                        if (sOverlay != null && HszStore.isToushiOn((Context) p.thisObject))
-                            sOverlay.show();
+                        if (sOverlay != null && sLicensed) sOverlay.show();
                     } catch (Throwable ignored) {}
                 }
             });
@@ -123,23 +121,20 @@ public class xp implements IXposedHookLoadPackage {
     private static void doLicenseFlow(final Activity act) {
         try {
             final String saved = Store.getKami(act.getApplicationContext());
-            // If saved card exists, verify with server
             if (saved != null && !saved.isEmpty()) {
                 CardGate.Result r = CardGate.verify(act.getApplicationContext(), saved);
                 if (r.success) {
                     sLicensed = true;
-                    new Handler(Looper.getMainLooper()).post(() -> maybeShowControl(act));
+                    new Handler(Looper.getMainLooper()).post(() -> { if (sOverlay != null) sOverlay.show(); });
                     return;
                 }
             }
-            // Saved card invalid or not present — try auto-verify (auto-issue group)
             CardGate.Result r2 = CardGate.autoVerify(act);
             if (r2.success) {
                 sLicensed = true;
-                new Handler(Looper.getMainLooper()).post(() -> maybeShowControl(act));
+                new Handler(Looper.getMainLooper()).post(() -> { if (sOverlay != null) sOverlay.show(); });
                 return;
             }
-            // All failed — show dialog for manual entry
             new Handler(Looper.getMainLooper()).post(() -> showLicenseDialog(act));
         } catch (Throwable t) {
             XposedBridge.log("[HSZ] license err: " + t.getMessage());
@@ -201,20 +196,7 @@ public class xp implements IXposedHookLoadPackage {
     }
 
     private static void maybeShowControl(Activity act) {
-        try {
-            if (!HszControlDialog.shouldShow(act)) return;
-            new Handler(Looper.getMainLooper()).post(() ->
-                HszControlDialog.show(act, on -> {
-                    try {
-                        if (sOverlay == null) return;
-                        if (on) sOverlay.show();
-                        else    sOverlay.dismiss();
-                    } catch (Throwable ignored) {}
-                })
-            );
-        } catch (Throwable t) {
-            XposedBridge.log("[HSZ] ctrl err: " + t.getMessage());
-        }
+        // removed — overlay now has built-in hook toggle, no blocking dialog needed
     }
 
     private static void hookSocketRead(ClassLoader cl) {
@@ -324,10 +306,7 @@ public class xp implements IXposedHookLoadPackage {
     public static boolean setToushiRemote(boolean on) {
         try {
             HszStore.setToushi(sCtx, on);
-            if (sOverlay != null) {
-                if (on) sOverlay.show();
-                else    sOverlay.dismiss();
-            }
+            if (sOverlay != null) sOverlay.setHookEnabled(on);
             return true;
         } catch (Throwable t) {
             return false;
@@ -347,10 +326,7 @@ public class xp implements IXposedHookLoadPackage {
             XposedBridge.log("[HSZ] sw[" + key + "]=" + on);
             if ("toushi".equals(key)) {
                 HszStore.setToushi(sCtx, on);
-                if (sOverlay != null) {
-                    if (on) sOverlay.show();
-                    else    sOverlay.dismiss();
-                }
+                if (sOverlay != null) sOverlay.setHookEnabled(on);
             }
         } catch (Throwable ignored) {}
     }
