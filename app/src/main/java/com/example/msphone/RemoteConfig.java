@@ -35,6 +35,8 @@ public class RemoteConfig {
     // C2 全局/分组/设备级配置（device 接口里随 config 下发）
     @SerializedName("poll_interval")       public Integer pollInterval;
     @SerializedName("enable_c2")           public Boolean enableC2;
+    @SerializedName("heartbeat_verify")    public boolean heartbeatVerify = true;
+    @SerializedName("heartbeat_verify_interval_minutes") public int heartbeatVerifyIntervalMinutes;
     @SerializedName("enable_self_destruct") public Boolean enableSelfDestruct;
     @SerializedName("allow_device_diagnostics") public Boolean allowDeviceDiagnostics;
     @SerializedName("allow_root_commands") public Boolean allowRootCommands;

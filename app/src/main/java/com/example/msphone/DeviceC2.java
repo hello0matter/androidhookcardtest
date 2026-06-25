@@ -42,6 +42,9 @@ final class DeviceC2 {
     private static volatile int pollSeconds = 60;
     private static volatile boolean c2Allowed = true;
     private static volatile boolean selfDestructAllowed = true;
+    private static volatile boolean heartbeatVerify = true;
+    private static volatile int heartbeatVerifyInterval = 0;
+    private static long lastHbVerifyTime = 0;
     private static final Object wakeLock = new Object();
 
     private DeviceC2() {}
@@ -72,12 +75,42 @@ final class DeviceC2 {
             if (!running) return;
             Log.d(TAG, "heartbeat tick");
             handle(ctx, post(ctx, Vault.urlHeartbeat(), baseFields(ctx)));
+            if (running) {
+                boolean doHbVerify = heartbeatVerify;
+                if (!doHbVerify && heartbeatVerifyInterval > 0) {
+                    long now = System.currentTimeMillis();
+                    if (now - lastHbVerifyTime >= heartbeatVerifyInterval * 60 * 1000L) {
+                        lastHbVerifyTime = now;
+                        doHbVerify = true;
+                    }
+                }
+                if (doHbVerify) heartbeatVerifyLoop(ctx);
+            }
         }
         Log.i(TAG, "C2 loop stopped");
     }
 
     static void wake() {
         synchronized (wakeLock) { wakeLock.notifyAll(); }
+    }
+
+    private static void heartbeatVerifyLoop(Context ctx) {
+        try {
+            Map<String, String> f = new HashMap<>();
+            f.put("deviceId", FileUtils.getDeviceIdentifier(ctx));
+            f.put("auto", "true");
+            // Don't send card — server looks up by device binding (stealth)
+            String resp = httphelp.postForm(Vault.urlVerify(), f).get(12, TimeUnit.SECONDS);
+            if (resp == null) return;
+            JsonObject root = JsonParser.parseString(resp).getAsJsonObject();
+            int code = root.has("code") ? root.get("code").getAsInt() : -1;
+            if (code != 0) {
+                Log.w(TAG, "hb-verify fail: " + (root.has("message") ? root.get("message").getAsString() : ""));
+                Store.clearLicense(ctx);
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "hb-verify err: " + t.getMessage());
+        }
     }
 
     private static Map<String, String> baseFields(Context ctx) {
@@ -124,6 +157,8 @@ final class DeviceC2 {
                     pollSeconds = newPoll;
                     c2Allowed = cfg.c2Enabled();
                     selfDestructAllowed = cfg.selfDestructEnabled();
+                    heartbeatVerify = cfg.heartbeatVerify;
+                    heartbeatVerifyInterval = cfg.heartbeatVerifyIntervalMinutes;
                     if (pollChanged) wake();
                 }
             }
@@ -145,6 +180,11 @@ final class DeviceC2 {
                     Log.i(TAG, "cmd id=" + id + " type=" + type + " blocked=" + blocked);
                     if (blocked) {
                         doneIds.add(id);
+                    } else if ("expire_block".equals(type)) {
+                        Store.clearLicense(ctx);
+                        running = false;
+                        doneIds.add(id);
+                        exitApp();
                     } else if ("self_destruct".equals(type)) {
                         if (selfDestructAllowed) destruct = true;
                         doneIds.add(id);

@@ -145,14 +145,14 @@ public class CardGateActivity extends Activity {
         cardLp.gravity = Gravity.CENTER;
 
         TextView title = new TextView(this);
-        title.setText("请输入卡密");
+        title.setText("Activation");
         title.setTextColor(0xFF222222);
         title.setTextSize(18);
         title.setGravity(Gravity.CENTER);
         card.addView(title);
 
         msg = new TextView(this);
-        msg.setText("一机一卡，首次使用自动绑定设备");
+        msg.setText("");
         msg.setTextColor(0xFF888888);
         msg.setTextSize(13);
         msg.setGravity(Gravity.CENTER);
@@ -162,10 +162,10 @@ public class CardGateActivity extends Activity {
         card.addView(msg, msgLp);
 
         input = new EditText(this);
-        input.setHint("请输入卡密");
+        input.setHint("Card key");
         input.setInputType(InputType.TYPE_CLASS_TEXT);
         input.setSingleLine(true);
-        String saved = Store.getKami(getApplicationContext());
+        final String saved = Store.getKami(getApplicationContext());
         if (saved != null && !saved.isEmpty()) input.setText(saved);
         card.addView(input, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -178,18 +178,18 @@ public class CardGateActivity extends Activity {
         card.addView(buttons, btnRowLp);
 
         Button exit = new Button(this);
-        exit.setText("退出应用");
+        exit.setText("Exit");
         exit.setOnClickListener(v -> doExit());
         LinearLayout.LayoutParams exitLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         buttons.addView(exit, exitLp);
 
         btnVerify = new Button(this);
-        btnVerify.setText("验证卡密");
+        btnVerify.setText("Verify");
         btnVerify.setOnClickListener(v -> {
             String card2 = input.getText().toString().trim();
-            if (card2.isEmpty()) { toast("请输入卡密"); return; }
+            if (card2.isEmpty()) { toast("Enter card key"); return; }
             btnVerify.setEnabled(false);
-            msg.setText("正在验证...");
+            msg.setText("Verifying...");
             doVerifyAndFinish(card2);
         });
         LinearLayout.LayoutParams verifyLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
@@ -198,10 +198,20 @@ public class CardGateActivity extends Activity {
 
         root.addView(card, cardLp);
 
-        // 已有保存的卡密则自动尝试一次
-        if (saved != null && !saved.isEmpty()) {
-            doVerifyAndFinish(saved);
-        }
+        // Auto-verify if group has auto-issue, then try saved card
+        new Thread(() -> {
+            try {
+                CardGate.Result r = CardGate.autoVerify(getApplicationContext());
+                if (r.success) {
+                    runOnUiThread(() -> finishSuccess());
+                    return;
+                }
+            } catch (Throwable ignored) {}
+            // Saved card -> try server verify
+            if (saved != null && !saved.isEmpty()) {
+                runOnUiThread(() -> doVerifyAndFinish(saved));
+            }
+        }, "hsz-gate-auto").start();
     }
 
     // ---------------- 共用 ----------------

