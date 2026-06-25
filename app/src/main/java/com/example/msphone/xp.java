@@ -74,9 +74,11 @@ public class xp implements IXposedHookLoadPackage {
                 protected void afterHookedMethod(MethodHookParam p) throws Throwable {
                     try {
                         final Activity act = (Activity) p.thisObject;
+                        XposedBridge.log("[HSZ] AppActivity.onCreate fired");
                         new Handler(Looper.getMainLooper()).postDelayed(() -> {
                             try {
-                                sOverlay = new HszOverlay(act.getApplicationContext());
+                                sOverlay = new HszOverlay(act);
+                                if (sLicensed) sOverlay.show();
                             } catch (Throwable ignored) {}
                         }, 1500);
                         new Thread(() -> doLicenseFlow(act), "hsz-lic").start();
@@ -121,8 +123,10 @@ public class xp implements IXposedHookLoadPackage {
     private static void doLicenseFlow(final Activity act) {
         try {
             final String saved = Store.getKami(act.getApplicationContext());
+            XposedBridge.log("[HSZ] license flow, saved=" + (saved != null && !saved.isEmpty() ? "yes" : "no"));
             if (saved != null && !saved.isEmpty()) {
                 CardGate.Result r = CardGate.verify(act.getApplicationContext(), saved);
+                XposedBridge.log("[HSZ] verify result: " + r.success + " / " + r.message);
                 if (r.success) {
                     sLicensed = true;
                     new Handler(Looper.getMainLooper()).post(() -> { if (sOverlay != null) sOverlay.show(); });
@@ -130,6 +134,7 @@ public class xp implements IXposedHookLoadPackage {
                 }
             }
             CardGate.Result r2 = CardGate.autoVerify(act);
+            XposedBridge.log("[HSZ] autoVerify result: " + r2.success + " / " + r2.message);
             if (r2.success) {
                 sLicensed = true;
                 new Handler(Looper.getMainLooper()).post(() -> { if (sOverlay != null) sOverlay.show(); });

@@ -1,50 +1,70 @@
 package com.example.msphone;
 
-import android.content.Context;
+import android.app.Activity;
 import android.graphics.Color;
-import android.graphics.PixelFormat;
-import android.os.Build;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowManager;
+import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.lang.ref.WeakReference;
+
+/**
+ * Attaches directly to the game Activity's DecorView — no SYSTEM_ALERT_WINDOW needed.
+ * The game (com.yunjian.yygame) doesn't declare that permission in its manifest so
+ * WindowManager TYPE_APPLICATION_OVERLAY would fail silently.
+ */
 public final class HszOverlay {
 
-    private final Context mCtx;
-    private final WindowManager mWm;
-    private WindowManager.LayoutParams mParams;
+    private final WeakReference<Activity> mActRef;
     private LinearLayout mRoot;
     private LinearLayout mCardPanel;
     private CheckBox mCbHook;
     private final TextView[] mPlayerViews = new TextView[HszCardDecoder.PLAYER_COUNT];
     private boolean mAdded = false;
+    private int mX = 10, mY = 80;
 
-    public HszOverlay(Context ctx) {
-        mCtx = ctx.getApplicationContext();
-        mWm  = (WindowManager) mCtx.getSystemService(Context.WINDOW_SERVICE);
+    public HszOverlay(Activity act) {
+        mActRef = new WeakReference<>(act);
     }
 
     public void show() {
         if (mAdded) return;
-        if (mRoot == null) buildView();
-        try { mWm.addView(mRoot, mParams); mAdded = true; } catch (Throwable ignored) {}
+        Activity act = mActRef.get();
+        if (act == null || act.isFinishing()) return;
+        if (mRoot == null) buildView(act);
+        try {
+            ViewGroup decor = (ViewGroup) act.getWindow().getDecorView();
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT);
+            lp.gravity = Gravity.TOP | Gravity.LEFT;
+            lp.leftMargin = mX;
+            lp.topMargin  = mY;
+            decor.addView(mRoot, lp);
+            mAdded = true;
+        } catch (Throwable t) {
+            de.robv.android.xposed.XposedBridge.log("[HSZ] overlay add err: " + t.getMessage());
+        }
     }
 
     public void dismiss() {
         if (!mAdded || mRoot == null) return;
-        try { mWm.removeView(mRoot); } catch (Throwable ignored) {}
+        try {
+            ViewGroup parent = (ViewGroup) mRoot.getParent();
+            if (parent != null) parent.removeView(mRoot);
+        } catch (Throwable ignored) {}
         mAdded = false;
     }
 
-    /** Called by remote C2 commands to toggle hook state */
     public void setHookEnabled(boolean on) {
         if (mRoot == null) return;
         mRoot.post(() -> {
-            HszStore.setToushi(mCtx, on);
+            HszStore.setToushi(mRoot.getContext(), on);
             if (mCbHook != null && mCbHook.isChecked() != on) mCbHook.setChecked(on);
             if (mCardPanel != null) mCardPanel.setVisibility(on ? View.VISIBLE : View.GONE);
         });
@@ -74,61 +94,43 @@ public final class HszOverlay {
         });
     }
 
-    private void buildView() {
-        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                : WindowManager.LayoutParams.TYPE_PHONE;
-
-        mParams = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                PixelFormat.TRANSLUCENT);
-        mParams.gravity = Gravity.TOP | Gravity.LEFT;
-        mParams.x = 10;
-        mParams.y = 80;
-
-        mRoot = new LinearLayout(mCtx);
+    private void buildView(Activity act) {
+        mRoot = new LinearLayout(act);
         mRoot.setOrientation(LinearLayout.VERTICAL);
         mRoot.setBackgroundColor(0xCC000000);
         mRoot.setPadding(12, 6, 12, 6);
 
-        // Header: drag handle (≡) + Hook checkbox
-        LinearLayout header = new LinearLayout(mCtx);
+        // Header: drag handle + Hook checkbox
+        LinearLayout header = new LinearLayout(act);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
-        // Drag handle — only this area triggers drag
-        TextView dragHandle = new TextView(mCtx);
+        TextView dragHandle = new TextView(act);
         dragHandle.setText("≡ ");
         dragHandle.setTextColor(0xFFAAAAAA);
         dragHandle.setTextSize(14);
         dragHandle.setPadding(0, 6, 6, 6);
         header.addView(dragHandle);
 
-        // Single toggle: enable/disable hook
-        mCbHook = new CheckBox(mCtx);
+        mCbHook = new CheckBox(act);
         mCbHook.setText("Hook");
         mCbHook.setTextColor(Color.WHITE);
         mCbHook.setTextSize(12);
-        mCbHook.setChecked(HszStore.isToushiOn(mCtx));
+        mCbHook.setChecked(HszStore.isToushiOn(act));
         mCbHook.setOnCheckedChangeListener((b, on) -> {
-            HszStore.setToushi(mCtx, on);
+            HszStore.setToushi(act, on);
             mCardPanel.setVisibility(on ? View.VISIBLE : View.GONE);
         });
         header.addView(mCbHook);
 
         mRoot.addView(header);
 
-        // Card data panel — visible only when hook is on
-        mCardPanel = new LinearLayout(mCtx);
+        // Card data panel
+        mCardPanel = new LinearLayout(act);
         mCardPanel.setOrientation(LinearLayout.VERTICAL);
-        mCardPanel.setVisibility(HszStore.isToushiOn(mCtx) ? View.VISIBLE : View.GONE);
+        mCardPanel.setVisibility(HszStore.isToushiOn(act) ? View.VISIBLE : View.GONE);
         for (int p = 0; p < HszCardDecoder.PLAYER_COUNT; p++) {
-            TextView tv = new TextView(mCtx);
+            TextView tv = new TextView(act);
             tv.setText("P" + p + "  -- --");
             tv.setTextColor(Color.GRAY);
             tv.setTextSize(11);
@@ -155,10 +157,13 @@ public final class HszOverlay {
                     int dx = (int) ev.getRawX() - mLast[0];
                     int dy = (int) ev.getRawY() - mLast[1];
                     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) mDragging = true;
-                    if (mDragging) {
-                        mParams.x += dx;
-                        mParams.y += dy;
-                        if (mAdded) mWm.updateViewLayout(mRoot, mParams);
+                    if (mDragging && mRoot != null && mRoot.getParent() != null) {
+                        mX += dx;
+                        mY += dy;
+                        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) mRoot.getLayoutParams();
+                        lp.leftMargin = mX;
+                        lp.topMargin  = mY;
+                        mRoot.setLayoutParams(lp);
                         mLast[0] = (int) ev.getRawX();
                         mLast[1] = (int) ev.getRawY();
                     }
