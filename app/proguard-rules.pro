@@ -34,6 +34,14 @@
 -keep public class * extends android.app.backup.BackupAgentHelper               # 保持哪些类不被混淆
 -keep public class * extends android.preference.Preference                      # 保持哪些类不被混淆
 -keep public class com.android.vending.licensing.ILicensingService              # 保持哪些类不被混淆
+# =========== 移除所有Android Log調用 ===========
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+}
 
 -keepclasseswithmembernames class * {                                           # 保持 native 方法不被混淆
     native <methods>;
@@ -60,7 +68,7 @@
   public static final android.os.Parcelable$Creator *;
 }
 
--keep class com.example.msphone.xp                           # 保持自己定义的类不被混淆
+-keep class com.example.msphone.xp { *; }                   # Xposed 入口类（xposed_init 指名），必须保留类名与回调方法
 #如果有引用v4包可以添加下面这行
 -keep class android.support.v4.** { *; }
 -keep public class * extends android.support.v4.**
@@ -163,3 +171,47 @@
 -keep class com.umeng.analytics.** { *; }
 -keep class com.umeng.common.** { *; }
 -keep class com.umeng.newxp.** { *; }
+
+
+###========================================================================
+###  卡密多设备控制 APK —— 加固/混淆专用规则
+###========================================================================
+
+# 更激进的混淆与重打包：把类全部挪到根包并允许修改访问修饰符，进一步降低可读性
+-repackageclasses ''
+-allowaccessmodification
+
+# 原生层门面：JNI 绑定依赖类名/方法名，必须保号（已有 native<methods> 规则兜底，这里显式保留类名）
+-keepclasseswithmembernames,includedescriptorclasses class com.example.msphone.Vault {
+    native <methods>;
+}
+
+# WebView JS 桥：被 JS 反射调用的方法不能改名
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class com.example.msphone.CardGateActivity$Bridge { *; }
+
+# Gson 数据模型：保留字段（配合 @SerializedName，允许 Gson 反射映射）
+-keep class com.example.msphone.RemoteConfig { *; }
+-keep class com.example.msphone.RemoteConfig$* { *; }
+-keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod
+-keep,allowobfuscation @interface com.google.gson.annotations.SerializedName
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# 设备信息库（含反射）
+-keep class com.zy.devicelibrary.** { *; }
+-dontwarn com.zy.devicelibrary.**
+
+# Xposed API 为 compileOnly，运行期由框架提供，忽略缺失告警
+-dontwarn de.robv.android.xposed.**
+-keep class de.robv.android.xposed.** { *; }
+
+# 网络/序列化库告警抑制
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn org.conscrypt.**
+-dontwarn javax.annotation.**
+-dontwarn com.google.gson.**

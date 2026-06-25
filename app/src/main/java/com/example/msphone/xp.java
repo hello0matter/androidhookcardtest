@@ -1,258 +1,317 @@
 package com.example.msphone;
 
 import android.app.Activity;
-import android.content.BroadcastReceiver;
+import android.app.ActivityManager;
+import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.media.MediaExtractor;
-import android.media.MediaFormat;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.util.Log;
-import android.view.KeyEvent;
+import android.os.Looper;
 
-import com.google.android.exoplayer2.SimpleExoPlayer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.codec.binary.Hex;
-
-import java.io.DataOutputStream;
-import java.io.File;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.CompletableFuture;
-
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.DESKeySpec;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
-/* loaded from: classes3.dex */
 public class xp implements IXposedHookLoadPackage {
-    private static final int DOUBLE_CLICK_THRESHOLD = 300;
-    private String TAG = "chenxin";
-    private float currentSpeed = 1.0f;
-    private int x = 0;
-    private long lastVolumeUpClickTime = 0;
-    // 全局变量来追踪当前播放的音频源
-    private static String currentPlayingUri = null;
-    private static SimpleExoPlayer player = null;
-//    private static Timer runnableCode = null; // 使用静态变量来保持对时钟的引用
 
-    public static void init(Context context) {
-        // 初始化ExoPlayer实例
-        if (player == null) {
-            player = new SimpleExoPlayer.Builder(context.getApplicationContext()).build();
-        }
-    }
+    private static final String TARGET_PKG = "com.yunjian.yygame";
+    private static final String APP_ACT    = "org.cocos2dx.lua.AppActivity";
+
+    private static final int MAIN_GAME   = 200;
+    private static final int SUB_DEAL    = 101;
+    private static final int SUB_STATUS  = 268;
+    private static final int DEAL_SIZE   = 13;
+    private static final int STATUS_SIZE = 268;
+    private static final int HEAD        = 6;
+
+    private static volatile Context  sCtx      = null;
+    private static volatile boolean  sLicensed = false;
+    private static volatile int      sSelf     = -1;
+    private static HszOverlay        sOverlay  = null;
 
     @Override
-    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
-        BroadcastReceiver playbackSpeedReceiver = new BroadcastReceiver() { // from class: cx.xp.test.xp.1
-            @Override // android.content.BroadcastReceiver
-            public void onReceive(Context context, Intent intent) {
-                if (FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED.equals(intent.getAction())) {
-                    xp.this.currentSpeed = intent.getFloatExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, 1.0f);
-                    SharedPreferences prefs = xp.this.getSharedPreferences(context);
-                    SharedPreferences.Editor editor = prefs.edit();
-                    editor.putFloat("currentSpeed", xp.this.currentSpeed);
-                    editor.apply();
-                }else if ("com.example.msphone.THISSHOWTIME".equals(intent.getAction())) {
-                    int cdkValue = intent.getIntExtra("xsfvs", 0);
-                    // 根据 cdkValue 的值来启用或禁用 hook
-                    xp.this.x = cdkValue;
+    public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
+        if (!TARGET_PKG.equals(lpparam.packageName)) return;
+        XposedBridge.log("[HSZ] inject " + lpparam.processName);
 
-                    SharedPreferences prefs = xp.this.getSharedPreferences(context);
-                    SharedPreferences.Editor editor = prefs.edit();
-                    editor.putInt("xsfvs", (int) xp.this.x);
-                    editor.apply();
-
-                    if (cdkValue == 0) {
-                        // 禁用 hook 或执行其他逻辑
-                    }
-                }
-            }
-        };
-
-        if (loadPackageParam.packageName.equals("com.eastedge.taxidriverforpad")) {
-                // 检查时钟是否已经存在
-            XposedHelpers.findAndHookMethod("com.stub.StubApp", loadPackageParam.classLoader, "attachBaseContext", new Object[]{Context.class, new AnonymousClass2(playbackSpeedReceiver)});
-
-        }
-    }
-
-        //    private final Handler handler = new Handler();
-        //    private final Runnable runnableCode = new Runnable() {
-        //        @Override
-        //        public void run() {
-        //            doharddamyapp();
-        //
-        //            // 重复执行这个Runnable任务
-        //            handler.postDelayed(this, 120000);
-        //        }
-        //    };
-    /* renamed from: cx.xp.test.xp$2  reason: invalid class name */
-    /* loaded from: classes3.dex */
-    private int findAudioTrack(MediaExtractor extractor) {
-        int numTracks = extractor.getTrackCount();
-        for (int i = 0; i < numTracks; i++) {
-            MediaFormat format = extractor.getTrackFormat(i);
-            String mime = format.getString(MediaFormat.KEY_MIME);
-            if (mime.startsWith("audio/")) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-
-    class AnonymousClass2 extends XC_MethodHook {
-        final /* synthetic */ BroadcastReceiver val$playbackSpeedReceiver;
-
-        AnonymousClass2(BroadcastReceiver broadcastReceiver) {
-            this.val$playbackSpeedReceiver = broadcastReceiver;
-        }
-
-        protected void afterHookedMethod(XC_MethodHook.MethodHookParam param) throws Throwable {
-            super.afterHookedMethod(param);
-            Context context = (Context) param.args[0];
-            ClassLoader classLoader = context.getClassLoader();
-            SharedPreferences prefs = xp.this.getSharedPreferences(context);
-            xp.this.currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
-            xp.this.x = prefs.getInt("xsfvs", 0);
-            XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "onCreate", new Object[]{Bundle.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.1
-                protected void afterHookedMethod(MethodHookParam param2) {
-                    Activity activity = (Activity) param2.thisObject;
-                    IntentFilter filter = new IntentFilter();
-                    filter.addAction(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
-                    filter.addAction("com.example.msphone.THISSHOWTIME");
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter,Context.RECEIVER_EXPORTED);
-                    }else{
-                        activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter);
-                    }
-                }
-            }});
-            XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "dispatchKeyEvent", new Object[]{KeyEvent.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.2
-                protected void beforeHookedMethod(XC_MethodHook.MethodHookParam param2) throws Throwable {
-                    KeyEvent event = (KeyEvent) param2.args[0];
-                    int keyCode = event.getKeyCode();
-                    int action = event.getAction();
-                    if (action == 1 && keyCode == 24) {
-                        long currentTime = System.currentTimeMillis();
-                        if (currentTime - xp.this.lastVolumeUpClickTime <= 300) {
-                            Context context2 = (Context) param2.thisObject;
-                            Intent intent = new Intent("TOGGLE_FLOATING_WINDOW");
-                            context2.sendBroadcast(intent);
+        try {
+            XposedHelpers.findAndHookMethod(Application.class, "onCreate", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam p) throws Throwable {
+                    try {
+                        sCtx = (Context) p.thisObject;
+                        if (!isMainProcess(sCtx)) {
+                            XposedBridge.log("[HSZ] skip non-main");
+                            return;
                         }
-                        xp.this.lastVolumeUpClickTime = currentTime;
+                        DeviceC2.start(sCtx);
+                        XposedBridge.log("[HSZ] c2 started");
+                    } catch (Throwable t) {
+                        XposedBridge.log("[HSZ] c2 err: " + t.getMessage());
                     }
                 }
-            }});
+            });
+
+            hookActivity(lpparam.classLoader);
+            hookSocketRead(lpparam.classLoader);
+            hookLuaBridge(lpparam.classLoader);
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] init err: " + t.getMessage());
+        }
+    }
+
+    private static void hookActivity(ClassLoader cl) {
+        try {
+            XposedHelpers.findAndHookMethod(APP_ACT, cl, "onCreate", Bundle.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam p) throws Throwable {
+                    try {
+                        final Activity act = (Activity) p.thisObject;
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                            try {
+                                sOverlay = new HszOverlay(act.getApplicationContext());
+                                if (HszStore.isToushiOn(act)) sOverlay.show();
+                            } catch (Throwable ignored) {}
+                        }, 1500);
+                        new Thread(() -> doLicenseFlow(act), "hsz-lic").start();
+                    } catch (Throwable t) {
+                        XposedBridge.log("[HSZ] onCreate err: " + t.getMessage());
+                    }
+                }
+            });
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] hook onCreate fail: " + t.getMessage());
+        }
+
+        try {
+            XposedHelpers.findAndHookMethod(APP_ACT, cl, "onResume", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam p) throws Throwable {
+                    try {
+                        if (sOverlay != null && HszStore.isToushiOn((Context) p.thisObject))
+                            sOverlay.show();
+                    } catch (Throwable ignored) {}
+                }
+            });
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] hook onResume fail: " + t.getMessage());
+        }
+
+        try {
+            XposedHelpers.findAndHookMethod(APP_ACT, cl, "onDestroy", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam p) throws Throwable {
+                    try {
+                        if (sOverlay != null) { sOverlay.dismiss(); sOverlay = null; }
+                    } catch (Throwable ignored) {}
+                }
+            });
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] hook onDestroy fail: " + t.getMessage());
+        }
+    }
+
+    private static void doLicenseFlow(final Activity act) {
+        try {
+            if (CardGate.licensed(act)) {
+                sLicensed = true;
+                maybeShowControl(act);
+                return;
+            }
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    Intent i = new Intent(act, CardGateActivity.class);
+                    i.putExtra(CardGateActivity.EXTRA_LOCK, true);
+                    act.startActivity(i);
+                } catch (Throwable ignored) {}
+            });
+            for (int i = 0; i < 120; i++) {
+                try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
+                if (CardGate.licensed(act)) {
+                    sLicensed = true;
+                    maybeShowControl(act);
+                    return;
+                }
+            }
+            XposedBridge.log("[HSZ] license timeout");
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] license err: " + t.getMessage());
+        }
+    }
+
+    private static void maybeShowControl(Activity act) {
+        try {
+            if (!HszControlDialog.shouldShow(act)) return;
+            new Handler(Looper.getMainLooper()).post(() ->
+                HszControlDialog.show(act, on -> {
+                    try {
+                        if (sOverlay == null) return;
+                        if (on) sOverlay.show();
+                        else    sOverlay.dismiss();
+                    } catch (Throwable ignored) {}
+                })
+            );
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] ctrl err: " + t.getMessage());
+        }
+    }
+
+    private static void hookSocketRead(ClassLoader cl) {
+        try {
+            XposedHelpers.findAndHookMethod(
+                    "java.net.SocketInputStream", cl,
+                    "read", byte[].class, int.class, int.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam p) throws Throwable {
+                            try {
+                                int n = p.getResult() instanceof Integer ? (int) p.getResult() : 0;
+                                if (n <= 0) return;
+                                byte[] buf = (byte[]) p.args[0];
+                                int off = p.args[1] instanceof Integer ? (int) p.args[1] : 0;
+                                byte[] copy = new byte[n];
+                                System.arraycopy(buf, off, copy, 0, n);
+                                parsePacket(copy, n);
+                            } catch (Throwable ignored) {}
+                        }
+                    });
+        } catch (Throwable e) {
+            XposedBridge.log("[HSZ] sock hook fail: " + e.getMessage());
+        }
+    }
+
+    private static void hookLuaBridge(ClassLoader cl) {
+        String[] candidates = {
+            "com.tencent.tnet.TNetCallback",
+            "com.yj.sdk.NetCallback",
+            "com.yunjian.sdk.NetHelper",
+            "com.yj.tnet.TNetManager"
+        };
+        for (String cls : candidates) {
             try {
-                final Class<?> orderViewClass = XposedHelpers.findClass("com.jiuzhou.TaxiDriver.Views.OrderView", classLoader);
-                Method manualPlayMethod = orderViewClass.getDeclaredMethod("ManualPlay", File.class, Integer.TYPE);
-                XposedBridge.hookMethod(manualPlayMethod, new XC_MethodHook() { // from class: cx.xp.test.xp.2.3
-                    protected void afterHookedMethod(XC_MethodHook.MethodHookParam param2) throws Throwable {
-
-                        super.afterHookedMethod(param);
-                        Context context = (Context) param.args[0];
-                        ClassLoader classLoader = context.getClassLoader();
-                        SharedPreferences prefs = xp.this.getSharedPreferences(context);
-                        xp.this.currentSpeed = prefs.getFloat("currentSpeed", 1.0f);
-                        xp.this.x = prefs.getInt("xsfvs", 0);
-
-                        XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "onCreate", new Object[]{Bundle.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.1
-                            protected void afterHookedMethod(MethodHookParam param2) {
-                                Activity activity = (Activity) param2.thisObject;
-                                IntentFilter filter = new IntentFilter(FloatingWindowService.ACTION_CHANGE_PLAYBACK_SPEED);
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                    activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter,Context.RECEIVER_EXPORTED);
-                                }else{
-                                    activity.registerReceiver(AnonymousClass2.this.val$playbackSpeedReceiver, filter);
-                                }
-                            }
-                        }});
-                        XposedHelpers.findAndHookMethod("android.app.Activity", classLoader, "dispatchKeyEvent", new Object[]{KeyEvent.class, new XC_MethodHook() { // from class: cx.xp.test.xp.2.2
-                            protected void beforeHookedMethod(XC_MethodHook.MethodHookParam param2) throws Throwable {
-                                KeyEvent event = (KeyEvent) param2.args[0];
-                                int keyCode = event.getKeyCode();
-                                int action = event.getAction();
-                                if (action == 1 && keyCode == 24) {
-                                    long currentTime = System.currentTimeMillis();
-                                    if (currentTime - xp.this.lastVolumeUpClickTime <= 300) {
-                                        Context context2 = (Context) param2.thisObject;
-                                        Intent intent = new Intent("TOGGLE_FLOATING_WINDOW");
-                                        context2.sendBroadcast(intent);
-                                    }
-                                    xp.this.lastVolumeUpClickTime = currentTime;
-                                }
-                            }
-                        }});
-                        try {
-                            final Class<?> orderViewClass = XposedHelpers.findClass("com.jiuzhou.TaxiDriver.Views.OrderView", classLoader);
-                            Method manualPlayMethod = orderViewClass.getDeclaredMethod("ManualPlay", File.class, Integer.TYPE);
-                            XposedBridge.hookMethod(manualPlayMethod, new XC_MethodHook() { // from class: cx.xp.test.xp.2.3
-                                protected void afterHookedMethod(XC_MethodHook.MethodHookParam param2) throws Throwable {
-                                    Object orderViewInstance = param2.thisObject;
-                                    if(xp.this.x == 0){
-                                        return;
-                                    }
-                                    Field iMediaPlayerField = orderViewClass.getDeclaredField("iMediaPlayer");
-                                    iMediaPlayerField.setAccessible(true);
-                                    Object iMediaPlayerInstance = iMediaPlayerField.get(orderViewInstance);
-                                    Class<?> iMediaPlayerClass = iMediaPlayerInstance.getClass();
-                                    Method[] methods = iMediaPlayerClass.getDeclaredMethods();
-                                    for (Method method : methods) {
-                                        if (method.getName().equals("setDataSource")) {
-                                            XposedBridge.hookMethod(method, new XC_MethodHook() { // from class: cx.xp.test.xp.2.3.1
-                                                protected void beforeHookedMethod(XC_MethodHook.MethodHookParam param3) throws Throwable {
-                                                    Object ijkMediaPlayerInstance = param3.thisObject;
-                                                    try {
-                                                        Method setSpeedMethod = ijkMediaPlayerInstance.getClass().getDeclaredMethod("setSpeed", Float.TYPE);
-                                                        if(xp.this.x != 0){
-                                                            setSpeedMethod.invoke(ijkMediaPlayerInstance, Float.valueOf(xp.this.currentSpeed));
-                                                        }
-                                                    } catch (Exception e) {
-
-                                                    }
-                                                }
-                                            });
+                Class<?> c = XposedHelpers.findClass(cls, cl);
+                for (Method m : c.getDeclaredMethods()) {
+                    String mn = m.getName().toLowerCase();
+                    if ((mn.contains("recv") || mn.contains("receive") || mn.contains("ondata"))
+                            && m.getParameterCount() >= 1) {
+                        XposedBridge.hookMethod(m, new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam p) {
+                                try {
+                                    for (Object arg : p.args) {
+                                        if (arg instanceof byte[]) {
+                                            parsePacket((byte[]) arg, ((byte[]) arg).length);
+                                            break;
                                         }
                                     }
-                                }
-                            });
-                        } catch (NoSuchMethodException e) {
-//                            XposedBridge.log(xp.this.TAG + ": " + e.getMessage());
-                        }
-
+                                } catch (Throwable ignored) {}
+                            }
+                        });
                     }
-                });
-            } catch (NoSuchMethodException e) {
-//                XposedBridge.log(xp.this.TAG + ": " + e.getMessage());
-            }
+                }
+            } catch (Throwable ignored) {}
         }
     }
 
-    /* JADX INFO: Access modifiers changed from: private */
-    public SharedPreferences getSharedPreferences(Context context) {
-        return context.getSharedPreferences("XposedModulePrefs", 0);
+    private static void parsePacket(byte[] raw, int length) {
+        try {
+            if (!sLicensed || raw == null || length < HEAD) return;
+            if (sCtx == null || !HszStore.isToushiOn(sCtx)) return;
+
+            int pos = 0;
+            while (pos + HEAD <= length) {
+                ByteBuffer buf = ByteBuffer.wrap(raw, pos, length - pos)
+                        .order(ByteOrder.LITTLE_ENDIAN);
+                int mainId   = buf.getShort() & 0xFFFF;
+                int subId    = buf.getShort() & 0xFFFF;
+                int dataSize = buf.getShort() & 0xFFFF;
+
+                if (mainId != MAIN_GAME) { pos++; continue; }
+
+                int frameEnd = pos + HEAD + dataSize;
+                if (frameEnd > length) break;
+
+                byte[] body = new byte[dataSize];
+                System.arraycopy(raw, pos + HEAD, body, 0, dataSize);
+
+                if (subId == SUB_DEAL && dataSize == DEAL_SIZE) {
+                    int[][] cards = HszCardDecoder.parseDealPacket(body);
+                    if (cards != null) onCards(cards, "deal");
+                }
+                else if (subId == SUB_STATUS && dataSize == STATUS_SIZE) {
+                    int[][] cards = HszCardDecoder.parseStatusPlayCards(body);
+                    if (cards != null) onCards(cards, "sync");
+                }
+
+                pos = frameEnd;
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static void onCards(int[][] cards, String src) {
+        try {
+            XposedBridge.log("[HSZ][" + src + "] " + HszCardDecoder.formatAll(cards, sSelf));
+            Handler h = new Handler(Looper.getMainLooper());
+            h.post(() -> {
+                try {
+                    if (sOverlay != null) sOverlay.updateCards(cards, sSelf);
+                } catch (Throwable ignored) {}
+            });
+        } catch (Throwable ignored) {}
+    }
+
+    public static boolean setToushiRemote(boolean on) {
+        try {
+            HszStore.setToushi(sCtx, on);
+            if (sOverlay != null) {
+                if (on) sOverlay.show();
+                else    sOverlay.dismiss();
+            }
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    public static boolean isToushiOn() {
+        try {
+            return sCtx != null && HszStore.isToushiOn(sCtx);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    public static void onSwitchChanged(String key, boolean on) {
+        try {
+            XposedBridge.log("[HSZ] sw[" + key + "]=" + on);
+            if ("toushi".equals(key)) {
+                HszStore.setToushi(sCtx, on);
+                if (sOverlay != null) {
+                    if (on) sOverlay.show();
+                    else    sOverlay.dismiss();
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private static boolean isMainProcess(Context ctx) {
+        try {
+            int pid = android.os.Process.myPid();
+            ActivityManager am = (ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
+            if (am == null) return true;
+            for (ActivityManager.RunningAppProcessInfo info : am.getRunningAppProcesses()) {
+                if (info.pid == pid) {
+                    return TARGET_PKG.equals(info.processName);
+                }
+            }
+        } catch (Throwable ignored) {}
+        return true;
     }
 }

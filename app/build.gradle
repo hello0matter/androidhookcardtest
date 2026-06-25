@@ -6,6 +6,7 @@ plugins {
 android {
     namespace 'com.example.msphone'
     compileSdk 34
+    ndkVersion "25.2.9519653"
     defaultConfig {
         applicationId "com.example.msphone"
         minSdk 24
@@ -14,6 +15,23 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // 原生加固层：密钥/端点放在 .so，DEX 中无明文
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=none"
+            }
+        }
+        ndk {
+            // 覆盖绝大多数真机；如需模拟器可加 'x86_64'
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
     }
     lint {
         baseline = file("lint-baseline.xml")
@@ -36,6 +54,10 @@ android {
             shrinkResources true
             // 包签名
 //            signingConfig signingConfigs.release
+        }
+        debug {
+            // debug版本可以保持 minifyEnabled false
+            minifyEnabled false
         }
     }
     compileOptions {

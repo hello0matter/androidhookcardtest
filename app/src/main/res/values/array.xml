@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="xposed_scope">
+        <!-- 系统框架（部分hook需要） -->
+        <item>android</item>
+        <!-- 九九抢庄 目标应用 -->
+        <item>com.yunjian.yygame</item>
+    </string-array>
+</resources>
