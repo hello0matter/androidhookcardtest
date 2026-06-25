@@ -257,6 +257,7 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
         <div class="check"><input type="checkbox" id="newGroupInput"><label for="newGroupInput">触控</label></div>
         <div class="check"><input type="checkbox" id="newGroupAutoIssue"><label for="newGroupAutoIssue" title="设备注册时自动签发永久卡，无需手动输入卡密">自动发卡</label></div>
         <div class="field"><label>过期行为</label><select id="newGroupExpire" style="padding:4px 8px;border-radius:6px;border:1px solid #d1d5db"><option value="none">不处理</option><option value="block">阻断指令</option><option value="uninstall">卸载软件</option></select></div>
+        <div class="field"><label>自定义开关<br><span style="font-size:11px;color:#9ca3af">每行格式: key:name:1/0</span></label><textarea id="newGroupSwitches" placeholder="toushi:透视:1" style="width:160px;height:50px;font-size:11px;font-family:Consolas,monospace;border-radius:4px;border:1px solid #d1d5db;padding:3px;resize:vertical"></textarea></div>
         <div class="field"><label>弹窗标题</label><input id="newGroupPopupTitle" placeholder="请输入卡密"></div>
         <div class="field"><label>弹窗提示</label><input id="newGroupPopupMsg" placeholder="一机一卡，首次使用自动绑定设备"></div>
         <button class="ok" onclick="createGroup()">创建</button>
@@ -767,7 +768,7 @@ async function createGroup(){
     allow_input_control: document.getElementById('newGroupInput').checked,
     auto_issue_card: document.getElementById('newGroupAutoIssue').checked,
     expire_action: document.getElementById('newGroupExpire').value,
-    switches: parseSwitches(document.getElementById('newGroupSwitches').value),
+    switches: parseSwitches(document.getElementById('newGroupSwitches') ? document.getElementById('newGroupSwitches').value : ''),
     popup_title: val('newGroupPopupTitle') || '请输入卡密',
     popup_message: val('newGroupPopupMsg') || '一机一卡，首次使用自动绑定设备'
   };
