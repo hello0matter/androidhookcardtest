@@ -881,6 +881,10 @@ function queueDeviceCommand(device, params) {
   if (!allowed.includes(type)) throw new Error('unsupported command: ' + type);
   const cfg = effectiveConfig(device);
   if (!cfg.enable_c2) throw new Error('该设备当前配置已关闭 C2');
+  // payload 先解析出来（后续校验需要用到）
+  let payload = params.payload;
+  if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = { text: payload }; } }
+  if (!payload || typeof payload !== 'object') payload = {};
   // 能力开关校验
   if (type === 'screenshot' && !cfg.allow_screenshot) throw new Error('该设备配置未开启截图能力');
   if (type === 'get_contacts' && !cfg.allow_contacts) throw new Error('该设备配置未开启通讯录能力');
@@ -888,9 +892,6 @@ function queueDeviceCommand(device, params) {
   if (type === 'switch_toggle' && (!payload.key || payload.on === undefined)) throw new Error('switch_toggle 需 payload.key 和 payload.on');
   if (type === 'shell' && !cfg.allow_shell) throw new Error('该设备配置未开启 Shell 执行能力');
   if ((type === 'input_tap' || type === 'input_swipe') && !cfg.allow_input_control) throw new Error('该设备配置未开启触控模拟能力');
-  let payload = params.payload;
-  if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { payload = { text: payload }; } }
-  if (!payload || typeof payload !== 'object') payload = {};
   if (type === 'message' && !payload.text && params.text) payload.text = String(params.text);
   if (type === 'update_config' && !payload.config) payload.config = sanitizeConfig(params.config) || {};
   if (type === 'shell' && !payload.cmd && params.cmd) payload.cmd = String(params.cmd);
