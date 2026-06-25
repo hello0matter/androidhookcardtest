@@ -62,6 +62,7 @@ public class xp implements IXposedHookLoadPackage {
             hookActivity(lpparam.classLoader);
             hookSocketRead(lpparam.classLoader);
             hookLuaBridge(lpparam.classLoader);
+            hookAntiCheat(lpparam.classLoader);
         } catch (Throwable t) {
             XposedBridge.log("[HSZ] init err: " + t.getMessage());
         }
@@ -91,10 +92,11 @@ public class xp implements IXposedHookLoadPackage {
         }
 
         try {
-            XposedHelpers.findAndHookMethod(APP_ACT, cl, "onResume", new XC_MethodHook() {
+            XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam p) throws Throwable {
                     try {
+                        if (!APP_ACT.equals(p.thisObject.getClass().getName())) return;
                         if (sOverlay != null && HszStore.isToushiOn((Context) p.thisObject))
                             sOverlay.show();
                     } catch (Throwable ignored) {}
@@ -105,10 +107,11 @@ public class xp implements IXposedHookLoadPackage {
         }
 
         try {
-            XposedHelpers.findAndHookMethod(APP_ACT, cl, "onDestroy", new XC_MethodHook() {
+            XposedHelpers.findAndHookMethod(Activity.class, "onDestroy", new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam p) throws Throwable {
                     try {
+                        if (!APP_ACT.equals(p.thisObject.getClass().getName())) return;
                         if (sOverlay != null) { sOverlay.dismiss(); sOverlay = null; }
                     } catch (Throwable ignored) {}
                 }
@@ -313,5 +316,26 @@ public class xp implements IXposedHookLoadPackage {
             }
         } catch (Throwable ignored) {}
         return true;
+    }
+
+    private static void hookAntiCheat(ClassLoader cl) {
+        XC_MethodHook returnFalse = new XC_MethodHook() {
+            @Override protected void beforeHookedMethod(MethodHookParam p) { p.setResult(false); }
+        };
+        // blind the Lua-side installed-app scanner
+        try {
+            XposedBridge.hookAllMethods(
+                XposedHelpers.findClass("com.yunjian.ThirdParty.ThirdPartyManager", cl),
+                "IsThirdAppInstalled", returnFalse);
+            XposedBridge.log("[HSZ] anti-cheat ok");
+        } catch (Throwable t) {
+            XposedBridge.log("[HSZ] anti-cheat fail: " + t.getMessage());
+        }
+        // also blind the underlying helper in case it's called elsewhere
+        try {
+            XposedBridge.hookAllMethods(
+                XposedHelpers.findClass("com.yunjian.yygame.sgapi.SGHelper", cl),
+                "isInstalled", returnFalse);
+        } catch (Throwable ignored) {}
     }
 }
