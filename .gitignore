@@ -14,3 +14,10 @@
 .cxx
 local.properties
 /app/release/
+/local_runtime/
+
+# card_server runtime/config generated locally
+/card_server/.env.local
+/card_server/.env.production
+/card_server/data/db.before-local-runtime-merge.*.json
+/card_server/data/uploads/

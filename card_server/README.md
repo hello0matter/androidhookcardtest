@@ -1,4 +1,4 @@
-﻿# 百步召月卡服务端
+# 百步召月卡服务端
 
 这是给手工改包 `http://50.114.113.121` 用的最小服务端，包含：
 
@@ -9,10 +9,35 @@
 
 ## 1. 安装
 
+现在只维护一份 `card_server/` 源码目录。
+
 ```bash
 cd card_server
-cp .env.example .env
+cp .env.example .env.production
+cp .env.example .env.local
+```
+
+### 本地测试启动
+
+```bash
+cd card_server
+ENV_FILE=.env.local DATA_DIR=data node server.js
+```
+
+PowerShell：
+
+```powershell
+cd card_server
+$env:ENV_FILE='.env.local'
+$env:DATA_DIR='data'
 node server.js
+```
+
+### 正式运行启动
+
+```bash
+cd card_server
+ENV_FILE=.env.production DATA_DIR=data node server.js
 ```
 
 默认让 Node 监听 `3000`，由 Nginx 的 `80` 端口反代到 `127.0.0.1:3000`：
@@ -99,3 +124,32 @@ APP 根接口 `/` 返回的是 AES 加密后的远程配置，密钥默认 `1234
 3. 确认改包 APK 是 `baibu_7.1.37_manualbackend-signed.apk`。
 4. 查看服务器控制台是否收到 `POST /` 请求。
 
+
+## 7. 单源码运行：本地 / 正式切换
+
+现在只保留 `card_server/` 作为唯一源码目录，`local_runtime/card_server` 中的活跃数据已经迁入主目录。
+
+可用环境变量切换配置和数据目录：
+
+```bash
+# 本地测试
+ENV_FILE=.env.local DATA_DIR=data node server.js
+
+# 正式运行
+ENV_FILE=.env.production DATA_DIR=data node server.js
+```
+
+Windows PowerShell：
+
+```powershell
+$env:ENV_FILE='.env.local'
+$env:DATA_DIR='data'
+node server.js
+```
+
+说明：
+
+- `ENV_FILE` / `CONFIG_FILE`：选择要加载的配置文件，默认 `.env`
+- `DATA_DIR`：选择数据目录，默认 `data`
+- `data/db.json` 已使用 `local_runtime/card_server/data/db.json` 的较新运行数据
+- 迁移前的主目录数据备份为 `data/db.before-local-runtime-merge.*.json`

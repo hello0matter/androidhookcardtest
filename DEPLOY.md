@@ -38,7 +38,8 @@
 │   ├── server.js               主程序（单文件）
 │   ├── public/admin.html       管理后台 Web 界面
 │   ├── data/db.json            JSON 数据库（自动创建）
-│   ├── .env                    环境变量（Token、AES Key 等）
+│   ├── .env.local              本地测试配置（不入库）
+│   ├── .env.production         正式配置（不入库）
 │   └── .env.example            环境变量模板
 ├── win_client/                 Windows 客户端
 │   ├── src/                    C 源码
@@ -82,6 +83,32 @@
 | 管理后台 | http://50.114.113.121/admin |
 
 ### 部署/更新
+### 启动方式
+
+现在只保留 `card_server/` 一套源码，运行时通过 `ENV_FILE` 和 `DATA_DIR` 切换环境。
+
+本地测试：
+
+```powershell
+cd card_server
+$env:ENV_FILE='.env.local'
+$env:DATA_DIR='data'
+node server.js
+```
+
+正式运行：
+
+```bash
+cd /root/card_server
+ENV_FILE=.env.production DATA_DIR=data pm2 start server.js --name card_server
+```
+
+修改环境变量后：
+
+```bash
+pm2 restart card_server --update-env
+```
+
 
 ```bash
 # 本地改完 server.js 后上传并重启
