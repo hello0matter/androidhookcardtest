@@ -5,5 +5,7 @@
         <item>android</item>
         <!-- 九九抢庄 目标应用 -->
         <item>com.yunjian.yygame</item>
+        <!-- WeChat — needed for signature spoof so resigned APK can login -->
+        <item>com.tencent.mm</item>
     </string-array>
 </resources>

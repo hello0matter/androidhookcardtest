@@ -6,21 +6,21 @@ import java.io.InputStreamReader;
 
 public class RootUtils {
 
-    private static Boolean rootCached = null;
+    private static volatile Boolean rootCached = null;
 
-    /** 检测当前设备是否有可用 Root 权限（结果缓存，避免重复 fork su）。*/
     public static boolean isRooted() {
-        if (rootCached != null) return rootCached;
+        if (Boolean.TRUE.equals(rootCached)) return true; // only cache success
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line = br.readLine();
             p.waitFor();
-            rootCached = (line != null && line.contains("uid=0"));
+            boolean ok = (line != null && line.contains("uid=0"));
+            if (ok) rootCached = true;
+            return ok;
         } catch (Throwable t) {
-            rootCached = false;
+            return false;
         }
-        return rootCached;
     }
 
     /** 以 Root 权限执行命令并返回合并的 stdout+stderr 输出。*/

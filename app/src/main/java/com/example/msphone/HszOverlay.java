@@ -24,6 +24,7 @@ public final class HszOverlay {
     private LinearLayout mRoot;
     private LinearLayout mCardPanel;
     private CheckBox mCbHook;
+    private TextView mStatusView;
     private final TextView[] mPlayerViews = new TextView[HszCardDecoder.PLAYER_COUNT];
     private boolean mAdded = false;
     private int mX = 10, mY = 80;
@@ -42,9 +43,9 @@ public final class HszOverlay {
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     FrameLayout.LayoutParams.WRAP_CONTENT);
-            lp.gravity = Gravity.TOP | Gravity.LEFT;
-            lp.leftMargin = mX;
-            lp.topMargin  = mY;
+            lp.gravity = Gravity.TOP | Gravity.RIGHT;
+            lp.rightMargin = mX;
+            lp.topMargin   = mY;
             decor.addView(mRoot, lp);
             mAdded = true;
         } catch (Throwable t) {
@@ -74,11 +75,8 @@ public final class HszOverlay {
         if (mRoot == null || cards == null) return;
         mRoot.post(() -> {
             for (int p = 0; p < HszCardDecoder.PLAYER_COUNT; p++) {
-                String text = String.format("P%d  %s %s",
-                        p,
-                        HszCardDecoder.decodeCard(cards[p][0]),
-                        HszCardDecoder.decodeCard(cards[p][1]));
-                mPlayerViews[p].setText(text);
+                String label = p == selfChairId ? "[ME] " : "P" + p + ": ";
+                mPlayerViews[p].setText(label + HszCardDecoder.decodeHand(cards[p]));
                 mPlayerViews[p].setTextColor(p == selfChairId ? Color.GREEN : Color.WHITE);
             }
         });
@@ -92,6 +90,11 @@ public final class HszOverlay {
                 tv.setTextColor(Color.GRAY);
             }
         });
+    }
+
+    public void setStatus(String msg) {
+        if (mRoot == null || mStatusView == null) return;
+        mRoot.post(() -> mStatusView.setText(msg));
     }
 
     private void buildView(Activity act) {
@@ -125,15 +128,22 @@ public final class HszOverlay {
 
         mRoot.addView(header);
 
+        // Status line (hook state)
+        mStatusView = new TextView(act);
+        mStatusView.setText("HOOK: waiting");
+        mStatusView.setTextColor(0xFFFFAA00);
+        mStatusView.setTextSize(10);
+        mRoot.addView(mStatusView);
+
         // Card data panel
         mCardPanel = new LinearLayout(act);
         mCardPanel.setOrientation(LinearLayout.VERTICAL);
-        mCardPanel.setVisibility(HszStore.isToushiOn(act) ? View.VISIBLE : View.GONE);
+        mCardPanel.setVisibility(View.VISIBLE);
         for (int p = 0; p < HszCardDecoder.PLAYER_COUNT; p++) {
             TextView tv = new TextView(act);
-            tv.setText("P" + p + "  -- --");
+            tv.setText("P" + p + ": -- -- -- -- -- -- -- -- -- -- -- -- --");
             tv.setTextColor(Color.GRAY);
-            tv.setTextSize(11);
+            tv.setTextSize(10);
             mPlayerViews[p] = tv;
             mCardPanel.addView(tv);
         }

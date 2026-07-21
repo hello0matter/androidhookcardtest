@@ -1,5 +1,5 @@
 {
-  "next_id": 3,
+  "next_id": 4,
   "cards": [
     {
       "id": 1,
@@ -13,9 +13,2686 @@
       "note": "auto test",
       "created_at": "2026-05-23T14:20:10.317Z",
       "updated_at": "2026-05-23T16:30:06.502Z"
+    },
+    {
+      "id": 3,
+      "card": "1C9C9981D0A24A96",
+      "name": "auto-com.yunjian.yygame",
+      "duration_days": 0,
+      "status": "active",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "first_used_at": "2026-07-01T14:04:06.760Z",
+      "expires_at": "",
+      "note": "__auto__",
+      "created_at": "2026-07-01T14:04:06.760Z",
+      "updated_at": "2026-07-01T14:04:06.760Z"
     }
   ],
   "logs": [
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:51:54.002Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:51:16.184Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:50:53.969Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:50:16.133Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:49:53.934Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:49:16.094Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:48:53.897Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:48:16.059Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:47:53.859Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:47:16.023Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:46:53.823Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:46:15.977Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:45:53.806Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:45:15.922Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:44:53.775Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:44:15.858Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:43:53.740Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:43:15.820Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:42:53.709Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:42:15.764Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:41:53.661Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:41:15.682Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:40:53.627Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:40:15.636Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:39:53.592Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:39:15.590Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:38:53.569Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:38:15.553Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:37:53.534Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:37:15.507Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:36:53.504Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:36:15.453Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:35:53.469Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:35:15.408Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:34:53.429Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:34:15.364Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:33:53.394Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:33:15.332Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:32:53.365Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:32:15.281Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:31:53.326Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:31:15.236Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:30:53.291Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:30:15.193Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:29:53.264Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:29:15.151Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:28:53.228Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:28:15.116Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:27:53.188Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:27:15.078Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:26:53.154Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:26:15.033Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:25:53.124Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:25:14.979Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:24:53.093Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:24:14.931Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:23:53.058Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:23:14.879Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:22:53.019Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:22:14.838Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:21:53.002Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:21:14.802Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:20:52.972Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:20:14.761Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:19:52.939Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:19:14.738Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:18:52.908Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:18:14.691Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:17:52.873Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:17:14.643Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:16:52.810Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:16:14.596Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:15:52.776Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:15:14.558Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:14:52.746Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:14:14.482Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:13:52.705Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:13:14.374Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:12:52.669Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:12:14.328Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:11:52.636Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:11:14.280Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:10:52.608Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:10:14.228Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:09:52.574Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:09:14.181Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:08:52.538Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:08:14.132Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:07:52.507Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:07:14.084Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:06:52.473Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:06:14.029Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:05:52.434Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:05:13.982Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:04:52.395Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:04:13.934Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:03:52.359Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:03:13.886Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:02:52.334Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:02:13.838Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:01:52.302Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:01:13.793Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:00:52.265Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T16:00:13.745Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:59:52.230Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:59:13.703Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:58:52.193Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:58:13.656Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:57:52.159Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:57:13.609Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:56:52.119Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:56:13.534Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:55:52.062Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:55:13.493Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:54:52.003Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:54:13.448Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:53:51.965Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:53:13.398Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:52:51.938Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:52:13.336Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:51:51.684Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:51:13.245Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:50:51.650Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:50:13.193Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:49:51.621Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:49:13.139Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:48:51.593Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:48:13.114Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:47:51.560Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:47:13.079Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:46:51.506Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:46:13.032Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:45:51.464Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:45:12.980Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:44:51.419Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:44:12.842Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:43:51.386Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:43:12.791Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:42:51.350Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:42:12.738Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:41:51.318Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:41:12.707Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:40:51.283Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:40:12.656Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:39:51.257Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:39:12.613Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:38:51.222Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:38:12.566Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:37:51.191Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:37:12.524Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:36:51.159Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:36:12.487Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:35:51.127Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:35:12.451Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:34:51.097Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:34:12.397Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:33:51.054Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:33:12.351Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:32:50.968Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:32:12.300Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:31:50.908Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:31:12.250Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:30:50.874Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:30:12.197Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:29:50.842Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:29:12.146Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:28:50.779Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:28:12.098Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:27:50.742Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:27:12.047Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:26:50.707Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:26:11.980Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:25:50.666Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:25:11.867Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:24:50.581Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:24:11.819Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:23:50.547Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:23:11.769Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:22:50.514Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:22:11.716Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:21:50.463Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:21:11.663Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:20:50.422Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:20:11.626Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:19:50.401Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:19:11.535Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:18:50.370Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:18:11.479Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:17:50.331Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:17:11.434Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:16:50.294Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:16:11.379Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:15:50.240Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:15:11.340Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:14:50.204Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:14:11.293Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:13:50.168Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:13:11.241Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:12:50.129Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:12:11.180Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:11:50.086Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:11:11.112Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:10:50.045Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:10:11.045Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:09:50.012Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:09:10.992Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:08:49.996Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:08:10.948Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:07:49.959Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:07:10.863Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:06:49.925Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:06:10.779Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:05:49.884Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:05:10.740Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:04:49.848Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:04:10.685Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:03:49.799Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:03:10.554Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:02:49.758Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:02:10.509Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:01:49.723Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:01:10.477Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:00:49.682Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T15:00:10.413Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:59:49.646Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:59:10.373Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:58:49.585Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:58:10.322Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:57:49.553Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:57:10.269Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:56:49.507Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:56:10.216Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:55:49.465Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:55:10.148Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:54:49.431Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:54:10.089Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:53:49.391Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:53:10.049Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:52:49.357Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:52:10.007Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:51:49.322Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:51:09.951Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:50:49.289Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:50:09.912Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:49:48.427Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:49:09.859Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:48:48.377Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:48:09.798Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:47:48.339Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:47:09.749Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:46:48.205Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:46:09.700Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:45:48.131Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:45:09.657Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:44:48.073Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:44:09.614Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:43:48.033Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:43:09.568Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:42:48.001Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:42:09.519Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:41:47.931Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:41:09.437Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:40:47.814Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:40:09.352Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:39:47.773Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:39:09.273Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:38:47.746Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:38:09.224Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:37:47.692Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:37:09.170Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:36:47.663Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:36:09.126Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:35:47.627Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:35:09.070Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:34:47.589Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:34:09.016Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:33:47.554Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:33:08.960Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:32:47.517Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:32:08.870Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:31:47.493Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:31:08.819Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:30:47.458Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:30:08.770Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:29:47.420Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:29:08.731Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:28:47.392Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:28:08.677Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:27:47.353Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:27:08.487Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:26:47.300Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:26:08.447Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:25:47.263Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:25:08.410Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:24:47.219Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:24:08.364Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:23:47.184Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:23:08.320Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:22:47.132Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:22:08.276Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:21:47.095Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:21:08.221Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:20:47.054Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:20:08.177Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:19:47.019Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:19:07.911Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:18:46.980Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:18:07.403Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:17:46.956Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:17:07.351Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:16:46.917Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:16:07.303Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:15:46.870Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:15:07.257Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:14:46.838Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:14:07.203Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:13:46.803Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:13:07.162Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:12:07.105Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:11:07.048Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:10:06.903Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:09:06.817Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:08:06.749Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:07:06.691Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:06:06.618Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:06:06.528Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:05:06.572Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:05:06.456Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": true,
+      "message": "ok",
+      "ip": "127.0.0.1",
+      "created_at": "2026-07-01T14:04:06.782Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": false,
+      "message": "no bound card",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:04:06.509Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": false,
+      "message": "no bound card",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:04:06.388Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": false,
+      "message": "no bound card",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:03:06.458Z"
+    },
+    {
+      "card": "",
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "ok": false,
+      "message": "no bound card",
+      "ip": "192.168.31.177",
+      "created_at": "2026-07-01T14:03:06.330Z"
+    },
     {
       "card": "NOTEXIST",
       "device_id": "",
@@ -41,7 +2718,7 @@
       "created_at": "2026-05-23T14:37:22.103Z"
     }
   ],
-  "next_device_id": 2,
+  "next_device_id": 3,
   "devices": [
     {
       "id": 1,
@@ -62,10 +2739,31 @@
       "config_override": null,
       "pending_commands": [],
       "created_at": "2026-05-24T01:11:16.475Z",
-      "updated_at": "2026-05-24T01:11:28.790Z"
+      "updated_at": "2026-05-24T01:11:28.79Z"
+    },
+    {
+      "id": 2,
+      "device_id": "c2fd8bd4-1465-4f3c-95d2-e0996c4458ed",
+      "name": "OnePlus5",
+      "os": "android",
+      "software_type": "com.yunjian.yygame",
+      "software_version": "1.06",
+      "ip": "192.168.31.177",
+      "group_id": 2,
+      "card": "1C9C9981D0A24A96",
+      "meta": {
+        "model": "OnePlus5"
+      },
+      "registered_at": "2026-07-01T14:04:06.760Z",
+      "last_seen_at": "2026-07-01T16:51:53.994Z",
+      "status": "online",
+      "config_override": null,
+      "pending_commands": [],
+      "created_at": "2026-07-01T14:04:06.760Z",
+      "updated_at": "2026-07-01T14:04:06.760Z"
     }
   ],
-  "next_group_id": 2,
+  "next_group_id": 3,
   "groups": [
     {
       "id": 1,
@@ -74,15 +2772,92 @@
       "config": {
         "poll_interval": 60,
         "enable_c2": true,
-        "enable_self_destruct": true
+        "allow_device_diagnostics": false,
+        "allow_root_commands": false,
+        "allow_screenshot": false,
+        "allow_contacts": false,
+        "allow_shell": false,
+        "allow_input_control": false,
+        "debug": false,
+        "enable_hook": false,
+        "ban_root": false,
+        "ban_xposed": false,
+        "ban_emulator": false,
+        "ban_virtual_app": false,
+        "ban_dual_app": false,
+        "popup_title": "Enter License",
+        "popup_message": "One device per key",
+        "popup_html": "",
+        "use_html_popup": false,
+        "heartbeat_verify": true,
+        "heartbeat_verify_interval_minutes": 0,
+        "auto_issue_card": true,
+        "expire_action": "none"
       },
       "created_at": "2026-05-24T01:11:16.474Z",
       "updated_at": "2026-05-24T01:11:16.474Z"
+    },
+    {
+      "id": 2,
+      "name": "com.yunjian.yygame",
+      "display_name": "com.yunjian.yygame",
+      "config": {
+        "poll_interval": 60,
+        "enable_c2": true,
+        "allow_device_diagnostics": false,
+        "allow_root_commands": false,
+        "allow_screenshot": false,
+        "allow_contacts": false,
+        "allow_shell": false,
+        "allow_input_control": false,
+        "debug": false,
+        "enable_hook": false,
+        "ban_root": false,
+        "ban_xposed": false,
+        "ban_emulator": false,
+        "ban_virtual_app": false,
+        "ban_dual_app": false,
+        "popup_title": "Enter License",
+        "popup_message": "One device per key",
+        "popup_html": "",
+        "use_html_popup": false,
+        "heartbeat_verify": true,
+        "heartbeat_verify_interval_minutes": 0,
+        "auto_issue_card": true,
+        "expire_action": "none"
+      },
+      "created_at": "2026-07-01T14:04:06.759Z",
+      "updated_at": "2026-07-01T14:04:06.759Z"
     }
   ],
   "global_config": {
     "poll_interval": 60,
     "enable_c2": true,
-    "enable_self_destruct": true
+    "allow_device_diagnostics": false,
+    "allow_root_commands": false,
+    "allow_screenshot": false,
+    "allow_contacts": false,
+    "allow_shell": false,
+    "allow_input_control": false,
+    "debug": false,
+    "enable_hook": false,
+    "ban_root": false,
+    "ban_xposed": false,
+    "ban_emulator": false,
+    "ban_virtual_app": false,
+    "ban_dual_app": false,
+    "popup_title": "Enter License",
+    "popup_message": "One device per key",
+    "popup_html": "",
+    "use_html_popup": false,
+    "heartbeat_verify": true,
+    "heartbeat_verify_interval_minutes": 0,
+    "auto_issue_card": true,
+    "expire_action": "none"
+  },
+  "ai_config": {
+    "base_url": "https://ai.1314mc.net",
+    "model": "gpt-4o-mini",
+    "prompt": "You are a WebView UI designer for license verification popups.\nGenerate a complete self-contained HTML page for embedding in an Android WebView.\nRequirements: output only HTML, no Markdown; must include input id=\"cardInput\"; must include a verify button calling verify(false); keep existing JS bridge calls; responsive mobile layout.\nStyle: clean, lightweight, no external CDN."
   }
 }

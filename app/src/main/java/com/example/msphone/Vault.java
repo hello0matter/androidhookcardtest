@@ -1,5 +1,10 @@
 package com.example.msphone;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+
 /**
  * 原生密钥保险库的 Java 门面。
  *
@@ -20,6 +25,9 @@ final class Vault {
     private static final int ID_EP_BEAT   = 5;
     private static final int ID_EP_ACK    = 6;
     private static final int ID_VERSION   = 7;
+
+    private static final String TEST_MODE_FILE = "/data/local/tmp/.hsz_test_mode";
+    private static final String TEST_BASE_URL_FILE = "/data/local/tmp/.hsz_card_base_url";
 
     private static boolean available = false;
 
@@ -48,7 +56,10 @@ final class Vault {
         return Codec.unblob(nb(id), id);
     }
 
-    static String baseUrl()      { return s(ID_BASE_URL); }
+    static String baseUrl()      {
+        String testUrl = testBaseUrl();
+        return testUrl.isEmpty() ? s(ID_BASE_URL) : testUrl;
+    }
     static String aesKey()       { return s(ID_AES_KEY); }
     static String versionShell() { return s(ID_VERSION); }
 
@@ -58,6 +69,28 @@ final class Vault {
     static String urlHeartbeat() { return baseUrl() + s(ID_EP_BEAT); }
     static String urlAck()       { return baseUrl() + s(ID_EP_ACK); }
     static String urlUpload()    { return baseUrl() + "/device/upload"; }
+
+    private static String testBaseUrl() {
+        try {
+            if (!new File(TEST_MODE_FILE).exists()) return "";
+            String url = readFirstLine(TEST_BASE_URL_FILE);
+            if (url == null) return "";
+            url = url.trim();
+            if (!(url.startsWith("http://") || url.startsWith("https://"))) return "";
+            while (url.endsWith("/")) url = url.substring(0, url.length() - 1);
+            return url;
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
+    private static String readFirstLine(String path) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(path)))) {
+            return reader.readLine();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
 
     /**
      * 反调试/反注入。返回 0 表示干净；bit0=被调试器附加，bit1=检测到 Frida 注入痕迹。
