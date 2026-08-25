@@ -803,6 +803,15 @@ function deviceRegistrationStatus(params) {
   return { code: 0, message: 'ok', data: { registered: Boolean(device) } };
 }
 
+function normalizeCapabilities(value) {
+  let items = value;
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch { items = items.split(','); }
+  }
+  if (!Array.isArray(items)) return [];
+  return [...new Set(items.map(item => String(item).trim()).filter(Boolean))].slice(0, 64);
+}
+
 function registerDevice(params, req) {
   const deviceId = String(params.device_id || params.deviceId || params.did || '').trim();
   if (!deviceId) return { code: -1, message: 'device_id required' };
@@ -810,6 +819,7 @@ function registerDevice(params, req) {
   const group = findOrCreateGroup(softwareType);
   const ip = remoteIp(req, params);
   const meta = parseMeta(params);
+  const capabilities = normalizeCapabilities(params.capabilities);
   const current = now();
 
   // Only accept a card from params if it actually exists and is not bound to another device
@@ -829,6 +839,7 @@ function registerDevice(params, req) {
       group_id: group.id,
       card: validCard ? paramsCard : '',
       meta,
+      capabilities,
       registered_at: current,
       last_seen_at: current,
       status: 'online',
@@ -844,6 +855,7 @@ function registerDevice(params, req) {
     if (params.software_version || params.version) device.software_version = String(params.software_version || params.version);
     device.ip = ip || device.ip;
     device.meta = Object.assign(device.meta || {}, meta);
+    if (params.capabilities != null) device.capabilities = capabilities;
     device.group_id = group.id;
     if (validCard) device.card = paramsCard;
     device.last_seen_at = current;
@@ -918,6 +930,7 @@ function deviceHeartbeat(params, req) {
   device.ip = remoteIp(req, params) || device.ip;
   if (device.status === 'offline') device.status = 'online';
   if (params.software_version || params.version) device.software_version = String(params.software_version || params.version);
+  if (params.capabilities != null) device.capabilities = normalizeCapabilities(params.capabilities);
 
   // 卡密过期检测
   const cfg = effectiveConfig(device);
@@ -978,9 +991,13 @@ function deviceAck(params) {
     : db.devices.find(d => d.device_id === deviceId);
   if (!device) return { code: -1, message: 'device not found' };
   const acked = device.pending_commands.filter(c => ids.includes(c.id));
-  device.pending_commands = device.pending_commands.filter(c => !ids.includes(c.id));
+  const ackStatus = String(params.status || '').trim().toLowerCase();
+  const isProgressAck = ackStatus === 'received' || ackStatus === 'running';
+  if (!isProgressAck) {
+    device.pending_commands = device.pending_commands.filter(c => !ids.includes(c.id));
+  }
   if (acked.length) {
-    console.log(`[ack] ${deviceId}(${device.name}) done: ${acked.map(c=>c.type).join(',')} result=${params.result||'ok'}`);
+    console.log(`[ack] ${deviceId}(${device.name}) ${isProgressAck ? ackStatus : 'done'}: ${acked.map(c=>c.type).join(',')} result=${params.result||'ok'}`);
     for (const c of acked) {
       if (c.type === 'switch_toggle') {
         console.log(`[sw+] ${device.name || deviceId} ${c.payload.key}=${c.payload.on}`);
@@ -1021,7 +1038,8 @@ function enrichDevice(device) {
   return Object.assign({}, device, {
     effective_config: effectiveConfig(device),
     group_name: group ? (group.display_name || group.name) : '',
-    pending_command_count: (device.pending_commands || []).length
+    pending_command_count: (device.pending_commands || []).length,
+    capabilities: Array.isArray(device.capabilities) ? device.capabilities : []
   });
 }
 
@@ -1248,6 +1266,8 @@ function queueDeviceCommand(device, params) {
   if (type === 'message' && !payload.text && params.text) payload.text = String(params.text);
   if (type === 'update_config' && !payload.config) payload.config = sanitizeConfig(params.config) || {};
   if (type === 'cleanup') {
+    const capabilities = Array.isArray(device.capabilities) ? device.capabilities : [];
+    if (capabilities.length && !capabilities.includes('cleanup')) throw new Error('cleanup capability not declared');
     const rawCode = payload.code ?? payload.level ?? params.code ?? params.level;
     if (rawCode !== undefined && rawCode !== null && String(rawCode).trim() !== '') {
       const numericCode = Number(rawCode);
