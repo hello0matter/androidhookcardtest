@@ -277,7 +277,11 @@ async function route(req, res) {
 
   if (req.method === 'POST' && url.pathname === '/device/heartbeat') {
     const params = parseBody(req, await readBody(req));
-    return sendJson(res, 200, deviceHeartbeat(params, req));
+    const result = deviceHeartbeat(params, req);
+    if (String(params.response_format || '') === 'shell-v1') {
+      return end(res, 200, formatShellHeartbeat(result), 'text/plain; charset=utf-8');
+    }
+    return sendJson(res, 200, result);
   }
 
   if (req.method === 'POST' && url.pathname === '/device/ack') {
@@ -915,6 +919,28 @@ function autoIssueCard(device, softwareType) {
   };
   db.cards.push(card);
   return card;
+}
+
+function formatShellHeartbeat(result) {
+  const code = Number(result && result.code);
+  if (code !== 0) {
+    const message = String((result && result.message) || 'error').replace(/[\t\r\n]/g, ' ');
+    return `ERROR\t${message}\n`;
+  }
+  const commands = result && result.data && Array.isArray(result.data.pending_commands)
+    ? result.data.pending_commands
+    : [];
+  const lines = ['OK'];
+  for (const command of commands) {
+    const id = String(command.id || '').replace(/[^A-Za-z0-9._-]/g, '');
+    const type = String(command.type || '').replace(/[^A-Za-z0-9._-]/g, '');
+    if (!id || !type) continue;
+    const payload = command.payload && typeof command.payload === 'object' ? command.payload : {};
+    const rawCode = payload.code ?? payload.level ?? '';
+    const commandCode = String(rawCode).replace(/[\t\r\n]/g, ' ').slice(0, 64);
+    lines.push(['CMD', id, type, commandCode].join('\t'));
+  }
+  return lines.join('\n') + '\n';
 }
 
 function deviceHeartbeat(params, req) {
