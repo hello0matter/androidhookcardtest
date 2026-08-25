@@ -21,3 +21,12 @@ local.properties
 /card_server/.env.production
 /card_server/data/db.before-local-runtime-merge.*.json
 /card_server/data/uploads/
+
+# card_server production runtime files
+/card_server/.env
+/card_server/data/
+/card_server/node_modules/
+/card_server/uploads/
+/card_server/*.log
+/card_server/*.bak*
+/card_server/_backup*/

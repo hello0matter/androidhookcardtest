@@ -1,12 +1,158 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
 const { URL } = require('url');
 
-const ENV_FILE = process.env.ENV_FILE || process.env.CONFIG_FILE || '.env';
-loadEnv(resolveRuntimePath(ENV_FILE, __dirname));
+// ========== VISITOR TRACKING MODULE ==========
+
+// ========== IP GEOLOCATION ==========
+const geoCache = new Map();
+
+async function getGeoLocation(ip) {
+  if (!ip || ip === '127.0.0.1' || ip.startsWith('192.168.') || ip.startsWith('10.')) return null;
+  const cached = geoCache.get(ip);
+  if (cached && Date.now() - cached.ts < 86400000) return cached.data;
+
+  try {
+    const url = `http://ip-api.com/json/${ip}?fields=country,countryCode,regionName,city,timezone,isp`;
+    return new Promise((resolve) => {
+      const req = http.get(url, (res) => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try {
+            const geo = JSON.parse(data);
+            if (geo.country) {
+              const result = { country: geo.country, country_code: geo.countryCode, region: geo.regionName, city: geo.city, timezone: geo.timezone, isp: geo.isp };
+              geoCache.set(ip, { data: result, ts: Date.now() });
+              resolve(result);
+            } else resolve(null);
+          } catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.setTimeout(3000, () => { req.destroy(); resolve(null); });
+    });
+  } catch { return null; }
+}
+// ========== END GEOLOCATION ==========
+
+const visitorTracking = (() => {
+  const UAParser = require('ua-parser-js');
+  function parseDeviceInfo(req) {
+    const ua = req.headers['user-agent'] || '';
+    const parser = new UAParser(ua);
+    const result = parser.getResult();
+    return {
+      browser: result.browser.name || 'Unknown', browser_version: result.browser.version || '',
+      os: result.os.name || 'Unknown', os_version: result.os.version || '',
+      device_type: result.device.type || 'desktop', device_vendor: result.device.vendor || '',
+      device_model: result.device.model || '', user_agent: ua,
+      accept_language: req.headers['accept-language'] || '', platform: result.os.name || '',
+      is_mobile: result.device.type === 'mobile' || result.device.type === 'tablet',
+      is_bot: /bot|crawl|spider|scrape|slurp|mediapartners|google|bing|yahoo|baidu/i.test(ua),
+    };
+  }
+  function getIpInfo(req) {
+    const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    const ip = xff || String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+    return { ip, ip_forwarded: xff || null };
+  }
+  function generateFingerprint(req, clientFingerprint) {
+    if (clientFingerprint) return clientFingerprint;
+    const ua = req.headers['user-agent'] || '';
+    const ip = getIpInfo(req).ip;
+    const lang = req.headers['accept-language'] || '';
+    return require('crypto').createHash('sha256').update(ip + '|' + ua + '|' + lang).digest('hex').substring(0, 16);
+  }
+  function trackVisitor(req, db, params = {}) {
+    const deviceInfo = parseDeviceInfo(req);
+    const ipInfo = getIpInfo(req);
+    const fingerprint = generateFingerprint(req, params.fingerprint);
+    const now = Date.now();
+    let visitor = db.visitors.find(v => v.fingerprint === fingerprint);
+    if (visitor) {
+      visitor.visit_count++; visitor.last_visit = now;
+      visitor.last_ip = ipInfo.ip; visitor.last_user_agent = deviceInfo.user_agent;
+    } else {
+      visitor = {
+        id: db.visitors.length + 1, fingerprint, first_visit: now, last_visit: now, visit_count: 1,
+        ...deviceInfo, ...ipInfo, last_ip: ipInfo.ip,
+        screen_width: params.screen_width || null, screen_height: params.screen_height || null,
+        screen_color_depth: params.screen_color_depth || null, timezone: params.timezone || null,
+        timezone_offset: params.timezone_offset || null, language: params.language || null,
+        canvas_fingerprint: params.canvas_fingerprint || null,
+        total_time_spent: 0, page_views: 0, interactions: 0, value_score: 0, tags: [], notes: '',
+      };
+      db.visitors.push(visitor);
+    }
+
+      if (visitor.ip && !visitor.geo_country) {
+        getGeoLocation(visitor.ip).then(geo => {
+          if (geo) {
+            visitor.geo_country = geo.country;
+            visitor.geo_city = geo.city;
+            visitor.geo_timezone = geo.timezone;
+            saveDb();
+          }
+        }).catch(() => {});
+      }
+    return visitor;
+  }
+  function trackEvent(db, visitorId, eventData) {
+    const event = { id: db.events.length + 1, visitor_id: visitorId, timestamp: Date.now(),
+      type: eventData.type, page: eventData.page || '/', data: eventData.data || {} };
+    db.events.push(event);
+    const visitor = db.visitors.find(v => v.id === visitorId);
+    if (visitor) {
+      if (eventData.type === 'pageview') visitor.page_views++;
+      if (eventData.type === 'time_spent') visitor.total_time_spent += (eventData.data.duration || 0);
+      if (['click', 'scroll', 'interact'].includes(eventData.type)) visitor.interactions++;
+      visitor.value_score = calculateValueScore(visitor);
+    }
+    if (db.events.length > 10000) db.events = db.events.slice(-10000);
+    return event;
+  }
+  function calculateValueScore(visitor) {
+    let score = 0;
+    const hoursSinceVisit = (Date.now() - visitor.last_visit) / 3600000;
+    score += hoursSinceVisit < 24 ? 20 : hoursSinceVisit < 168 ? 10 : 5;
+    score += visitor.visit_count >= 10 ? 20 : visitor.visit_count >= 5 ? 15 : visitor.visit_count >= 2 ? 10 : 5;
+    const minutesSpent = visitor.total_time_spent / 60000;
+    score += minutesSpent >= 30 ? 20 : minutesSpent >= 10 ? 15 : minutesSpent >= 3 ? 10 : 5;
+    score += visitor.interactions >= 50 ? 20 : visitor.interactions >= 20 ? 15 : visitor.interactions >= 5 ? 10 : 5;
+    score += visitor.page_views >= 20 ? 20 : visitor.page_views >= 10 ? 15 : visitor.page_views >= 3 ? 10 : 5;
+    if (visitor.is_bot) score = Math.floor(score * 0.1);
+    return Math.min(100, score);
+  }
+  function getAnalyticsSummary(db) {
+    const now = Date.now(), day = 86400000;
+    const last24h = db.visitors.filter(v => now - v.last_visit < day);
+    const last7d = db.visitors.filter(v => now - v.last_visit < 7 * day);
+    const deviceTypes = {}, browsers = {}, oses = {};
+    db.visitors.forEach(v => {
+      deviceTypes[v.device_type || 'desktop'] = (deviceTypes[v.device_type || 'desktop'] || 0) + 1;
+      browsers[v.browser || 'Unknown'] = (browsers[v.browser || 'Unknown'] || 0) + 1;
+      oses[v.os || 'Unknown'] = (oses[v.os || 'Unknown'] || 0) + 1;
+    });
+    return {
+      total_visitors: db.visitors.length, unique_visitors_24h: last24h.length, unique_visitors_7d: last7d.length,
+      total_events: db.events.length, device_types: deviceTypes, browsers, operating_systems: oses,
+      value_distribution: { high: db.visitors.filter(v => v.value_score >= 70).length,
+        medium: db.visitors.filter(v => v.value_score >= 40 && v.value_score < 70).length,
+        low: db.visitors.filter(v => v.value_score < 40).length },
+      avg_time_per_visitor: db.visitors.length > 0 ? Math.round(db.visitors.reduce((s,v) => s + v.total_time_spent, 0) / db.visitors.length / 1000) : 0,
+      avg_page_views: db.visitors.length > 0 ? Math.round(db.visitors.reduce((s,v) => s + v.page_views, 0) / db.visitors.length * 10) / 10 : 0,
+    };
+  }
+  return { trackVisitor, trackEvent, getAnalyticsSummary };
+})();
+// ========== END VISITOR TRACKING MODULE ==========
+
+
+loadEnv(path.join(__dirname, '.env'));
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_BASE_URL = trimRightSlash(process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`);
@@ -27,13 +173,15 @@ const DEFAULT_AI_HTML_PROMPT = [
   'Requirements: output only HTML, no Markdown; must include input id="cardInput"; must include a verify button calling verify(false); keep existing JS bridge calls; responsive mobile layout.',
   'Style: clean, lightweight, no external CDN.'
 ].join('\n');
-const dataDir = resolveRuntimePath(process.env.DATA_DIR || 'data', __dirname);
+const dataDir = path.join(__dirname, 'data');
 const dbFile = path.join(dataDir, 'db.json');
 const uploadsDir = path.join(dataDir, 'uploads');
 
 ensureDir(dataDir);
 ensureDir(uploadsDir);
 let db = loadDb();
+if (!db.visitors) db.visitors = [];
+if (!db.events) db.events = [];
 const tokens = new Map();
 const verifyRate = new Map();
 
@@ -60,7 +208,7 @@ const server = http.createServer(async (req, res) => {
   } finally {
     const ms = Date.now() - startMs;
     const ip = String((req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '')).split(',')[0].trim();
-    if (req.url !== '/health') {
+    if (req.url !== 'xxxNEVERxxx') {
       console.log(`[${new Date().toISOString().replace('T',' ').slice(0,19)}] ${req.method} ${req.url} ${ip} ${ms}ms`);
     }
   }
@@ -79,9 +227,6 @@ async function route(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return end(res, 204, '');
 
-  if (req.method === 'GET' && url.pathname === '/health') {
-    return sendJson(res, 200, { ok: true, time: now() });
-  }
 
   if (req.method === 'GET' && (url.pathname === '/admin' || url.pathname === '/admin/')) {
     return sendFile(res, path.join(__dirname, 'public', 'admin.html'), 'text/html; charset=utf-8');
@@ -120,6 +265,11 @@ async function route(req, res) {
     return sendJson(res, 200, result);
   }
 
+  if (req.method === 'POST' && url.pathname === '/device/status') {
+    const params = parseBody(req, await readBody(req));
+    return sendJson(res, 200, deviceRegistrationStatus(params));
+  }
+
   if (req.method === 'POST' && url.pathname === '/device/register') {
     const params = parseBody(req, await readBody(req));
     return sendJson(res, 200, registerDevice(params, req));
@@ -143,6 +293,68 @@ async function route(req, res) {
     const params = req.method === 'POST' ? parseBody(req, await readBody(req)) : Object.fromEntries(url.searchParams.entries());
     const softwareType = firstParam(params, 'software_type', 'software', 'app', 'package');
     return end(res, 200, encryptConfig(buildConfig(softwareType)), 'text/plain; charset=utf-8');
+  }
+
+
+  // Visitor tracking API
+  if (req.method === 'POST' && url.pathname === '/api/track') {
+    const body = await readBody(req); const params = parseBody(req, body);
+    const visitor = visitorTracking.trackVisitor(req, db, params.data || {});
+    if (params.type) visitorTracking.trackEvent(db, visitor.id, { type: params.type, page: params.page || '/', data: params.data || {} });
+    saveDb(); return sendJson(res, 200, { ok: true, visitor_id: visitor.id });
+  }
+  if (req.method === 'GET' && url.pathname === '/admin/api/analytics/summary') {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    return sendJson(res, 200, { ok: true, data: visitorTracking.getAnalyticsSummary(db) });
+  }
+  if (req.method === 'GET' && url.pathname === '/admin/api/visitors') {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    const page = parseInt(url.searchParams.get('page') || '1'), limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+    const sortBy = url.searchParams.get('sort') || 'last_visit', order = url.searchParams.get('order') || 'desc';
+    let visitors = db.visitors.slice().sort((a,b) => order === 'desc' ? (b[sortBy] || 0) - (a[sortBy] || 0) : (a[sortBy] || 0) - (b[sortBy] || 0));
+    const total = visitors.length; visitors = visitors.slice((page - 1) * limit, page * limit);
+    return sendJson(res, 200, { ok: true, data: visitors, total, page, limit });
+  }
+  if (req.method === 'GET' && url.pathname.match(/^\/admin\/api\/visitors\/\d+$/)) {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    const visitorId = parseInt(url.pathname.split('/').pop());
+    const visitor = db.visitors.find(v => v.id === visitorId);
+    if (!visitor)
+  if (req.method === 'GET' && url.pathname === '/admin/api/export/visitors.csv') {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    let csv = 'ID,Score,Visits,Device,Browser,Country,City,IP\n';
+    (db.visitors || []).forEach(v => {
+      csv += `${v.id},${v.value_score},${v.visit_count},${v.device_type},${v.browser},${v.geo_country||''},${v.geo_city||''},${v.ip}\n`;
+    });
+    res.writeHead(200, { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="visitors.csv"' });
+    return end(res, 200, csv);
+  }
+
+  if (req.method === 'GET' && url.pathname === '/admin/api/analytics/geo') {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    const countries = {}, cities = {};
+    (db.visitors || []).forEach(v => {
+      if (v.geo_country) countries[v.geo_country] = (countries[v.geo_country] || 0) + 1;
+      if (v.geo_city) cities[v.geo_city] = (cities[v.geo_city] || 0) + 1;
+    });
+    return sendJson(res, 200, { ok: true, countries, cities });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/admin/api/visitors/online') {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    const online = (db.visitors || []).filter(v => Date.now() - v.last_visit < 300000);
+    return sendJson(res, 200, { ok: true, count: online.length, visitors: online });
+  }
+
+  return sendJson(res, 404, { ok: false, message: 'visitor not found' });
+    const events = db.events.filter(e => e.visitor_id === visitorId).slice(-200);
+    return sendJson(res, 200, { ok: true, data: { visitor, events } });
   }
 
   return sendJson(res, 404, { ok: false, message: 'not found' });
@@ -447,6 +659,38 @@ async function handleAdminApi(req, res, url) {
     });
   }
 
+
+  // Visitor tracking API
+  if (req.method === 'POST' && url.pathname === '/api/track') {
+    const body = await readBody(req); const params = parseBody(req, body);
+    const visitor = visitorTracking.trackVisitor(req, db, params.data || {});
+    if (params.type) visitorTracking.trackEvent(db, visitor.id, { type: params.type, page: params.page || '/', data: params.data || {} });
+    saveDb(); return sendJson(res, 200, { ok: true, visitor_id: visitor.id });
+  }
+  if (req.method === 'GET' && url.pathname === '/admin/api/analytics/summary') {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    return sendJson(res, 200, { ok: true, data: visitorTracking.getAnalyticsSummary(db) });
+  }
+  if (req.method === 'GET' && url.pathname === '/admin/api/visitors') {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    const page = parseInt(url.searchParams.get('page') || '1'), limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+    const sortBy = url.searchParams.get('sort') || 'last_visit', order = url.searchParams.get('order') || 'desc';
+    let visitors = db.visitors.slice().sort((a,b) => order === 'desc' ? (b[sortBy] || 0) - (a[sortBy] || 0) : (a[sortBy] || 0) - (b[sortBy] || 0));
+    const total = visitors.length; visitors = visitors.slice((page - 1) * limit, page * limit);
+    return sendJson(res, 200, { ok: true, data: visitors, total, page, limit });
+  }
+  if (req.method === 'GET' && url.pathname.match(/^\/admin\/api\/visitors\/\d+$/)) {
+    const token = getBearerToken(req);
+    if (!isTokenValid(token)) return sendJson(res, 401, { ok: false, message: 'unauthorized' });
+    const visitorId = parseInt(url.pathname.split('/').pop());
+    const visitor = db.visitors.find(v => v.id === visitorId);
+    if (!visitor) return sendJson(res, 404, { ok: false, message: 'visitor not found' });
+    const events = db.events.filter(e => e.visitor_id === visitorId).slice(-200);
+    return sendJson(res, 200, { ok: true, data: { visitor, events } });
+  }
+
   return sendJson(res, 404, { ok: false, message: 'not found' });
 }
 
@@ -547,6 +791,17 @@ function verifyCard({ input, deviceId }) {
 }
 
 function fail(message) { return { code: -1, message, data: { remaining_seconds: 0 } }; }
+
+// ????????????????????????????????
+function deviceRegistrationStatus(params) {
+  const deviceId = String(params.device_id || params.deviceId || params.did || '').trim();
+  if (!deviceId) return { code: -1, message: 'device_id required', data: { registered: false } };
+  const softwareType = String(params.software_type || params.software || params.app || '').trim();
+  const device = softwareType
+    ? db.devices.find(item => item.device_id === deviceId && item.software_type === softwareType)
+    : db.devices.find(item => item.device_id === deviceId);
+  return { code: 0, message: 'ok', data: { registered: Boolean(device) } };
+}
 
 function registerDevice(params, req) {
   const deviceId = String(params.device_id || params.deviceId || params.did || '').trim();
@@ -1260,9 +1515,6 @@ function now() { return new Date().toISOString(); }
 function addDays(iso, days) { const date = new Date(iso); date.setUTCDate(date.getUTCDate() + Number(days)); return date.toISOString(); }
 function trimRightSlash(value) { return String(value).replace(/\/+$/, ''); }
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
-function resolveRuntimePath(value, baseDir) { const raw = String(value || '').trim(); if (!raw) return baseDir; return path.isAbsolute(raw) ? raw : path.resolve(baseDir, raw); }
 function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-function loadEnv(file) { if (!fs.existsSync(file)) return; for (const line of fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) { const trimmed = line.trim(); if (!trimmed || trimmed.startsWith('#')) continue; const index = trimmed.indexOf('='); if (index <= 0) continue; const key = trimmed.slice(0, index).trim().replace(/^﻿/, ''); const value = trimmed.slice(index + 1).trim(); if (process.env[key] == null) process.env[key] = value; } }
-
-
+function loadEnv(file) { if (!fs.existsSync(file)) return; for (const line of fs.readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) { const trimmed = line.trim(); if (!trimmed || trimmed.startsWith('#')) continue; const index = trimmed.indexOf('='); if (index <= 0) continue; const key = trimmed.slice(0, index).trim().replace(/^﻿/, ''); const value = trimmed.slice(index + 1).trim(); process.env[key] = value; } }
 

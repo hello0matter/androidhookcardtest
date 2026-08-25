@@ -1,9 +1,12 @@
-﻿{
+{
   "name": "baibu-card-server",
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
   "scripts": {
     "start": "node server.js"
+  },
+  "dependencies": {
+    "ua-parser-js": "^2.0.10"
   }
 }
