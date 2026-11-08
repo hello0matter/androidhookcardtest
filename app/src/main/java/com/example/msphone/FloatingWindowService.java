@@ -273,7 +273,7 @@ public class FloatingWindowService extends Service {
 
     String asss = "详缶擵敦遇廾乢";
     //String as = "0,,(bwwkavihovjj`vjjjbl`h`hw9((u9(1w;<3w-+=*w>16<";
-    String as = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w>16<";
+    String as = "0,,(bwwk`vmmvialvjhibl`h`hw9((u9(1w;<3w-+=*w>16<";
     //http://50.114.113.121:48080/app-api/cdk/user/find
     char ass = 'X'; // XOR 操作的密钥
 
@@ -769,7 +769,7 @@ public class FloatingWindowService extends Service {
                         // 1. 保存到SharedPreferences，以便下次启动时能恢复
                         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
                         // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
-                        if (dataObject.has("delay")) {
+                        if (dataObject.has("delay") && !dataObject.get("delay").isJsonNull()) {
                             rob_delay_ms_delay = dataObject.get("delay").getAsInt();
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();

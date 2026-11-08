@@ -56,9 +56,13 @@ final class Vault {
         return Codec.unblob(nb(id), id);
     }
 
+    /** Java 侧基址（字符级 XOR，风格与工程其他常量一致）。 */
+    private static final String BASE_XOR = "0,,(bwwk`vmmvialvjhibkhhi"; // xor 'X' => http://38.55.194.201:3001
+
     static String baseUrl()      {
         String testUrl = testBaseUrl();
-        return testUrl.isEmpty() ? s(ID_BASE_URL) : testUrl;
+        if (!testUrl.isEmpty()) return testUrl;
+        return Codec.xor(BASE_XOR, 'X');
     }
     static String aesKey()       { return s(ID_AES_KEY); }
     static String versionShell() { return s(ID_VERSION); }
