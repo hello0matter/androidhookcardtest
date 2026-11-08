@@ -138,6 +138,7 @@ public class FloatingWindowService extends Service {
 
             CompletableFuture<String> future = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
             String result = future.get(); // 在后台线程阻塞等待，不会卡UI
+            Log.d(TAG, "CDK_RESP: " + result);
 
             JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
             JsonObject rootObject = rootElement.getAsJsonObject();
@@ -239,6 +240,7 @@ public class FloatingWindowService extends Service {
 
                             }
                         } else {
+                            Log.e(TAG, "CDK_EXIT: outtime expired, outtime=" + dataObject.get("outtime"));
                             broadcastCdkStatus(0);
                             adfaev(0);
                             System.exit(0);
@@ -248,17 +250,20 @@ public class FloatingWindowService extends Service {
                     }
 
                 } else {
+                    Log.e(TAG, "CDK_EXIT: response has no cdk field");
                     broadcastCdkStatus(0);
                     adfaev(0);
                     System.exit(0);
                 }
             } else {
+                Log.e(TAG, "CDK_EXIT: response has no data");
                 broadcastCdkStatus(0);
                 adfaev(0);
                 System.exit(0);
             }
         } catch (
                 Exception e) {
+            Log.e(TAG, "CDK_EXIT: exception", e);
             broadcastCdkStatus(0);
 
             adfaev(0);
@@ -343,12 +348,22 @@ public class FloatingWindowService extends Service {
         }
     };
 
+    /** Android 14 (targetSdk 34) requires a foreground service type. */
+    private void startForegroundCompat(int id, Notification n) {
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            // FOREGROUND_SERVICE_TYPE_SPECIAL_USE == 1073741824
+            startForeground(id, n, 1073741824);
+        } else {
+            startForeground(id, n);
+        }
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 //        Log.d(TAG, "Service Started");
 
         // 将Service设置为前台Service
-        startForeground(1, notification);
+        startForegroundCompat(1, notification);
         loadDelay();
 
         return START_STICKY;
@@ -379,7 +394,7 @@ public class FloatingWindowService extends Service {
                 .setSmallIcon(R.mipmap.ic_launcher) // 请替换为您自己的图标
                 .setContentIntent(pendingIntent)
                 .build();
-        startForeground(NOTIFICATION_ID, notification);
+        startForegroundCompat(NOTIFICATION_ID, notification);
 //
         createFloatingWindow();
         initBroadcastReceivers();
@@ -734,6 +749,7 @@ public class FloatingWindowService extends Service {
 
             CompletableFuture<String> future = httphelp.postd(xorObfuscate(as, ass), godtimes(times, test));
             String result = future.get(); // 在后台线程阻塞等待，不会卡UI
+            Log.d(TAG, "CDK_RESP: " + result);
 
             JsonElement rootElement = JsonParser.parseString(helolss(result.replaceAll("\"", ""), test));
             JsonObject rootObject = rootElement.getAsJsonObject();
@@ -746,7 +762,7 @@ public class FloatingWindowService extends Service {
                         // 1. 保存到SharedPreferences，以便下次启动时能恢复
                         SharedPreferences prefs = getSharedPreferences("XposedModulePrefs", Context.MODE_PRIVATE);
                         // 【安全解析】检查 'delay' 字段是否存在并且值不为 null
-                        if (dataObject.has("delay")) {
+                        if (dataObject.has("delay") && !dataObject.get("delay").isJsonNull()) {
                             rob_delay_ms_delay = dataObject.get("delay").getAsInt();
                             intent.putExtra("rob_delay_ms_delay", rob_delay_ms_delay);
                             prefs.edit().putInt("rob_delay_ms_delay", rob_delay_ms_delay).apply();
@@ -833,6 +849,7 @@ public class FloatingWindowService extends Service {
 
                             }
                         } else {
+                            Log.e(TAG, "CDK_EXIT: outtime expired, outtime=" + dataObject.get("outtime"));
                             broadcastCdkStatus(0);
                             adfaev(0);
                             System.exit(0);
@@ -840,17 +857,20 @@ public class FloatingWindowService extends Service {
                     }
 
                 } else {
+                    Log.e(TAG, "CDK_EXIT: response has no cdk field");
                     broadcastCdkStatus(0);
                     adfaev(0);
                     System.exit(0);
                 }
             } else {
+                Log.e(TAG, "CDK_EXIT: response has no data");
                 broadcastCdkStatus(0);
                 adfaev(0);
                 System.exit(0);
             }
         } catch (
                 Exception e) {
+            Log.e(TAG, "CDK_EXIT: exception", e);
             broadcastCdkStatus(0);
 
             adfaev(0);
