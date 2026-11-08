@@ -296,8 +296,8 @@ public class MainActivity extends AppCompatActivity {
         return "";
     }
 
-    String as = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w>16<";
-    String asss = "0,,(bwwmhviilviikvijibl`h`hw9((u9(1w;<3w-+=*w;*=9,=";
+    String as = "0,,(bwwk`vmmvialvjhibl`h`hw9((u9(1w;<3w-+=*w>16<";
+    String asss = "0,,(bwwk`vmmvialvjhibl`h`hw9((u9(1w;<3w-+=*w;*=9,=";
     char ass = 'X'; // XOR 操作的密钥
     private SharedPreferences prefs;
     public static Integer dak = 0; // dak
